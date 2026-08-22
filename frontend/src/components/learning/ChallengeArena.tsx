@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Copy, ArrowLeft, Lightbulb, CheckCircle2, AlertCircle, Zap } from 'lucide-react';
+import { Copy, ArrowLeft, Lightbulb, CheckCircle2, AlertCircle, Zap, Code2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { soundService } from '@/services/soundService';
 import type { Challenge } from '@/services/challengeEngine';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { useTheme } from '@/contexts/ThemeContext';
 
 function parseContent(content: string) {
   if (!content) return { objectives: '', concept: '', flowchart: '' };
@@ -88,6 +89,9 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
   lessonContent,
   courseId,
 }) => {
+  const { kqAppearance } = useTheme();
+  const isNightMode = kqAppearance === 'night';
+
   const [studentInput, setStudentInput] = useState('');
   const [selectedOption, setSelectedOption] = useState('');
   const [orderedSelection, setOrderedSelection] = useState<string[]>([]);
@@ -209,76 +213,74 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
   };
 
   return (
-    <div className="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-6 font-mono text-slate-200 animate-in fade-in duration-300">
+    <div className="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 flex flex-col gap-6 font-['Sora'] text-slate-850 dark:text-slate-200 transition-colors duration-300 animate-in fade-in">
       
       {/* Back to Mission Navigation Header */}
-      <div className="flex items-center justify-between border-b border-slate-900 pb-4">
+      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800/80 pb-4">
         <button
           onClick={onBackToMap}
-          className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border border-slate-800 hover:border-primary hover:text-primary text-slate-400 text-xs font-black rounded-xl cursor-pointer transition-all active:scale-95"
+          className="flex items-center gap-2 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-primary hover:text-primary text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl cursor-pointer transition-all active:scale-95 shadow-xs"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>◀ MISSION MAP</span>
         </button>
-        <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-widest bg-slate-950 px-3 py-1 rounded-md border border-slate-900">
+        <span className="text-[10px] text-slate-600 dark:text-slate-400 font-extrabold uppercase tracking-widest bg-slate-100 dark:bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-900 font-mono">
           🎯 PRACTICE ACTIVE
         </span>
       </div>
 
       {/* Challenge Title HUD */}
-      <div className="bg-slate-900/50 border border-slate-805 rounded-3xl p-6 relative overflow-hidden backdrop-blur-md">
+      <div className="bg-white/90 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-7 relative overflow-hidden backdrop-blur-md shadow-xs dark:shadow-md">
         <div className="absolute inset-0 bg-radial-gradient(circle at center right, rgba(249,115,22,0.06), transparent) pointer-events-none" />
         
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <span className="text-[9px] font-black uppercase text-primary tracking-widest font-mono bg-primary/10 border border-primary/20 px-2.5 py-1 rounded">
+          <div className="space-y-1.5">
+            <span className="text-[9.5px] font-black uppercase text-primary tracking-widest font-mono bg-primary/10 border border-primary/20 px-2.5 py-1 rounded-md inline-block">
               🎯 MISSION {challenge.missionNum} • LEVEL {challenge.missionNum}
             </span>
             <h2 
-              className="text-xl sm:text-2xl font-black text-primary mt-1 font-sans tracking-tight uppercase"
-              style={{ textShadow: '0 0 8px var(--kq-glow)' }}
+              className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 dark:text-white mt-1 font-heading tracking-tight"
             >
               {challenge.title}
             </h2>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5 font-mono text-[10px]">
-            <span className="px-2.5 py-1 font-black bg-slate-955 border border-slate-850 rounded-lg text-amber-500">
+          <div className="flex flex-wrap items-center gap-2.5 font-mono text-[10.5px]">
+            <span className="px-3 py-1.5 font-black bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 rounded-xl text-amber-600 dark:text-amber-400 shadow-2xs">
               ⚡ +50 XP
             </span>
-            <span className="px-2.5 py-1 font-black bg-slate-955 border border-slate-850 rounded-lg text-slate-400">
+            <span className="px-3 py-1.5 font-bold bg-slate-100 dark:bg-slate-955 border border-slate-200 dark:border-slate-850 rounded-xl text-slate-600 dark:text-slate-400">
               ⏱ {(challenge as any).duration || '15 mins'}
             </span>
-            <span className="px-2.5 py-1 font-black bg-primary/20 border border-primary/40 rounded-lg text-primary uppercase tracking-wider">
-              🏆 CONTENT {revealedStageCount} / {totalContentStages}
-            </span>
-            <span className="px-2.5 py-1 font-black bg-primary text-slate-955 rounded-lg animate-pulse uppercase tracking-wider">
-              ⚡ CURRENT
+            <span className="px-3 py-1.5 font-bold bg-primary/15 border border-primary/30 rounded-xl text-primary uppercase tracking-wider">
+              🏆 STEP {revealedStageCount} / {totalContentStages}
             </span>
           </div>
         </div>
       </div>
 
       {/* Arena Grid Details */}
-      <div className="grid grid-cols-1 lg:grid-cols-[68%_minmax(0,1fr)] gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[64%_minmax(0,1fr)] xl:grid-cols-[66%_minmax(0,1fr)] gap-8 items-start">
         
         {/* Left Column: Learn & See Example (Gamified Content Progression) */}
         <div className="space-y-6">
           {/* Mission Start Banner */}
-          <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-4 flex items-center justify-between shadow-xl">
+          <div className="bg-white/90 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-4 sm:p-5 flex items-center justify-between shadow-xs dark:shadow-md">
             <div className="flex items-center gap-3">
-              <span className="text-xl">🎯</span>
+              <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 flex items-center justify-center text-xl shrink-0">
+                🎯
+              </div>
               <div>
-                <h4 className="text-[10px] font-mono uppercase tracking-widest text-primary font-black">
-                  MISSION SEQUENCE STARTED
+                <h4 className="text-[10px] font-mono uppercase tracking-widest text-amber-600 dark:text-amber-400 font-bold">
+                  LESSON SEQUENCE
                 </h4>
-                <p className="text-xs font-sans font-bold text-white uppercase tracking-wide">
+                <p className="text-xs sm:text-sm font-heading font-extrabold text-slate-900 dark:text-white tracking-tight">
                   {challenge.title}
                 </p>
               </div>
             </div>
-            <span className="px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-[9px] font-mono font-black text-primary animate-pulse uppercase tracking-wider">
-              ACTIVE MISSION
+            <span className="px-3 py-1 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 rounded-full text-[9.5px] font-mono font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
+              ACTIVE NODE
             </span>
           </div>
 
@@ -290,22 +292,23 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
             const isNew = idx === revealedStageCount - 1;
             const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
             const animClass = isNew && !prefersReducedMotion
-              ? 'animate-in fade-in slide-in-from-bottom-3.5 duration-500 shadow-[0_0_15px_var(--kq-glow)] border-l-4 border-l-primary/60'
-              : 'border-l-4 border-l-slate-800';
+              ? 'animate-in fade-in slide-in-from-bottom-3.5 duration-500 shadow-sm border-l-4 border-l-primary'
+              : 'border-l-4 border-l-slate-300 dark:border-l-slate-700';
 
             if (stage.id === 'objectives') {
               return (
                 <div 
                   key="objectives" 
-                  className={`bg-slate-955/20 border border-slate-850 rounded-3xl p-5 space-y-3 transition-all ${animClass}`}
+                  className={`bg-white/95 dark:bg-[#0E1325]/85 border border-slate-200 dark:border-slate-800/90 rounded-3xl p-5 sm:p-6 space-y-3.5 shadow-xs dark:shadow-md transition-all ${animClass}`}
                 >
-                  <h3 className="text-xs font-black uppercase tracking-widest text-primary border-b border-slate-850/60 pb-2 flex items-center gap-1.5 font-mono">
+                  <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-blue-600 dark:text-cyan-400 border-b border-slate-200 dark:border-slate-800 pb-2.5 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-blue-500 dark:text-cyan-400" />
                     <span>🎯 LEARNING OBJECTIVES</span>
                   </h3>
-                  <div className="text-slate-350 text-xs leading-relaxed font-sans font-medium">
+                  <div className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm leading-relaxed font-sans font-normal">
                     <MarkdownRenderer
                       content={objectives}
-                      isNightMode={true}
+                      isNightMode={isNightMode}
                       courseId={courseId}
                     />
                   </div>
@@ -317,15 +320,16 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
               return (
                 <div 
                   key="concept" 
-                  className={`bg-slate-955/20 border border-slate-850 rounded-3xl p-5 space-y-3 transition-all ${animClass}`}
+                  className={`bg-white/95 dark:bg-[#0E1325]/85 border border-slate-200 dark:border-slate-800/90 rounded-3xl p-5 sm:p-6 space-y-3.5 shadow-xs dark:shadow-md transition-all ${animClass}`}
                 >
-                  <h3 className="text-xs font-black uppercase tracking-widest text-primary border-b border-slate-850/60 pb-2 flex items-center gap-1.5 font-mono">
-                    <span>💡 CONCEPT / EXPLANATION</span>
+                  <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-primary border-b border-slate-200 dark:border-slate-800 pb-2.5 flex items-center gap-2">
+                    <Lightbulb className="w-4 h-4 text-amber-500" />
+                    <span>💡 CONCEPT & DEEP EXPLANATION</span>
                   </h3>
-                  <div className="text-slate-350 text-xs leading-relaxed font-sans font-medium">
+                  <div className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm leading-relaxed font-sans font-normal">
                     <MarkdownRenderer
                       content={concept}
-                      isNightMode={true}
+                      isNightMode={isNightMode}
                       courseId={courseId}
                     />
                   </div>
@@ -337,41 +341,43 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
               return (
                 <div 
                   key="example" 
-                  className={`bg-slate-955/20 border border-slate-850 rounded-3xl p-5 space-y-3 transition-all ${animClass}`}
+                  className={`bg-white/95 dark:bg-[#0E1325]/85 border border-slate-200 dark:border-slate-800/90 rounded-3xl p-5 sm:p-6 space-y-3.5 shadow-xs dark:shadow-md transition-all ${animClass}`}
                 >
-                  <div className="flex items-center justify-between border-b border-slate-850/60 pb-2">
-                    <h3 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-1.5 font-mono">
-                      <span>💻 EXAMPLE / CODE</span>
+                  <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5">
+                    <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-primary flex items-center gap-2">
+                      <Code2 className="w-4 h-4 text-primary" />
+                      <span>💻 EXAMPLE & SYNTAX</span>
                     </h3>
                     <button
                       onClick={copyExampleCode}
-                      className="text-[9px] text-slate-500 hover:text-white flex items-center gap-1 border border-slate-850 px-2 py-0.5 rounded cursor-pointer active:scale-95 transition-all font-mono"
+                      className="text-[10px] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5 border border-slate-200 dark:border-slate-800 px-2.5 py-1 rounded-lg cursor-pointer active:scale-95 transition-all font-mono hover:bg-slate-50 dark:hover:bg-slate-800 shadow-2xs"
                       title="Copy code to clipboard"
                     >
                       <Copy className="w-3 h-3" />
                       <span>Copy</span>
                     </button>
                   </div>
-                  <pre className="bg-slate-950 border border-slate-850 rounded-xl p-3.5 text-xs text-primary/90 overflow-x-auto leading-relaxed shadow-inner font-mono">
+                  <pre className="bg-slate-900 dark:bg-slate-950 border border-slate-800 rounded-2xl p-4 text-xs sm:text-sm text-emerald-400 dark:text-emerald-300 overflow-x-auto leading-relaxed shadow-inner font-mono">
                     <code>{challenge.exampleCode}</code>
                   </pre>
 
                   {/* Reveal Explanation Section */}
-                  <div className="mt-3 pt-3 border-t border-slate-850/60 space-y-2">
+                  <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-800 space-y-2">
                     {!showExampleExplanation ? (
                       <button
                         onClick={() => {
                           setShowExampleExplanation(true);
                           soundService.play('success');
                         }}
-                        className="px-3.5 py-1.5 bg-slate-900 border border-slate-800 text-slate-300 hover:text-white font-mono text-[10px] font-black rounded-lg cursor-pointer transition-all active:scale-95 flex items-center gap-1.5"
+                        className="px-3.5 py-1.5 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white font-mono text-[10px] font-bold rounded-xl cursor-pointer transition-all active:scale-95 flex items-center gap-1.5 shadow-2xs"
                       >
+                        <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
                         <span>💡 REVEAL EXPLANATION</span>
                       </button>
                     ) : (
-                      <div className="bg-slate-950/40 border border-slate-900 rounded-xl p-3 text-xs text-slate-400 font-sans leading-relaxed transition-all">
-                        <span className="font-mono text-[10px] font-black text-amber-500 block mb-1 uppercase tracking-wider">
-                          EXPLANATION:
+                      <div className="bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 text-xs sm:text-sm text-slate-600 dark:text-slate-300 font-sans leading-relaxed transition-all">
+                        <span className="font-mono text-[10.5px] font-bold text-amber-600 dark:text-amber-400 block mb-1.5 uppercase tracking-wider">
+                          EXPLANATION PROTOCOL:
                         </span>
                         {challenge.hint || "Review the syntax structure, functions, and key methods used in the code block example to understand how to apply it in the practice console."}
                       </div>
@@ -385,15 +391,15 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
               return (
                 <div 
                   key="flowchart" 
-                  className={`bg-slate-955/20 border border-slate-850 rounded-3xl p-5 space-y-3 transition-all ${animClass}`}
+                  className={`bg-white/95 dark:bg-[#0E1325]/85 border border-slate-200 dark:border-slate-800/90 rounded-3xl p-5 sm:p-6 space-y-3.5 shadow-xs dark:shadow-md transition-all ${animClass}`}
                 >
-                  <h3 className="text-xs font-black uppercase tracking-widest text-primary border-b border-slate-850/60 pb-2 flex items-center gap-1.5 font-mono">
-                    <span>🔀 FLOWCHART / DIAGRAM</span>
+                  <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-primary border-b border-slate-200 dark:border-slate-800 pb-2.5 flex items-center gap-2">
+                    <span>🔀 ARCHITECTURE & FLOWCHART</span>
                   </h3>
-                  <div className="text-slate-350 text-xs leading-relaxed font-sans font-medium">
+                  <div className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm leading-relaxed font-sans font-normal">
                     <MarkdownRenderer
                       content={flowchart}
-                      isNightMode={true}
+                      isNightMode={isNightMode}
                       courseId={courseId}
                     />
                   </div>
@@ -404,28 +410,30 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
             return null;
           })}
 
-          {/* Content Complete Banner */}
-          <div className="bg-emerald-950/20 border border-emerald-900/40 rounded-3xl p-4 flex items-center justify-between shadow-md animate-in fade-in zoom-in-98 duration-400 select-none">
-            <div className="flex items-center gap-2.5">
-              <span className="text-emerald-400 text-lg">✓</span>
+          {/* Content Complete Milestone Banner */}
+          <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/60 rounded-3xl p-5 flex items-center justify-between shadow-xs select-none">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-2xl bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-bold shrink-0">
+                ✓
+              </div>
               <div>
-                <h4 className="text-[10px] font-mono uppercase tracking-widest text-emerald-400 font-black">
-                  LEARNING CONTENT SEQUENCE COMPLETE
+                <h4 className="text-[10px] font-mono uppercase tracking-widest text-emerald-700 dark:text-emerald-400 font-bold">
+                  READING GUIDE COMPLETE
                 </h4>
-                <p className="text-[11px] font-sans font-bold text-slate-300">
-                  Solve the Practice Challenge on the right to complete this node!
+                <p className="text-xs sm:text-sm font-heading font-extrabold text-slate-900 dark:text-slate-200">
+                  Complete the 💻 TRY IT OUT challenge below to earn your XP!
                 </p>
               </div>
             </div>
-            <span className="px-2.5 py-1 text-[9px] font-mono font-black bg-emerald-950 border border-emerald-900 rounded-full text-emerald-400 uppercase tracking-wider animate-pulse">
-              COMPLETE
+            <span className="px-3 py-1 text-[9.5px] font-mono font-black bg-emerald-100 dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-900 rounded-full text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
+              READY
             </span>
           </div>
         </div>
 
-        {/* Right Column: Try, Check & Feedback */}
+        {/* Right Column: 💻 TRY IT OUT - Interactive Practice Challenge */}
         <div 
-          className={`space-y-6 lg:sticky lg:top-36 transition-all duration-300 relative ${
+          className={`space-y-6 lg:sticky lg:top-24 transition-all duration-300 relative ${
             !isPracticeUnlocked 
               ? 'opacity-40 pointer-events-none filter blur-[1px] select-none' 
               : 'opacity-100 pointer-events-auto filter-none select-auto'
@@ -433,16 +441,27 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
         >
           {!isPracticeUnlocked && (
             <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/20 rounded-3xl p-4 text-center">
-              <span className="px-3 py-1.5 bg-slate-900 border border-slate-800 text-[10px] text-amber-500 font-mono font-black uppercase tracking-widest rounded-xl shadow-lg animate-pulse">
+              <span className="px-3.5 py-2 bg-slate-900 border border-slate-800 text-xs text-amber-500 font-mono font-bold uppercase tracking-widest rounded-xl shadow-lg animate-pulse">
                 🔒 Complete Learn Path to Unlock Practice
               </span>
             </div>
           )}
-          <div className="bg-slate-955/20 border border-slate-850 rounded-3xl p-5 space-y-4">
-            <h3 className="text-xs font-black uppercase tracking-widest text-secondary border-b border-slate-850/60 pb-2 flex items-center gap-1.5 font-mono">
-              <span>💻 TRY IT OUT</span>
-            </h3>
-            <div className="text-xs text-slate-300 font-sans font-medium mb-2 leading-relaxed">
+          
+          {/* Main TRY IT OUT Card */}
+          <div className="bg-white/95 dark:bg-[#0E1325]/95 border-2 border-primary/40 dark:border-primary/50 rounded-3xl p-6 sm:p-7 space-y-5 shadow-lg shadow-primary/5 dark:shadow-primary/10 relative overflow-hidden">
+            {/* Corner Badge */}
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800/80 pb-3.5">
+              <h3 className="text-xs sm:text-sm font-heading font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
+                <span className="p-1 rounded-lg bg-primary/15 text-primary">💻</span>
+                <span>TRY IT OUT</span>
+              </h3>
+              <span className="px-2.5 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900/60 uppercase">
+                {challenge.difficulty || 'Easy'} Challenge
+              </span>
+            </div>
+
+            {/* Task Prompt */}
+            <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 font-sans font-medium leading-relaxed bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800">
               {challenge.challengeTask}
             </div>
 
@@ -459,18 +478,18 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
                         key={idx}
                         onClick={() => handleOptionClick(opt)}
                         disabled={isCompleted || showFeedback === 'correct'}
-                        className={`w-full p-3.5 text-left rounded-xl border text-xs transition-all active:scale-99 cursor-pointer flex items-center gap-3 ${
+                        className={`w-full p-3.5 sm:p-4 text-left rounded-2xl border text-xs sm:text-sm transition-all duration-150 active:scale-98 cursor-pointer flex items-center gap-3 ${
                           isSelected
-                            ? 'bg-primary/10 border-primary text-white font-bold shadow-[0_0_12px_var(--kq-glow)]'
-                            : 'bg-slate-900/40 border-slate-850 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                            ? 'bg-blue-50 dark:bg-blue-950/50 border-blue-500 dark:border-blue-400 text-blue-900 dark:text-blue-200 font-bold shadow-xs ring-2 ring-blue-500/20'
+                            : 'bg-slate-50/80 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-850 hover:border-slate-300'
                         }`}
                       >
-                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
-                          isSelected ? 'border-primary bg-primary/20' : 'border-slate-700'
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                          isSelected ? 'border-blue-500 bg-blue-500 text-white' : 'border-slate-400 dark:border-slate-600'
                         }`}>
-                          {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-primary" />}
+                          {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                         </div>
-                        <span>{opt}</span>
+                        <span className="leading-snug">{opt}</span>
                       </button>
                     );
                   })}
@@ -479,9 +498,12 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
 
               {/* Case 2: Code Challenge Editor */}
               {challenge.type === 'code' && (
-                <div className="border border-slate-900 rounded-2xl overflow-hidden shadow-inner bg-slate-950">
-                  <div className="bg-slate-900 px-4 py-2 border-b border-slate-900 text-[10px] text-slate-500 flex justify-between select-none">
-                    <span>challenge_editor.py</span>
+                <div className="border border-slate-800 dark:border-slate-800 rounded-2xl overflow-hidden shadow-inner bg-slate-950">
+                  <div className="bg-slate-900 px-4 py-2.5 border-b border-slate-800 text-[10px] text-slate-400 flex justify-between select-none font-mono">
+                    <span className="flex items-center gap-1.5 text-emerald-400">
+                      <Code2 className="w-3.5 h-3.5" />
+                      <span>practice_editor.py</span>
+                    </span>
                     <span>Tab spacing: 4</span>
                   </div>
                   <textarea
@@ -489,20 +511,23 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
                     onChange={(e) => setStudentInput(e.target.value)}
                     disabled={isCompleted || showFeedback === 'correct'}
                     rows={4}
-                    className="w-full bg-transparent p-4 outline-hidden text-primary text-xs font-mono border-0 focus:ring-0 resize-none leading-relaxed placeholder:text-slate-800"
-                    placeholder={challenge.placeholder}
+                    className="w-full bg-transparent p-4 outline-hidden text-emerald-400 dark:text-emerald-300 text-xs sm:text-sm font-mono border-0 focus:ring-0 resize-none leading-relaxed placeholder:text-slate-700"
+                    placeholder={challenge.placeholder || "# Write your solution code here"}
                   />
                 </div>
               )}
 
               {/* Case 3: Command Challenge Line */}
               {challenge.type === 'command' && (
-                <div className="bg-[#020617] border border-slate-900 rounded-2xl overflow-hidden flex flex-col shadow-inner">
-                  <div className="bg-slate-950 border-b border-slate-900 px-4 py-2 text-[10px] text-slate-500 select-none">
-                    <span>cli_terminal_session.sh</span>
+                <div className="bg-[#0A0E1A] border border-slate-800 rounded-2xl overflow-hidden flex flex-col shadow-inner">
+                  <div className="bg-slate-900 border-b border-slate-800 px-4 py-2.5 text-[10px] text-slate-400 select-none font-mono flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                    <span className="ml-2 text-slate-400">interactive_terminal.sh</span>
                   </div>
-                  <div className="p-3.5 flex items-center gap-2">
-                    <span className="text-primary font-bold text-xs shrink-0 select-none">
+                  <div className="p-4 flex items-center gap-2.5">
+                    <span className="text-emerald-400 font-bold text-xs sm:text-sm shrink-0 select-none font-mono">
                       $
                     </span>
                     <input
@@ -511,7 +536,7 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
                       onChange={(e) => setStudentInput(e.target.value)}
                       disabled={isCompleted || showFeedback === 'correct'}
                       placeholder="Type command here..."
-                      className="flex-1 bg-transparent border-0 outline-hidden focus:ring-0 text-primary text-xs font-mono placeholder:text-slate-855 p-0"
+                      className="flex-1 bg-transparent border-0 outline-hidden focus:ring-0 text-emerald-400 dark:text-emerald-300 text-xs sm:text-sm font-mono placeholder:text-slate-600 p-0"
                     />
                   </div>
                 </div>
@@ -520,7 +545,7 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
               {/* Case 4: Ordering Sequence Challenge */}
               {challenge.type === 'ordering' && challenge.options && (
                 <div className="space-y-4">
-                  <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
+                  <div className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider">
                     Click steps below to arrange in chronological sequence:
                   </div>
 
@@ -534,14 +559,14 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
                           key={idx}
                           onClick={() => handleOrderChipClick(opt)}
                           disabled={isCompleted || showFeedback === 'correct'}
-                          className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all active:scale-95 cursor-pointer select-none flex items-center gap-2 ${
+                          className={`px-3.5 py-2 rounded-xl border text-xs font-bold transition-all active:scale-95 cursor-pointer select-none flex items-center gap-2 ${
                             isSelected
-                              ? 'bg-primary/10 border-primary text-primary'
-                              : 'bg-slate-900/60 border-slate-900 text-slate-450 hover:border-slate-800'
+                              ? 'bg-primary/15 border-primary text-primary shadow-xs'
+                              : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300'
                           }`}
                         >
                           {isSelected && (
-                            <span className="bg-primary text-slate-950 px-1 py-0.25 text-[9px] rounded font-black">
+                            <span className="bg-primary text-slate-950 px-1.5 py-0.5 text-[9.5px] rounded-md font-black">
                               {displayNum}
                             </span>
                           )}
@@ -552,19 +577,19 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
                   </div>
 
                   {/* Selected Ordered Output List View */}
-                  <div className="bg-slate-950 border border-slate-900 rounded-xl p-3.5 min-h-[50px] flex items-center justify-between gap-4">
+                  <div className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-2xl p-4 min-h-[52px] flex items-center justify-between gap-4">
                     <div className="flex flex-wrap items-center gap-2">
                       {orderedSelection.length > 0 ? (
                         orderedSelection.map((val, idx) => (
-                          <div key={idx} className="flex items-center gap-1.5 text-xs text-white">
-                            {idx > 0 && <span className="text-slate-600">➔</span>}
-                            <span className="bg-slate-900 border border-slate-800 px-2 py-0.5 rounded font-black text-primary">
+                          <div key={idx} className="flex items-center gap-1.5 text-xs text-slate-900 dark:text-white">
+                            {idx > 0 && <span className="text-slate-400">➔</span>}
+                            <span className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-2.5 py-1 rounded-lg font-bold text-primary shadow-2xs">
                               {val}
                             </span>
                           </div>
                         ))
                       ) : (
-                        <span className="text-[10px] text-slate-650 font-bold uppercase tracking-wider">
+                        <span className="text-[11px] text-slate-500 dark:text-slate-500 font-medium">
                           Click blocks above to construct path sequence...
                         </span>
                       )}
@@ -573,7 +598,7 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
                     {orderedSelection.length > 0 && !(isCompleted || showFeedback === 'correct') && (
                       <button
                         onClick={handleResetOrder}
-                        className="text-[9px] text-rose-400 hover:text-rose-350 hover:border-rose-800 border border-slate-900 px-2 py-0.5 rounded transition-all cursor-pointer font-black"
+                        className="text-[10px] text-rose-600 dark:text-rose-400 hover:text-rose-700 border border-rose-200 dark:border-rose-900/60 px-2.5 py-1 rounded-lg transition-all cursor-pointer font-bold bg-rose-50 dark:bg-rose-950/40"
                       >
                         RESET
                       </button>
@@ -588,16 +613,17 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
               <div className="pt-2 flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={handleCheckAnswer}
-                  className="flex-1 py-3 bg-primary hover:brightness-110 text-slate-955 font-black text-xs uppercase tracking-wider rounded-xl cursor-pointer transition-all active:scale-95 shadow-[0_0_15px_var(--kq-glow)]"
+                  className="flex-1 py-3.5 bg-linear-to-r from-blue-600 via-indigo-600 to-primary hover:brightness-110 text-white font-extrabold text-xs uppercase tracking-wider rounded-2xl cursor-pointer transition-all duration-150 hover:scale-102 active:scale-95 shadow-md shadow-blue-500/20 flex items-center justify-center gap-2"
                 >
-                  [ CHECK CHALLENGE ]
+                  <Sparkles className="w-4 h-4 text-white animate-pulse" />
+                  <span>CHECK SOLUTION</span>
                 </button>
                 <button
                   onClick={() => {
                     setShowHint(true);
                     soundService.play('select');
                   }}
-                  className="px-4 py-3 bg-slate-900 border border-slate-850 hover:border-slate-800 text-slate-400 text-xs rounded-xl cursor-pointer hover:text-slate-200 transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                  className="px-5 py-3.5 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-2xl cursor-pointer hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-2xs"
                 >
                   <Lightbulb className="w-4 h-4 text-amber-500" />
                   <span>Hint</span>
@@ -607,10 +633,10 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
 
             {/* Hint Box panel */}
             {showHint && !(isCompleted || showFeedback === 'correct') && (
-              <div className="bg-amber-950/20 border border-amber-900/50 rounded-2xl p-4 flex items-start gap-3 text-amber-350 animate-in slide-in-from-top-2 duration-200 font-sans">
-                <Lightbulb className="w-4.5 h-4.5 text-amber-400 shrink-0 mt-0.5" />
+              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 rounded-2xl p-4 flex items-start gap-3 text-amber-900 dark:text-amber-300 animate-in slide-in-from-top-2 duration-200 font-sans">
+                <Lightbulb className="w-4.5 h-4.5 text-amber-500 shrink-0 mt-0.5" />
                 <div className="space-y-1">
-                  <div className="text-[10px] font-black uppercase tracking-widest font-mono">
+                  <div className="text-[10.5px] font-bold uppercase tracking-widest font-mono text-amber-700 dark:text-amber-400">
                     💡 Hint Protocol:
                   </div>
                   <div className="text-xs font-medium leading-relaxed">
@@ -622,61 +648,20 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
 
             {/* Correct Feedback Screen */}
             {(isCompleted || showFeedback === 'correct') && (
-              <div className="bg-emerald-950/20 border border-emerald-500/50 rounded-2xl p-5 text-center animate-in zoom-in-95 duration-200 space-y-4">
-                <style>{`
-                  @keyframes xpFloat {
-                    0% {
-                      opacity: 0;
-                      transform: translate(-50%, 10px);
-                    }
-                    15% {
-                      opacity: 1;
-                      transform: translate(-50%, -10px);
-                    }
-                    85% {
-                      opacity: 1;
-                      transform: translate(-50%, -10px);
-                    }
-                    100% {
-                      opacity: 0;
-                      transform: translate(-50%, -25px);
-                    }
-                  }
-                  .animate-xp-float {
-                    animation: xpFloat 2s ease-out forwards;
-                  }
-                  @keyframes checkPulse {
-                    0% { transform: scale(1); }
-                    50% { transform: scale(1.15); filter: drop-shadow(0 0 8px rgba(16,185,129,0.7)); }
-                    100% { transform: scale(1); }
-                  }
-                  .animate-check-pulse {
-                    animation: checkPulse 0.5s ease-out;
-                  }
-                  @media (prefers-reduced-motion: reduce) {
-                    .animate-xp-float {
-                      animation: none;
-                      opacity: 1;
-                      transform: translate(-50%, -10px);
-                    }
-                    .animate-check-pulse {
-                      animation: none;
-                    }
-                  }
-                `}</style>
-                <div className="flex items-center justify-center gap-2 text-emerald-400 font-black text-sm uppercase tracking-widest">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400 fill-emerald-400/20 animate-check-pulse" />
-                  <span>✓ CHALLENGE COMPLETE</span>
+              <div className="bg-emerald-50 dark:bg-emerald-950/30 border-2 border-emerald-400 dark:border-emerald-500/60 rounded-2xl p-5 text-center animate-in zoom-in-95 duration-200 space-y-4 shadow-sm">
+                <div className="flex items-center justify-center gap-2 text-emerald-700 dark:text-emerald-400 font-black text-sm uppercase tracking-widest">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  <span>✓ CHALLENGE COMPLETE!</span>
                 </div>
                 
-                <div className="py-2 animate-bounce">
-                  <span className="text-2xl font-black text-amber-400 font-mono tracking-wide">
+                <div className="py-2">
+                  <span className="text-2xl sm:text-3xl font-black text-amber-500 dark:text-amber-400 font-mono tracking-wide">
                     +{challenge.difficulty?.toLowerCase() === 'easy' ? 10 : challenge.difficulty?.toLowerCase() === 'medium' ? 20 : challenge.difficulty?.toLowerCase() === 'hard' ? 30 : 10} XP
                   </span>
                 </div>
 
-                <div className="text-white text-xs font-sans font-medium">
-                  Excellent work. Challenge protocol successfully mastered.
+                <div className="text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-sans font-medium">
+                  Outstanding job! You've successfully passed this mission challenge.
                 </div>
                 <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center items-center relative">
                   <button
@@ -687,27 +672,27 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
                       }
                     }}
                     disabled={isCompleted}
-                    className={`py-2.5 px-5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer w-full sm:w-auto relative ${
+                    className={`py-3 px-5 rounded-2xl font-extrabold text-xs flex items-center justify-center gap-2 transition-all duration-150 cursor-pointer w-full sm:w-auto relative ${
                       isCompleted
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 cursor-default'
-                        : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-955 font-black shadow-lg shadow-amber-500/30 hover:scale-105 active:scale-95'
+                        ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 cursor-default'
+                        : 'bg-linear-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/30 hover:scale-103 active:scale-95'
                     }`}
                   >
                     {isCompleted ? (
                       <>
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                         <span>✓ XP Claimed (+50 XP)</span>
                       </>
                     ) : (
                       <>
-                        <Zap className="w-4 h-4 text-slate-955 fill-current" />
+                        <Zap className="w-4 h-4 text-slate-950 fill-current" />
                         <span>⚡ Claim +50 XP</span>
                       </>
                     )}
                   </button>
 
                   {showXPClaimedFeedback && (
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-amber-500 text-slate-955 text-[10px] font-black py-1 px-2.5 rounded-full flex items-center gap-1 shadow-md uppercase tracking-wider select-none pointer-events-none animate-xp-float z-50">
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-amber-500 text-slate-950 text-[10.5px] font-black py-1 px-3 rounded-full flex items-center gap-1 shadow-md uppercase tracking-wider select-none pointer-events-none animate-xp-float z-50">
                       <Zap className="w-3 h-3 fill-slate-950" />
                       <span>⚡ +50 XP CLAIMED</span>
                     </div>
@@ -716,15 +701,15 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
                   {hasNextLesson && (
                     <button
                       onClick={onNextLesson}
-                      className="px-6 py-2.5 bg-primary hover:brightness-110 text-slate-955 font-black rounded-xl text-xs flex items-center gap-1.5 shadow-[0_0_15px_var(--kq-glow)] active:scale-95 transition-all cursor-pointer font-bold"
+                      className="px-6 py-3 bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-2xl text-xs flex items-center gap-2 shadow-md shadow-blue-500/20 active:scale-95 transition-all cursor-pointer"
                     >
-                      <span>Next Challenge ➔</span>
+                      <span>Next Node ➔</span>
                     </button>
                   )}
                 </div>
 
                 {!hasNextLesson && (
-                  <div className="text-xs font-black text-amber-400 font-mono py-2">
+                  <div className="text-xs font-black text-amber-600 dark:text-amber-400 font-mono py-2">
                     🎉 CONGRATULATIONS! ALL SYLLABUS CHALLENGES SECURED!
                   </div>
                 )}
@@ -733,10 +718,10 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
 
             {/* Incorrect Feedback Screen */}
             {showFeedback === 'incorrect' && !isCompleted && (
-              <div className="bg-rose-950/20 border border-rose-900/50 rounded-2xl p-4 flex items-start gap-3 text-rose-350 animate-in slide-in-from-top-2 duration-200 font-sans">
-                <AlertCircle className="w-4.5 h-4.5 text-rose-400 shrink-0 mt-0.5" />
+              <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 rounded-2xl p-4 flex items-start gap-3 text-rose-800 dark:text-rose-300 animate-in slide-in-from-top-2 duration-200 font-sans">
+                <AlertCircle className="w-4.5 h-4.5 text-rose-500 shrink-0 mt-0.5" />
                 <div className="space-y-1">
-                  <div className="text-[10px] font-black uppercase tracking-widest font-mono">
+                  <div className="text-[10.5px] font-bold uppercase tracking-widest font-mono text-rose-700 dark:text-rose-400">
                     ✕ NOT YET CORRECT
                   </div>
                   <div className="text-xs font-medium">

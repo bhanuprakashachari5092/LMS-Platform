@@ -18,6 +18,7 @@ const AITutorDrawer = lazy(() => import('./AITutorDrawer').then(m => ({ default:
 import { CertificatePreviewModal } from '../courses/CertificatePreviewModal';
 import { CertificateService, BadgeService, AchievementService, XPService, STATIC_BADGES } from '@/services/achievementService';
 import { CourseActionConfirmModal } from '../courses/CourseActionConfirmModal';
+import { useTheme } from '@/contexts/ThemeContext';
 
 import { assignmentService } from '@/services/assignmentService';
 
@@ -219,21 +220,8 @@ export const InCourseLearningView: React.FC<InCourseLearningViewProps> = ({
   const userName = propName && propName !== 'Student' ? propName : (user?.displayName || userProfile?.name || userProfile?.githubUsername || 'Student User');
   
   const containerRef = React.useRef<HTMLDivElement>(null);
-  const [isNightMode, setIsNightMode] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('shaivika_reading_mode');
-      if (saved !== null) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {}
-    return true; // Default to Reading Mode on enter!
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('shaivika_reading_mode', JSON.stringify(isNightMode));
-    } catch (e) {}
-  }, [isNightMode]);
+  const { kqAppearance, setKqAppearance } = useTheme();
+  const isNightMode = kqAppearance === 'night';
 
   const [activeView, setActiveView] = useState<'map' | 'workspace'>('map');
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => !soundService.isMuted());
@@ -1137,7 +1125,7 @@ export const InCourseLearningView: React.FC<InCourseLearningViewProps> = ({
         userAvatar={userAvatar}
         userName={userName}
         isNightMode={isNightMode}
-        onToggleNightMode={() => setIsNightMode(!isNightMode)}
+        onToggleNightMode={() => setKqAppearance(kqAppearance === 'night' ? 'day' : 'night')}
         isCourseFullyCompleted={isCourseFullyCompleted}
         onViewCertificate={() => {
           // If certificate hasn't been generated yet, let's fetch it, otherwise open modal
@@ -1218,12 +1206,14 @@ export const InCourseLearningView: React.FC<InCourseLearningViewProps> = ({
         isNightMode={isNightMode}
       />
 
-      <div className="w-full bg-slate-950 border-b border-slate-900 py-2.5 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4 select-none shrink-0 font-mono">
+      <div className={`w-full py-2.5 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4 select-none shrink-0 font-mono transition-colors border-b ${
+        isNightMode ? 'bg-slate-950 border-slate-900 text-slate-300' : 'bg-white border-slate-200 text-slate-700 shadow-2xs'
+      }`}>
         <div className="flex items-center gap-3">
           <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
             SYSTEM CONTEXT:
           </span>
-          <span className="text-xs font-black text-cyan-400 flex items-center gap-1.5">
+          <span className="text-xs font-black text-cyan-600 dark:text-cyan-400 flex items-center gap-1.5">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
@@ -1239,7 +1229,7 @@ export const InCourseLearningView: React.FC<InCourseLearningViewProps> = ({
                 setActiveView('map');
                 soundService.play('select');
               }}
-              className="px-3 py-1 bg-slate-900 border border-slate-800 hover:border-cyan-500 hover:text-cyan-400 text-slate-450 text-[10px] font-black rounded-lg cursor-pointer transition-all active:scale-95 flex items-center gap-1"
+              className="px-3 py-1 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-cyan-500 hover:text-cyan-500 text-slate-700 dark:text-slate-300 text-[10px] font-black rounded-lg cursor-pointer transition-all active:scale-95 flex items-center gap-1 shadow-2xs"
             >
               ◀ MISSION MAP
             </button>
@@ -1247,9 +1237,9 @@ export const InCourseLearningView: React.FC<InCourseLearningViewProps> = ({
           <button
             onClick={handleToggleSound}
             className={`px-3 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wide cursor-pointer transition-all active:scale-95 ${
-soundEnabled
-                ? 'bg-cyan-950/40 border-cyan-500 text-cyan-400'
-                : 'bg-slate-900 border-slate-800 text-slate-500'
+              soundEnabled
+                ? 'bg-cyan-50 dark:bg-cyan-950/40 border-cyan-300 dark:border-cyan-500 text-cyan-700 dark:text-cyan-400'
+                : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500'
             }`}
           >
             {soundEnabled ? '🔊 Sound: ON' : '🔇 Sound: MUTED'}
@@ -1258,9 +1248,11 @@ soundEnabled
       </div>
 
       {activeView === 'map' ? (
-        <div className="flex-1 max-w-[1200px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-8 relative z-10 font-mono text-slate-200">
+        <div className="flex-1 max-w-[1200px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-8 relative z-10 font-['Sora']">
           {/* Mission Map Header */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xl relative overflow-hidden backdrop-blur-md animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className={`border rounded-3xl p-6 sm:p-7 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-sm relative overflow-hidden backdrop-blur-md animate-in fade-in slide-in-from-top-4 duration-300 ${
+            isNightMode ? 'bg-slate-900/80 border-slate-800 text-white shadow-slate-950/40' : 'bg-white border-slate-200/90 text-slate-900 shadow-slate-200/50'
+          }`}>
             <div className="absolute inset-0 bg-radial-gradient(circle at top right, rgba(249,115,22,0.06), transparent) pointer-events-none" />
             
             <div className="space-y-2">
@@ -1269,7 +1261,7 @@ soundEnabled
                   <span className="px-2.5 py-1 text-[10px] font-black bg-cyan-500 text-slate-950 uppercase rounded-md tracking-wider animate-pulse">
                     🎮 COURSE INITIALIZED
                   </span>
-                  <span className="px-2.5 py-1 text-[10px] font-black bg-slate-955 text-cyan-400 border border-cyan-500/20 uppercase rounded-md tracking-widest animate-pulse">
+                  <span className="px-2.5 py-1 text-[10px] font-black bg-slate-100 dark:bg-slate-955 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 uppercase rounded-md tracking-widest animate-pulse">
                     🎯 MISSION PATH LOADING...
                   </span>
                 </div>
@@ -1278,34 +1270,36 @@ soundEnabled
                   🎯 MISSION PATH
                 </span>
               )}
-              <h2 className="text-2xl font-black text-white tracking-tight mt-1 uppercase font-sans">
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight mt-1 uppercase font-heading text-slate-900 dark:text-white">
                 {courseTitle}
               </h2>
-              <p className="text-xs text-slate-400 font-sans font-medium uppercase tracking-wider">
-                Master your learning path
+              <p className="text-xs text-slate-600 dark:text-slate-400 font-sans font-medium uppercase tracking-wider">
+                Master your interactive learning roadmap
               </p>
             </div>
 
             {(() => {
               return (
-                <div className="bg-slate-950/60 border border-slate-850 rounded-2xl p-4 min-w-[250px] space-y-2.5 text-xs font-bold text-slate-400 font-mono shadow-inner">
+                <div className={`border rounded-2xl p-4 min-w-[260px] space-y-2.5 text-xs font-bold font-mono shadow-inner ${
+                  isNightMode ? 'bg-slate-950/60 border-slate-850 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-600'
+                }`}>
                   <div className="flex justify-between items-center">
                     <span>MODULES REVEALED</span>
-                    <span className="text-primary font-black uppercase">{revealedModuleCount} / {modules.length} MODULES REVEALED</span>
+                    <span className="text-primary font-black uppercase">{revealedModuleCount} / {modules.length} REVEALED</span>
                   </div>
-                  <div className="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                  <div className="w-full h-2.5 bg-slate-200 dark:bg-slate-900 rounded-full overflow-hidden border border-slate-200 dark:border-slate-800">
                     <div
-                      className="h-full bg-linear-to-r from-primary to-secondary transition-all duration-500 shadow-[0_0_10px_var(--color-primary)]"
+                      className="h-full bg-linear-to-r from-primary to-secondary transition-all duration-500 shadow-sm"
                       style={{ width: `${(revealedModuleCount / Math.max(1, modules.length)) * 100}%` }}
                     />
                   </div>
-                  <div className="flex justify-between items-center border-t border-slate-900 pt-2 text-[10px]">
+                  <div className="flex justify-between items-center border-t border-slate-200 dark:border-slate-900 pt-2 text-[10.5px]">
                     <span className="text-slate-500">TOTAL SCORE</span>
-                    <span className="text-primary font-extrabold flex items-center gap-1">⚡ {courseService.getUserXPPoints(studentUid)} XP</span>
+                    <span className="text-amber-600 dark:text-amber-400 font-black flex items-center gap-1">⚡ {courseService.getUserXPPoints(studentUid)} XP</span>
                   </div>
-                  <div className="flex justify-between items-center text-[10px]">
+                  <div className="flex justify-between items-center text-[10.5px]">
                     <span className="text-slate-500">LEARNING STREAK</span>
-                    <span className="text-secondary font-extrabold flex items-center gap-1">🔥 {new AchievementService().getStreaks(studentUid).dailyStreak} DAY STREAK</span>
+                    <span className="text-orange-600 dark:text-orange-400 font-black flex items-center gap-1">🔥 {new AchievementService().getStreaks(studentUid).dailyStreak} DAY STREAK</span>
                   </div>
                 </div>
               );
@@ -1313,7 +1307,9 @@ soundEnabled
           </div>
 
           {revealedModuleCount === modules.length && !isMissionStarted && (
-            <div className="flex justify-center p-6 bg-slate-900/60 border border-slate-800 rounded-3xl animate-in fade-in zoom-in-98 duration-500 shadow-xl relative overflow-hidden backdrop-blur-md">
+            <div className={`flex justify-center p-6 border rounded-3xl animate-in fade-in zoom-in-98 duration-500 shadow-md relative overflow-hidden backdrop-blur-md ${
+              isNightMode ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200'
+            }`}>
               <div className="absolute inset-0 bg-radial-gradient(circle at center, rgba(6,182,212,0.04), transparent) pointer-events-none" />
               <button
                 onClick={() => {
@@ -1339,14 +1335,11 @@ soundEnabled
               });
 
               return modules.map((mod, modIdx) => {
-                const isCompleted = mod.lessons.every(l => completedLessonIds.some(cId => String(cId) === String(l.id)));
-                const isLocked = modIdx > 0 && !modules[modIdx - 1].lessons.every(l => completedLessonIds.some(cId => String(cId) === String(l.id)));
-                
-                // If not completed and not locked, and matches current active index (or fallback if none found)
-                const isCurrent = !isCompleted && !isLocked && (modIdx === currentActiveModIdx || (currentActiveModIdx === -1 && modIdx === modules.findIndex(m => !m.lessons.every(l => completedLessonIds.some(cId => String(cId) === String(l.id))))));
-                
-                const isAvailable = !isCompleted && !isLocked && !isCurrent;
                 const missionNum = String(modIdx + 1).padStart(2, '0');
+                const isCompleted = mod.lessons.every(l => completedLessonIds.some(cId => String(cId) === String(l.id)));
+                const isLocked = modIdx > 0 && !isLessonUnlocked(modules[modIdx - 1].lessons[0].id);
+                const isCurrent = modIdx === currentActiveModIdx;
+                const isAvailable = !isLocked && !isCompleted;
 
                 const isJustRevealed = !window.matchMedia('(prefers-reduced-motion: reduce)').matches && modIdx === revealedModuleCount - 1;
                 const revealAnimationClass = isJustRevealed 
@@ -1393,7 +1386,7 @@ soundEnabled
                         <div className={`h-full w-full transition-all duration-300 relative overflow-hidden ${
                           isCompleted
                             ? 'bg-primary shadow-[0_0_8px_var(--color-primary)]'
-                            : 'bg-slate-800'
+                            : isNightMode ? 'bg-slate-800' : 'bg-slate-200'
                         }`}>
                           {isCompleted && (
                             <div className="absolute top-0 left-0 right-0 w-full h-1/2 bg-linear-to-b from-primary to-transparent animate-bounce opacity-70" />
@@ -1403,14 +1396,22 @@ soundEnabled
                     )}
 
                     {/* Level Card */}
-                    <div className={`relative z-10 p-5 rounded-3xl border transition-all duration-300 ${revealAnimationClass} ${
+                    <div className={`relative z-10 p-5 sm:p-6 rounded-3xl border transition-all duration-300 ${revealAnimationClass} ${
                       isCurrent
-                        ? 'bg-primary/5 border-primary shadow-[0_0_20px_var(--kq-glow)] scale-[1.01]'
+                        ? isNightMode
+                          ? 'bg-primary/10 border-primary shadow-[0_0_20px_var(--kq-glow)] scale-[1.01]'
+                          : 'bg-primary/5 border-primary shadow-md scale-[1.01]'
                         : isCompleted
-                        ? 'bg-emerald-950/5 border-emerald-600/40 hover:bg-emerald-950/10 text-emerald-300'
+                        ? isNightMode
+                          ? 'bg-emerald-950/20 border-emerald-600/40 text-emerald-300'
+                          : 'bg-emerald-50/80 border-emerald-200 text-emerald-900 shadow-2xs'
                         : isLocked
-                        ? 'bg-slate-950/30 border-slate-900 opacity-60 text-slate-500 font-bold'
-                        : 'bg-slate-900/40 border-slate-800 hover:bg-slate-850/60 hover:border-slate-700'
+                        ? isNightMode
+                          ? 'bg-slate-950/40 border-slate-900 opacity-60 text-slate-500 font-bold'
+                          : 'bg-slate-100/60 border-slate-200 opacity-60 text-slate-400 font-bold'
+                        : isNightMode
+                        ? 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
+                        : 'bg-white border-slate-200 hover:border-slate-300 shadow-xs'
                     }`}>
                       
                       {/* Card Header Info */}
@@ -1422,12 +1423,12 @@ soundEnabled
                             isCurrent
                               ? 'bg-primary border-primary text-slate-950 shadow-[0_0_12px_var(--color-primary)] animate-pulse'
                               : isCompleted
-                              ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-440'
+                              ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-500'
                               : isLocked
-                              ? 'bg-slate-950 border-slate-900 text-slate-700'
-                              : 'bg-slate-900 text-slate-400 border-slate-800'
+                              ? isNightMode ? 'bg-slate-950 border-slate-900 text-slate-700' : 'bg-slate-200 border-slate-300 text-slate-400'
+                              : isNightMode ? 'bg-slate-900 text-slate-400 border-slate-800' : 'bg-slate-100 text-slate-600 border-slate-200'
                           }`}>
-                            <span className="text-[9px] md:text-[10px] font-bold text-slate-500 dark:text-slate-400 leading-none">LVL</span>
+                            <span className="text-[9px] md:text-[10px] font-bold text-slate-500 leading-none">LVL</span>
                             <span className="text-base md:text-lg leading-none mt-0.5">{missionNum}</span>
                           </div>
 
@@ -1444,26 +1445,26 @@ soundEnabled
                                   ⚡ CURRENT LEVEL
                                 </span>
                               ) : isCompleted ? (
-                                <span className="px-2 py-0.5 text-[9px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase rounded tracking-wider flex items-center gap-1">
+                                <span className="px-2 py-0.5 text-[9px] font-black bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 uppercase rounded tracking-wider flex items-center gap-1">
                                   ✓ COMPLETED
                                 </span>
                               ) : isAvailable ? (
-                                <span className="px-2 py-0.5 text-[9px] font-black bg-slate-900 text-slate-400 border border-slate-800 uppercase rounded tracking-wider flex items-center gap-1">
+                                <span className="px-2 py-0.5 text-[9px] font-black bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 uppercase rounded tracking-wider flex items-center gap-1">
                                   🔓 UNLOCKED
                                 </span>
                               ) : (
-                                <span className="px-2 py-0.5 text-[9px] font-black bg-slate-950 text-slate-500 border border-slate-900 uppercase rounded tracking-wider flex items-center gap-1">
+                                <span className="px-2 py-0.5 text-[9px] font-black bg-slate-100 dark:bg-slate-950 text-slate-500 border border-slate-200 dark:border-slate-900 uppercase rounded tracking-wider flex items-center gap-1">
                                   🔒 UPCOMING
                                 </span>
                               )}
 
-                              <span className="text-[10px] font-bold font-mono text-slate-500">
+                              <span className="text-[10.5px] font-bold font-mono text-slate-500">
                                 {mod.lessons.filter(l => completedLessonIds.some(cId => String(cId) === String(l.id))).length} / {mod.lessons.length} nodes
                               </span>
                             </div>
 
-                            <h3 className={`text-base font-black tracking-tight leading-tight ${
-                              isCurrent ? 'text-white' : isCompleted ? 'text-emerald-100' : isLocked ? 'text-slate-500' : 'text-slate-200'
+                            <h3 className={`text-base sm:text-lg font-black font-heading tracking-tight leading-tight ${
+                              isCurrent ? 'text-slate-900 dark:text-white' : isCompleted ? 'text-emerald-900 dark:text-emerald-100' : isLocked ? 'text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-200'
                             }`}>
                               {mod.title.replace(/^Module\s+\d+\s*:?\s*/i, '').replace(/^🟢|^🟡|^🔵|^🔴/, '').trim()}
                             </h3>
@@ -1483,18 +1484,18 @@ soundEnabled
                           ) : isCompleted ? (
                             <button
                               onClick={handleStartLevel}
-                              className="px-5 py-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 font-black text-xs transition-all cursor-pointer"
+                              className="px-5 py-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-black text-xs transition-all cursor-pointer"
                             >
                               REVIEW MODULE
                             </button>
                           ) : isLocked ? (
-                            <span className="text-xs font-bold text-slate-500 flex items-center gap-1 bg-slate-950/65 px-3 py-2 rounded-xl border border-slate-900">
+                            <span className="text-xs font-bold text-slate-500 flex items-center gap-1 bg-slate-100 dark:bg-slate-955/65 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-900">
                               🔒 Unlocks after previous level
                             </span>
                           ) : (
                             <button
                               onClick={handleStartLevel}
-                              className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 font-black text-xs transition-all cursor-pointer"
+                              className="px-5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-750 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-black text-xs transition-all cursor-pointer shadow-2xs"
                             >
                               ENTER LEVEL
                             </button>
@@ -1504,8 +1505,8 @@ soundEnabled
 
                       {/* Display lessons grid list inside cards if not locked */}
                       {!isLocked && (
-                        <div className="mt-5 pt-4 border-t border-slate-800/50 space-y-2">
-                          <span className="text-[9px] font-black uppercase font-mono tracking-widest text-slate-500 block mb-3">
+                        <div className="mt-5 pt-4 border-t border-slate-200 dark:border-slate-800/60 space-y-3">
+                          <span className="text-[9.5px] font-black uppercase font-mono tracking-widest text-slate-500 block mb-2">
                             Challenge Nodes Map
                           </span>
 
@@ -1529,14 +1530,14 @@ soundEnabled
                                     setActiveView('workspace');
                                     soundService.play('select');
                                   }}
-                                  className={`flex items-center justify-between p-3 rounded-2xl border transition-all duration-300 cursor-pointer ${
+                                  className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer ${
                                     isCurrentLesson
-                                      ? 'bg-primary/10 border-primary shadow-[0_0_12px_rgba(249,115,22,0.15)] text-white'
+                                      ? 'bg-primary/10 border-primary shadow-xs text-primary font-bold'
                                       : isLessonDone
-                                      ? 'bg-emerald-950/10 border-emerald-600/40 text-emerald-300 hover:bg-emerald-950/20'
+                                      ? 'bg-emerald-50 dark:bg-emerald-950/15 border-emerald-200 dark:border-emerald-600/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-950/25'
                                       : isLessonLocked
-                                      ? 'bg-slate-950/40 border-slate-900 text-slate-650 opacity-45 cursor-not-allowed'
-                                      : 'bg-slate-955/20 border-slate-850 hover:bg-slate-900/60 text-slate-300 hover:border-slate-700'
+                                      ? 'bg-slate-100 dark:bg-slate-950/40 border-slate-200 dark:border-slate-900 text-slate-400 dark:text-slate-600 opacity-50 cursor-not-allowed'
+                                      : 'bg-slate-50 dark:bg-slate-955/30 border-slate-200 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-900/60 text-slate-700 dark:text-slate-300 hover:border-slate-300'
                                   }`}
                                 >
                                   <div className="flex items-center gap-2.5 min-w-0">
@@ -1544,32 +1545,32 @@ soundEnabled
                                       isCurrentLesson
                                         ? 'bg-primary text-slate-950'
                                         : isLessonDone
-                                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                        ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
                                         : isLessonLocked
-                                        ? 'bg-slate-955 text-slate-700 border border-slate-900'
-                                        : 'bg-slate-900 text-slate-400 border border-slate-800'
+                                        ? 'bg-slate-200 dark:bg-slate-955 text-slate-400 dark:text-slate-700 border border-slate-300 dark:border-slate-900'
+                                        : 'bg-slate-200 dark:bg-slate-900 text-slate-700 dark:text-slate-400 border border-slate-300 dark:border-slate-800'
                                     }`}>
                                       {challengeNum}
                                     </div>
                                     <div className="min-w-0">
                                       <h5 className={`text-xs font-bold truncate ${
-                                        isCurrentLesson ? 'text-white' : isLessonDone ? 'text-emerald-150' : 'text-slate-350'
+                                        isCurrentLesson ? 'text-slate-900 dark:text-white' : isLessonDone ? 'text-emerald-900 dark:text-emerald-100' : 'text-slate-700 dark:text-slate-300'
                                       }`}>
                                         {lesson.title.replace(/^git-unit-\d+-\d+\s*:?\s*/i, '').replace(/^unit-[\d-]+\s*:?\s*/i, '')}
                                       </h5>
                                     </div>
                                   </div>
 
-                                  <div className="flex items-center gap-2 shrink-0 font-mono text-[9px] font-bold">
+                                  <div className="flex items-center gap-2 shrink-0 font-mono text-[9.5px] font-bold">
                                     <span className="text-slate-500 hidden sm:inline">
                                       ⏳ {lesson.duration || '15 mins'}
                                     </span>
-                                    <span className="text-amber-500">
+                                    <span className="text-amber-600 dark:text-amber-400">
                                       +{getXPRewardForDifficulty((lesson as any).difficulty)} XP
                                     </span>
                                     <div className="w-4 flex justify-center">
                                       {isLessonDone ? (
-                                        <span className="text-emerald-400 font-black animate-checkmark-pop">✓</span>
+                                        <span className="text-emerald-600 dark:text-emerald-400 font-black animate-checkmark-pop">✓</span>
                                       ) : isLessonLocked ? (
                                         <span>🔒</span>
                                       ) : (
@@ -1584,6 +1585,52 @@ soundEnabled
                               );
                             })}
                           </div>
+
+                          {/* Module Ending 💻 TRY IT OUT Interactive Capstone Node */}
+                          <div
+                            onClick={() => {
+                              if (isLocked) {
+                                soundService.play('error');
+                                toast.warning(`🔒 Complete previous levels to unlock this module practice!`);
+                                return;
+                              }
+                              const targetLesson = getFirstUncompletedOrFirstLesson();
+                              if (targetLesson) {
+                                setSelectedLessonId(targetLesson.id);
+                                setActiveView('workspace');
+                                soundService.play('select');
+                              }
+                            }}
+                            className={`mt-3 p-3.5 rounded-2xl border-2 transition-all duration-200 cursor-pointer flex items-center justify-between gap-3 ${
+                              isCompleted
+                                ? isNightMode
+                                  ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-300'
+                                  : 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-2xs'
+                                : isNightMode
+                                ? 'bg-primary/10 border-primary/40 hover:border-primary text-primary shadow-xs'
+                                : 'bg-primary/5 border-primary/40 hover:border-primary text-slate-900 shadow-2xs'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <span className="p-1.5 rounded-xl bg-primary/20 text-primary text-sm font-bold shrink-0">💻</span>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-heading font-black tracking-tight uppercase">
+                                    💻 TRY IT OUT • Module Practice Challenge
+                                  </span>
+                                  <span className="px-2 py-0.5 rounded-md text-[9px] font-mono font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50">
+                                    +50 XP
+                                  </span>
+                                </div>
+                                <p className="text-[10.5px] font-sans text-slate-600 dark:text-slate-400 truncate">
+                                  Hands-on practice & interactive challenge questions at the end of this module
+                                </p>
+                              </div>
+                            </div>
+                            <span className="px-3 py-1 text-[10px] font-mono font-black uppercase rounded-xl bg-primary text-slate-955 shrink-0">
+                              PRACTICE ➔
+                            </span>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1594,8 +1641,10 @@ soundEnabled
           </div>
 
           {/* Achievements Badge Section */}
-          <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 font-mono text-slate-200 mt-6 shadow-xl space-y-4">
-            <h3 className="text-sm font-black uppercase text-cyan-400 tracking-wider flex items-center gap-2 border-b border-slate-800 pb-2">
+          <div className={`border rounded-3xl p-6 shadow-md space-y-4 ${
+            isNightMode ? 'bg-slate-900/60 border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-900'
+          }`}>
+            <h3 className="text-xs sm:text-sm font-mono font-bold uppercase text-cyan-600 dark:text-cyan-400 tracking-wider flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2.5">
               <span>🏆 UNLOCKED ACHIEVEMENTS</span>
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -1606,26 +1655,30 @@ soundEnabled
                     key={badge.id}
                     className={`p-3.5 rounded-2xl border text-center flex flex-col items-center justify-center gap-2 transition-all relative overflow-hidden ${
                       isUnlocked
-                        ? 'bg-slate-950/40 border-cyan-500/40 text-white shadow-[0_0_10px_rgba(6,182,212,0.1)]'
-                        : 'bg-slate-950/10 border-slate-900/60 text-slate-600 opacity-60'
+                        ? isNightMode
+                          ? 'bg-slate-950/40 border-cyan-500/40 text-white shadow-[0_0_10px_rgba(6,182,212,0.1)]'
+                          : 'bg-cyan-50/50 border-cyan-300 text-slate-900 shadow-2xs'
+                        : isNightMode
+                        ? 'bg-slate-950/10 border-slate-900/60 text-slate-600 opacity-60'
+                        : 'bg-slate-100/50 border-slate-200 text-slate-400 opacity-60'
                     }`}
                   >
                     <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs ${
-                      isUnlocked ? 'bg-cyan-500/20 text-cyan-400' : 'bg-slate-950 text-slate-700'
+                      isUnlocked ? 'bg-cyan-500/20 text-cyan-400' : isNightMode ? 'bg-slate-950 text-slate-700' : 'bg-slate-200 text-slate-400'
                     }`}>
                       {isUnlocked ? '🏆' : '🔒'}
                     </div>
                     <div className="text-[10px] font-black uppercase tracking-tight truncate w-full font-sans">
                       {badge.name}
                     </div>
-                    <div className="text-[8px] text-slate-500 font-sans leading-tight">
+                    <div className="text-[8.5px] text-slate-500 font-sans leading-tight">
                       {badge.description}
                     </div>
-                    <div className="text-[9px] font-bold mt-1">
+                    <div className="text-[9.5px] font-bold mt-1">
                       {isUnlocked ? (
-                        <span className="text-emerald-400 font-sans">✓ Unlocked</span>
+                        <span className="text-emerald-600 dark:text-emerald-400 font-sans">✓ Unlocked</span>
                       ) : (
-                        <span className="text-slate-700 font-sans">🔒 Locked</span>
+                        <span className="text-slate-400 dark:text-slate-600 font-sans">🔒 Locked</span>
                       )}
                     </div>
                   </div>
