@@ -49,6 +49,12 @@ const envSchema = z.object({
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional(),
   GOOGLE_OAUTH_REFRESH_TOKEN: z.string().optional(),
   REDIS_URL: z.string().default('redis://localhost:6379'),
+
+  // Pre-Launch Gate & Developer Access Configuration
+  PRELAUNCH_MODE: z.string().default('true'),
+  DEVELOPER_ACCESS_PASSCODE: z.string().default('kaizenq_dev_secret_2026'),
+  DEVELOPER_SESSION_TTL: z.string().default('8h'),
+  DEVELOPER_SESSION_SECRET: z.string().default('kz_dev_session_sign_secret_2026'),
 });
 
 export const env = envSchema.parse(process.env);

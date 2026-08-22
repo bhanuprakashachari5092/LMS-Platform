@@ -19,9 +19,12 @@ import certificateRoutes from './certificateRoutes';
 import enrollmentRoutes from '../modules/enrollments/enrollment.routes';
 import portfolioRoutes from './portfolioRoutes';
 import resumeRoutes from './resumeRoutes';
+import developerAccessRoutes from './developerAccess.routes';
 import { verifyFirebaseToken, requireRole } from '../middleware/auth.middleware';
 
 const router = Router();
+
+router.use('/developer-access', developerAccessRoutes);
 
 router.get('/', (req, res) => {
   res.json({ message: 'Backend Connected Successfully' });

@@ -2,8 +2,10 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
+import cookieParser from 'cookie-parser';
 import { env } from './config/env';
 import { rateLimiter } from './middleware/rateLimiter.middleware';
+import { developerGateMiddleware } from './middleware/developerGate.middleware';
 import { errorMiddleware, notFoundHandler } from './middleware/error.middleware';
 import { requestLogger } from './middleware/logger.middleware';
 import routes from './routes';
@@ -86,10 +88,12 @@ const corsOptions: cors.CorsOptions = {
 };
 
 app.use(cors(corsOptions));
+app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(rateLimiter);
 app.use(requestLogger);
+app.use(developerGateMiddleware);
 
 // 1. Root Connection Endpoint
 app.get('/', (_req, res) => {

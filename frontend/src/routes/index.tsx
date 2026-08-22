@@ -6,6 +6,7 @@ import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { StudentRoute } from '@/components/auth/StudentRoute';
 import { AdminRoute } from '@/components/auth/AdminRoute';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { DeveloperGate } from '@/components/auth/DeveloperGate';
 
 // Helper to lazy load named exports and wrap them in a Suspense boundary
 const lazyLoad = (importFn: () => Promise<any>, name: string) => {
@@ -45,6 +46,10 @@ const lazyLoad = (importFn: () => Promise<any>, name: string) => {
   SuspenseWrapper.displayName = `Lazy(${name})`;
   return SuspenseWrapper;
 };
+
+// Prelaunch components
+import { LaunchingSoonPage } from '@/pages/prelaunch/LaunchingSoonPage';
+const DeveloperAccessPage = lazyLoad(() => import('@/pages/prelaunch/DeveloperAccessPage'), 'DeveloperAccessPage');
 
 // Lazy loaded page components
 const LandingPage = lazyLoad(() => import('@/pages/LandingPage'), 'LandingPage');
@@ -98,9 +103,22 @@ const PlaceholderPage = ({ title, subtitle }: { title: string; subtitle: string 
 // ─────────────────────────────────────────────────────────────────────────────
 
 const router = createBrowserRouter([
+  // Dedicated Pre-Launch Standalone Routes
+  {
+    path: '/developer-access',
+    element: <DeveloperAccessPage />,
+  },
+  {
+    path: '/launching-soon',
+    element: <LaunchingSoonPage />,
+  },
   {
     path: '/',
-    element: <PublicLayout />,
+    element: (
+      <DeveloperGate>
+        <PublicLayout />
+      </DeveloperGate>
+    ),
     children: [
       { index: true, element: <LandingPage /> },
       { path: 'courses', element: <CoursesList /> },
@@ -114,11 +132,19 @@ const router = createBrowserRouter([
   // Dedicated Standalone Public Student Portfolio (No Main LMS Site Navbar/Footer)
   {
     path: '/portfolio/:handleOrId',
-    element: <PublicPortfolio />,
+    element: (
+      <DeveloperGate>
+        <PublicPortfolio />
+      </DeveloperGate>
+    ),
   },
   {
     path: '/auth',
-    element: <AuthLayout />,
+    element: (
+      <DeveloperGate>
+        <AuthLayout />
+      </DeveloperGate>
+    ),
     children: [
       { path: 'login', element: <Login /> },
       { path: 'register', element: <Register /> },
@@ -132,9 +158,11 @@ const router = createBrowserRouter([
   {
     path: '/',
     element: (
-      <ProtectedRoute>
-        <DashboardLayout />
-      </ProtectedRoute>
+      <DeveloperGate>
+        <ProtectedRoute>
+          <DashboardLayout />
+        </ProtectedRoute>
+      </DeveloperGate>
     ),
     children: [
       { path: 'profile', element: <Profile /> },
@@ -144,9 +172,11 @@ const router = createBrowserRouter([
   {
     path: '/',
     element: (
-      <StudentRoute>
-        <DashboardLayout />
-      </StudentRoute>
+      <DeveloperGate>
+        <StudentRoute>
+          <DashboardLayout />
+        </StudentRoute>
+      </DeveloperGate>
     ),
     children: [
       { path: 'dashboard', element: <Dashboard /> },
@@ -163,9 +193,11 @@ const router = createBrowserRouter([
   {
     path: '/admin',
     element: (
-      <AdminRoute allowInstructor={true}>
-        <DashboardLayout />
-      </AdminRoute>
+      <DeveloperGate>
+        <AdminRoute allowInstructor={true}>
+          <DashboardLayout />
+        </AdminRoute>
+      </DeveloperGate>
     ),
     children: [
       { path: 'courses', element: <Courses /> },
@@ -190,9 +222,11 @@ const router = createBrowserRouter([
   {
     path: '/admin',
     element: (
-      <AdminRoute>
-        <DashboardLayout />
-      </AdminRoute>
+      <DeveloperGate>
+        <AdminRoute>
+          <DashboardLayout />
+        </AdminRoute>
+      </DeveloperGate>
     ),
     children: [
       { path: 'dashboard', element: <AdminDashboard /> },
@@ -216,33 +250,41 @@ const router = createBrowserRouter([
   {
     path: '/student/live-class/:liveClassId',
     element: (
-      <ProtectedRoute>
-        <LiveClassPage />
-      </ProtectedRoute>
+      <DeveloperGate>
+        <ProtectedRoute>
+          <LiveClassPage />
+        </ProtectedRoute>
+      </DeveloperGate>
     ),
   },
   {
     path: '/live-class/:liveClassId',
     element: (
-      <ProtectedRoute>
-        <LiveClassPage />
-      </ProtectedRoute>
+      <DeveloperGate>
+        <ProtectedRoute>
+          <LiveClassPage />
+        </ProtectedRoute>
+      </DeveloperGate>
     ),
   },
   {
     path: '/live-classroom/room/:classId',
     element: (
-      <ProtectedRoute>
-        <LiveClassroomScreen />
-      </ProtectedRoute>
+      <DeveloperGate>
+        <ProtectedRoute>
+          <LiveClassroomScreen />
+        </ProtectedRoute>
+      </DeveloperGate>
     ),
   },
   {
     path: '/live-classroom/:classId',
     element: (
-      <ProtectedRoute>
-        <LiveClassroomScreen />
-      </ProtectedRoute>
+      <DeveloperGate>
+        <ProtectedRoute>
+          <LiveClassroomScreen />
+        </ProtectedRoute>
+      </DeveloperGate>
     ),
   },
   // Fallback 404
