@@ -40,14 +40,14 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   };
 
   const symbolClass = responsive
-    ? 'w-10 h-10 lg:w-9 lg:h-9 xl:w-11 xl:h-11'
-    : (symbolSizeMap[size] || 'w-10 h-10 sm:w-11 sm:h-11');
+    ? 'w-9 h-9 sm:w-10 sm:h-10 lg:w-9 lg:h-9 xl:w-11 xl:h-11'
+    : (symbolSizeMap[size] || 'w-9 h-9 sm:w-10 sm:h-10');
   const titleClass = responsive
-    ? 'text-xl lg:text-lg xl:text-2xl'
-    : (titleSizeMap[size] || 'text-xl sm:text-2xl');
+    ? 'text-lg sm:text-xl lg:text-lg xl:text-2xl'
+    : (titleSizeMap[size] || 'text-lg sm:text-xl');
   const taglineClass = responsive
-    ? 'text-[9.5px] lg:text-[8px] xl:text-[11px] tracking-[0.24em]'
-    : (taglineSizeMap[size] || 'text-[9.5px] sm:text-[11px] tracking-[0.24em]');
+    ? 'text-[8px] sm:text-[9.5px] lg:text-[8px] xl:text-[11px] tracking-[0.2em] sm:tracking-[0.24em]'
+    : (taglineSizeMap[size] || 'text-[8.5px] sm:text-[9.5px] tracking-[0.22em]');
 
   return (
     <Link to="/" className={`inline-flex items-center gap-3 ${responsive ? 'lg:gap-1.5 xl:gap-3' : ''} group select-none ${className}`}>
