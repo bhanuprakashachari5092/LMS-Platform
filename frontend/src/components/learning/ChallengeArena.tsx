@@ -92,6 +92,11 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
   const { kqAppearance } = useTheme();
   const isNightMode = kqAppearance === 'night';
 
+  const challengeStorageKey = React.useMemo(() => {
+    const safeTitle = (challenge.title || '').replace(/[^a-zA-Z0-9]/g, '_');
+    return `shaivika_ch_ans_${courseId}_${challenge.missionNum}_${challenge.challengeNum || safeTitle}`;
+  }, [courseId, challenge.missionNum, challenge.challengeNum, challenge.title]);
+
   const [studentInput, setStudentInput] = useState('');
   const [selectedOption, setSelectedOption] = useState('');
   const [orderedSelection, setOrderedSelection] = useState<string[]>([]);
@@ -123,12 +128,31 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
   const totalContentStages = stages.length;
   const isPracticeUnlocked = true;
 
-  // Initialize and reset states when the challenge changes
+  // Initialize and persist state when the challenge changes
   useEffect(() => {
-    setStudentInput(challenge.placeholder || '');
-    setSelectedOption('');
-    setOrderedSelection([]);
-    setShowFeedback(isCompleted ? 'correct' : 'idle');
+    const savedAns = localStorage.getItem(challengeStorageKey);
+    const isAlreadySolved = isCompleted || (savedAns !== null);
+
+    if (isAlreadySolved) {
+      setShowFeedback('correct');
+      if (challenge.type === 'multiple-choice') {
+        setSelectedOption(savedAns || String(challenge.correctAnswer));
+      } else if (challenge.type === 'ordering') {
+        try {
+          setOrderedSelection(savedAns ? JSON.parse(savedAns) : (challenge.correctAnswer as string[]));
+        } catch {
+          setOrderedSelection(challenge.correctAnswer as string[]);
+        }
+      } else {
+        setStudentInput(savedAns || String(challenge.correctAnswer));
+      }
+    } else {
+      setStudentInput(challenge.placeholder || '');
+      setSelectedOption('');
+      setOrderedSelection([]);
+      setShowFeedback('idle');
+    }
+
     setShowHint(false);
     isInitialCompletedRef.current = isCompleted;
     setShowXPClaimedFeedback(false);
@@ -141,7 +165,7 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
       // Shuffle options for the ordering challenge
       setShuffledOptions([...challenge.options].sort(() => Math.random() - 0.5));
     }
-  }, [challenge, totalContentStages]);
+  }, [challenge, totalContentStages, challengeStorageKey, isCompleted]);
 
   useEffect(() => {
     if (isCompleted && !isInitialCompletedRef.current) {
@@ -154,14 +178,16 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
     isInitialCompletedRef.current = isCompleted;
   }, [isCompleted]);
 
+  const isLockedIn = isCompleted || showFeedback === 'correct';
+
   const handleOptionClick = (opt: string) => {
-    if (isCompleted || showFeedback === 'correct') return;
+    if (isLockedIn) return;
     setSelectedOption(opt);
     soundService.play('select');
   };
 
   const handleOrderChipClick = (opt: string) => {
-    if (isCompleted || showFeedback === 'correct') return;
+    if (isLockedIn) return;
     if (orderedSelection.includes(opt)) {
       setOrderedSelection(prev => prev.filter(x => x !== opt));
     } else {
@@ -171,12 +197,13 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
   };
 
   const handleResetOrder = () => {
-    if (isCompleted || showFeedback === 'correct') return;
+    if (isLockedIn) return;
     setOrderedSelection([]);
     soundService.play('select');
   };
 
   const handleCheckAnswer = () => {
+    if (isLockedIn) return;
     let isCorrect = false;
 
     if (challenge.type === 'multiple-choice') {
@@ -196,6 +223,20 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
     if (isCorrect) {
       setShowFeedback('correct');
       soundService.play('success');
+
+      // Persist permanently in localStorage
+      try {
+        if (challenge.type === 'multiple-choice') {
+          localStorage.setItem(challengeStorageKey, selectedOption);
+        } else if (challenge.type === 'ordering') {
+          localStorage.setItem(challengeStorageKey, JSON.stringify(orderedSelection));
+        } else {
+          localStorage.setItem(challengeStorageKey, studentInput);
+        }
+      } catch (err) {
+        console.error('Failed to save challenge answer', err);
+      }
+
       const diff = challenge.difficulty || 'Easy';
       const xp = diff.toLowerCase() === 'easy' ? 10 : diff.toLowerCase() === 'medium' ? 20 : 30;
       toast.success(`✓ Challenge complete! +${xp} XP awarded.`);
@@ -455,8 +496,12 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
                 <span className="p-1 rounded-lg bg-primary/15 text-primary">💻</span>
                 <span>TRY IT OUT</span>
               </h3>
-              <span className="px-2.5 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900/60 uppercase">
-                {challenge.difficulty || 'Easy'} Challenge
+              <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-mono font-bold uppercase ${
+                isLockedIn
+                  ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                  : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900/60'
+              }`}>
+                {isLockedIn ? '🔒 SUBMITTED' : `${challenge.difficulty || 'Easy'} Challenge`}
               </span>
             </div>
 
@@ -464,6 +509,14 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
             <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 font-sans font-medium leading-relaxed bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800">
               {challenge.challengeTask}
             </div>
+
+            {/* Locked Feedback Banner if already answered */}
+            {isLockedIn && (
+              <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 text-xs font-sans font-medium select-none">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span>Response submitted and saved. Answer is locked.</span>
+              </div>
+            )}
 
             {/* Interaction Input Interface Area */}
             <div className="mt-4">
@@ -477,15 +530,23 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
                       <button
                         key={idx}
                         onClick={() => handleOptionClick(opt)}
-                        disabled={isCompleted || showFeedback === 'correct'}
-                        className={`w-full p-3.5 sm:p-4 text-left rounded-2xl border text-xs sm:text-sm transition-all duration-150 active:scale-98 cursor-pointer flex items-center gap-3 ${
-                          isSelected
-                            ? 'bg-blue-50 dark:bg-blue-950/50 border-blue-500 dark:border-blue-400 text-blue-900 dark:text-blue-200 font-bold shadow-xs ring-2 ring-blue-500/20'
-                            : 'bg-slate-50/80 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-850 hover:border-slate-300'
+                        disabled={isLockedIn}
+                        className={`w-full p-3.5 sm:p-4 text-left rounded-2xl border text-xs sm:text-sm transition-all duration-150 flex items-center gap-3 ${
+                          isLockedIn
+                            ? isSelected
+                              ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-500 text-emerald-900 dark:text-emerald-200 font-bold shadow-xs cursor-default'
+                              : 'bg-slate-50/50 dark:bg-slate-900/20 border-slate-200 dark:border-slate-800/60 text-slate-400 dark:text-slate-600 opacity-60 cursor-not-allowed'
+                            : isSelected
+                            ? 'bg-blue-50 dark:bg-blue-950/50 border-blue-500 dark:border-blue-400 text-blue-900 dark:text-blue-200 font-bold shadow-xs ring-2 ring-blue-500/20 active:scale-98 cursor-pointer'
+                            : 'bg-slate-50/80 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-850 hover:border-slate-300 active:scale-98 cursor-pointer'
                         }`}
                       >
                         <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
-                          isSelected ? 'border-blue-500 bg-blue-500 text-white' : 'border-slate-400 dark:border-slate-600'
+                          isSelected
+                            ? isLockedIn
+                              ? 'border-emerald-500 bg-emerald-500 text-white'
+                              : 'border-blue-500 bg-blue-500 text-white'
+                            : 'border-slate-400 dark:border-slate-600'
                         }`}>
                           {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                         </div>
@@ -504,14 +565,17 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
                       <Code2 className="w-3.5 h-3.5" />
                       <span>practice_editor.py</span>
                     </span>
-                    <span>Tab spacing: 4</span>
+                    <span>{isLockedIn ? '🔒 READ ONLY' : 'Tab spacing: 4'}</span>
                   </div>
                   <textarea
                     value={studentInput}
                     onChange={(e) => setStudentInput(e.target.value)}
-                    disabled={isCompleted || showFeedback === 'correct'}
+                    disabled={isLockedIn}
+                    readOnly={isLockedIn}
                     rows={4}
-                    className="w-full bg-transparent p-4 outline-hidden text-emerald-400 dark:text-emerald-300 text-xs sm:text-sm font-mono border-0 focus:ring-0 resize-none leading-relaxed placeholder:text-slate-700"
+                    className={`w-full bg-transparent p-4 outline-hidden text-emerald-400 dark:text-emerald-300 text-xs sm:text-sm font-mono border-0 focus:ring-0 resize-none leading-relaxed placeholder:text-slate-700 ${
+                      isLockedIn ? 'cursor-not-allowed opacity-90' : ''
+                    }`}
                     placeholder={challenge.placeholder || "# Write your solution code here"}
                   />
                 </div>
@@ -524,7 +588,7 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
                     <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
                     <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                    <span className="ml-2 text-slate-400">interactive_terminal.sh</span>
+                    <span className="ml-2 text-slate-400">{isLockedIn ? 'interactive_terminal.sh (locked)' : 'interactive_terminal.sh'}</span>
                   </div>
                   <div className="p-4 flex items-center gap-2.5">
                     <span className="text-emerald-400 font-bold text-xs sm:text-sm shrink-0 select-none font-mono">
@@ -534,9 +598,12 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
                       type="text"
                       value={studentInput}
                       onChange={(e) => setStudentInput(e.target.value)}
-                      disabled={isCompleted || showFeedback === 'correct'}
+                      disabled={isLockedIn}
+                      readOnly={isLockedIn}
                       placeholder="Type command here..."
-                      className="flex-1 bg-transparent border-0 outline-hidden focus:ring-0 text-emerald-400 dark:text-emerald-300 text-xs sm:text-sm font-mono placeholder:text-slate-600 p-0"
+                      className={`flex-1 bg-transparent border-0 outline-hidden focus:ring-0 text-emerald-400 dark:text-emerald-300 text-xs sm:text-sm font-mono placeholder:text-slate-600 p-0 ${
+                        isLockedIn ? 'cursor-not-allowed opacity-90' : ''
+                      }`}
                     />
                   </div>
                 </div>
@@ -546,35 +613,37 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
               {challenge.type === 'ordering' && challenge.options && (
                 <div className="space-y-4">
                   <div className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider">
-                    Click steps below to arrange in chronological sequence:
+                    {isLockedIn ? 'Submitted sequence:' : 'Click steps below to arrange in chronological sequence:'}
                   </div>
 
                   {/* Order Selector Chips List */}
-                  <div className="flex flex-wrap gap-2">
-                    {shuffledOptions.map((opt, idx) => {
-                      const isSelected = orderedSelection.includes(opt);
-                      const displayNum = orderedSelection.indexOf(opt) + 1;
-                      return (
-                        <button
-                          key={idx}
-                          onClick={() => handleOrderChipClick(opt)}
-                          disabled={isCompleted || showFeedback === 'correct'}
-                          className={`px-3.5 py-2 rounded-xl border text-xs font-bold transition-all active:scale-95 cursor-pointer select-none flex items-center gap-2 ${
-                            isSelected
-                              ? 'bg-primary/15 border-primary text-primary shadow-xs'
-                              : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300'
-                          }`}
-                        >
-                          {isSelected && (
-                            <span className="bg-primary text-slate-950 px-1.5 py-0.5 text-[9.5px] rounded-md font-black">
-                              {displayNum}
-                            </span>
-                          )}
-                          <span>{opt}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                  {!isLockedIn && (
+                    <div className="flex flex-wrap gap-2">
+                      {shuffledOptions.map((opt, idx) => {
+                        const isSelected = orderedSelection.includes(opt);
+                        const displayNum = orderedSelection.indexOf(opt) + 1;
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => handleOrderChipClick(opt)}
+                            disabled={isLockedIn}
+                            className={`px-3.5 py-2 rounded-xl border text-xs font-bold transition-all active:scale-95 cursor-pointer select-none flex items-center gap-2 ${
+                              isSelected
+                                ? 'bg-primary/15 border-primary text-primary shadow-xs'
+                                : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+                            }`}
+                          >
+                            {isSelected && (
+                              <span className="bg-primary text-slate-950 px-1.5 py-0.5 text-[9.5px] rounded-md font-black">
+                                {displayNum}
+                              </span>
+                            )}
+                            <span>{opt}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
 
                   {/* Selected Ordered Output List View */}
                   <div className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-2xl p-4 min-h-[52px] flex items-center justify-between gap-4">
@@ -595,7 +664,7 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
                       )}
                     </div>
 
-                    {orderedSelection.length > 0 && !(isCompleted || showFeedback === 'correct') && (
+                    {orderedSelection.length > 0 && !isLockedIn && (
                       <button
                         onClick={handleResetOrder}
                         className="text-[10px] text-rose-600 dark:text-rose-400 hover:text-rose-700 border border-rose-200 dark:border-rose-900/60 px-2.5 py-1 rounded-lg transition-all cursor-pointer font-bold bg-rose-50 dark:bg-rose-950/40"
