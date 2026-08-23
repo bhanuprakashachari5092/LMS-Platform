@@ -5,6 +5,7 @@ import { soundService } from '@/services/soundService';
 import type { Challenge } from '@/services/challengeEngine';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { GamifiedArchitectureFlow } from './GamifiedArchitectureFlow';
+import { GamifiedObjectivesCard } from './GamifiedObjectivesCard';
 import { useTheme } from '@/contexts/ThemeContext';
 
 function parseContent(content: string) {
@@ -339,21 +340,12 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
 
             if (stage.id === 'objectives') {
               return (
-                <div 
-                  key="objectives" 
-                  className={`bg-white/95 dark:bg-[#0E1325]/85 border border-slate-200 dark:border-slate-800/90 rounded-3xl p-5 sm:p-6 space-y-3.5 shadow-xs dark:shadow-md transition-all ${animClass}`}
-                >
-                  <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-blue-600 dark:text-cyan-400 border-b border-slate-200 dark:border-slate-800 pb-2.5 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-blue-500 dark:text-cyan-400" />
-                    <span>🎯 LEARNING OBJECTIVES</span>
-                  </h3>
-                  <div className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm leading-relaxed font-sans font-normal">
-                    <MarkdownRenderer
-                      content={objectives}
-                      isNightMode={isNightMode}
-                      courseId={courseId}
-                    />
-                  </div>
+                <div key="objectives" className={animClass}>
+                  <GamifiedObjectivesCard
+                    objectives={objectives}
+                    isNightMode={isNightMode}
+                    title="TARGET LEARNING OBJECTIVES"
+                  />
                 </div>
               );
             }

@@ -20,6 +20,7 @@ import {
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { GamifiedObjectivesCard } from './GamifiedObjectivesCard';
 import { LazyViewport } from './LazyViewport';
 
 const Terminal = lazy(() => import('./Terminal').then(m => ({ default: m.Terminal })));
@@ -1448,24 +1449,12 @@ export const LessonViewer: React.FC<LessonViewerProps> = React.memo(({
             {/* TAB 1: THEORY */}
             {activeTab === 'theory' && (
               <div className="space-y-6">
-                {/* Learning Objectives Callout */}
-                <div
-                  className={`p-5 rounded-3xl border flex gap-4 ${
-                    isNightMode ? 'bg-slate-900/60 border-slate-800/80' : 'bg-sky-50/30 border-sky-100/80'
-                  }`}
-                >
-                  <div className="p-2.5 rounded-2xl bg-sky-500/10 text-sky-455 border border-sky-500/20 shrink-0 self-start">
-                    <BookOpen className="w-5 h-5 text-sky-400" />
-                  </div>
-                  <div className="space-y-2">
-                    <h4 className={`text-xs font-extrabold uppercase tracking-wider ${isNightMode ? 'text-sky-400' : 'text-sky-700'}`}>
-                      Learning Objectives
-                    </h4>
-                    <p className={`text-xs leading-relaxed ${isNightMode ? 'text-slate-300' : 'text-slate-655'}`}>
-                      By the end of this subtopic, you will master the fundamental syntax execution, study command structures, configuration file parameters, and core troubleshooting steps.
-                    </p>
-                  </div>
-                </div>
+                {/* 3D Gamified Learning Objectives */}
+                <GamifiedObjectivesCard
+                  objectives={`- **Syntax Mastery**: Study standard command structures and fundamental keywords.\n- **Architectural Flow**: Understand data transitions, lifecycle states, and internal mechanisms.\n- **Error Mitigation**: Identify edge cases, debugging commands, and enterprise best practices.`}
+                  isNightMode={isNightMode}
+                  title="CORE LEARNING OBJECTIVES"
+                />
 
                 {/* Visual Topic Illustration Card */}
                 {illustrationUrl && (
