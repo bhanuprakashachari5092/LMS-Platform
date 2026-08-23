@@ -67,8 +67,35 @@ export class GoogleSlidesService {
       throw new Error('Google credentials not configured.');
     }
 
+    // Fix 1: Check if this is a placeholder/dummy key containing truncated dots
+    if (privateKey.includes('...') || privateKey.includes('your_google_')) {
+      logger.info('[GOOGLE SLIDES SERVICE] GOOGLE_DRIVE_PRIVATE_KEY is a dummy placeholder. Bypassing JWT auth to fallback to local vector PDF.');
+      return new google.auth.GoogleAuth({
+        scopes: [
+          'https://www.googleapis.com/auth/drive.file',
+          'https://www.googleapis.com/auth/drive',
+          'https://www.googleapis.com/auth/presentations',
+        ]
+      });
+    }
+
+    // Fix 2: Normalize escaped newlines (common in .env / Render env vars)
     if (privateKey.includes('\\n')) {
       privateKey = privateKey.replace(/\\n/g, '\n');
+    }
+
+    // Fix 3: Strip surrounding quotes if present (common in some env formats)
+    privateKey = privateKey.replace(/^["']|["']$/g, '').trim();
+
+    // Fix 4: Ensure proper PEM header/footer line breaks for OpenSSL 3 compatibility
+    // This fixes the error:1E08010C:DECODER routines::unsupported error on Node 18+
+    if (!privateKey.includes('\n')) {
+      // Reconstruct properly formatted PEM
+      const pemContent = privateKey
+        .replace('-----BEGIN PRIVATE KEY-----', '')
+        .replace('-----END PRIVATE KEY-----', '')
+        .trim();
+      privateKey = `-----BEGIN PRIVATE KEY-----\n${pemContent}\n-----END PRIVATE KEY-----\n`;
     }
 
     return new google.auth.JWT({

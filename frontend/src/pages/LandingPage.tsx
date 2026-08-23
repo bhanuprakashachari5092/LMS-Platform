@@ -471,7 +471,26 @@ export const LandingPage: React.FC = () => {
       features: ['Lifetime Access', 'Certificates included'],
       cta: 'Enroll Now',
       popular: false,
-      coursesCount: 8
+      coursesCount: 8,
+      vipPass: false
+    },
+    {
+      name: 'VIP 3-Month All-Access Pro Pass',
+      price: '1,299',
+      originalPrice: '2,999',
+      period: '3 months',
+      desc: 'ALL courses + Portfolio Builder + Resume Builder + Recruiter Suite. Use code VIP300 for ₹300 OFF!',
+      features: [
+        'All 8+ Expert Courses Unlocked',
+        'Developer Portfolio & Vanity URL',
+        'Resume Builder & PDF Export',
+        'Auto-Import Verified Credentials',
+        'Coupon VIP300 → Final Price ₹999'
+      ],
+      cta: 'Unlock VIP Pass 👑',
+      popular: false,
+      coursesCount: 999,
+      vipPass: true
     }
   ];
 
@@ -1178,51 +1197,49 @@ export const LandingPage: React.FC = () => {
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch pt-6">
-            {pricingPlans.map((plan, idx) => (
+          {/* Standard 4 plans */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 items-stretch pt-6">
+            {pricingPlans.filter((p: any) => !p.vipPass).map((plan: any, idx: number) => (
               <div
                 key={idx}
-                className={`bg-white dark:bg-zinc-900 rounded-[22px] p-8 flex flex-col justify-between space-y-8 border transition-all duration-300 relative glow-hover ${
-                  plan.popular 
-                    ? 'border-2 border-blue-500 shadow-2xl shadow-blue-500/10 dark:shadow-[0_20px_50px_rgba(59,130,246,0.15)] md:scale-[1.04] md:z-10 hover:scale-[1.06]' 
+                className={`bg-white dark:bg-zinc-900 rounded-[22px] p-7 flex flex-col justify-between space-y-6 border transition-all duration-300 relative glow-hover ${
+                  plan.popular
+                    ? 'border-2 border-blue-500 shadow-2xl shadow-blue-500/10 dark:shadow-[0_20px_50px_rgba(59,130,246,0.15)] scale-[1.03] z-10 hover:scale-[1.05]'
                     : 'border-[#E6EEF9] dark:border-zinc-800 shadow-xs hover:-translate-y-1.5'
                 }`}
               >
                 {plan.popular && (
                   <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[9px] font-extrabold uppercase px-4 py-1.5 rounded-full shadow-md tracking-wider animate-pulse">
-                    Most Popular Choice
+                    Most Popular
                   </span>
                 )}
-
-                <div className="space-y-5">
-                  <h3 className="font-heading font-bold text-xl text-slate-900 dark:text-white">{plan.name}</h3>
+                <div className="space-y-4">
+                  <h3 className="font-heading font-bold text-lg text-slate-900 dark:text-white">{plan.name}</h3>
                   <div className="flex items-baseline gap-1">
                     <span className="text-xs text-slate-500 dark:text-zinc-400 font-bold">₹</span>
-                    <span className="font-heading font-extrabold text-5xl text-slate-900 dark:text-white tracking-tight">{plan.price}</span>
+                    <span className="font-heading font-extrabold text-4xl text-slate-900 dark:text-white tracking-tight">{plan.price}</span>
                     <span className="text-xs text-slate-500 dark:text-zinc-400 font-medium ml-1">/{plan.period}</span>
                   </div>
-                  <p className="text-xs text-slate-650 dark:text-zinc-400 leading-relaxed font-normal">{plan.desc}</p>
-
-                  <ul className="space-y-3 pt-5 border-t border-slate-100 dark:border-zinc-800 text-xs text-slate-700 dark:text-zinc-300 font-medium">
-                    {plan.features.map((feat, fIdx) => (
-                      <li key={fIdx} className="flex items-center gap-2.5">
-                        <Check className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                  <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed font-normal">{plan.desc}</p>
+                  <ul className="space-y-2.5 pt-4 border-t border-slate-100 dark:border-zinc-800 text-xs text-slate-700 dark:text-zinc-300 font-medium">
+                    {plan.features.map((feat: string, fIdx: number) => (
+                      <li key={fIdx} className="flex items-center gap-2">
+                        <Check className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
                         <span>{feat}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
-
                 <button
                   onClick={() => {
                     setCheckoutCourses([{ id: `bundle-${plan.coursesCount}`, title: plan.name }]);
-                    setCheckoutPrice(Number(plan.price));
+                    setCheckoutPrice(Number(String(plan.price).replace(/,/g, '')));
                     setIsCheckoutOpen(true);
                   }}
-                  className={`w-full text-center text-xs py-3.5 rounded-xl font-bold transition-all ${
+                  className={`w-full text-center text-xs py-3 rounded-xl font-bold transition-all ${
                     plan.popular
                       ? 'bg-blue-600 text-white shadow-md hover:bg-blue-700'
-                      : 'bg-slate-100 text-slate-800 dark:bg-zinc-800 dark:text-zinc-100 hover:border-blue-400 border border-[#E6EEF9] dark:border-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-700'
+                      : 'bg-slate-100 text-slate-800 dark:bg-zinc-800 dark:text-zinc-100 border border-[#E6EEF9] dark:border-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-700'
                   }`}
                 >
                   {plan.cta}
@@ -1230,6 +1247,54 @@ export const LandingPage: React.FC = () => {
               </div>
             ))}
           </div>
+
+          {/* VIP All-Access Pro Pass — full-width premium gold card */}
+          {pricingPlans.filter((p: any) => p.vipPass).map((plan: any, idx: number) => (
+            <div
+              key={`vip-${idx}`}
+              className="relative mt-10 rounded-[28px] p-8 sm:p-10 bg-gradient-to-r from-amber-950/60 via-slate-900 to-indigo-950/60 border-2 border-amber-500/60 shadow-2xl overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-8"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 via-transparent to-indigo-500/10 pointer-events-none" />
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-6 py-1.5 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 text-[10px] font-black uppercase tracking-widest rounded-full shadow-lg whitespace-nowrap">
+                👑 VIP All-Access Pro Pass
+              </div>
+              {/* Left */}
+              <div className="relative z-10 flex-1 space-y-4 text-left">
+                <h3 className="font-heading font-black text-2xl sm:text-3xl text-white">{plan.name}</h3>
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <span className="text-sm text-amber-300 font-bold">₹</span>
+                  <span className="font-heading font-extrabold text-5xl text-amber-400 tracking-tight">{plan.price}</span>
+                  <span className="text-sm text-slate-400 font-medium">/ {plan.period}</span>
+                  {(plan as any).originalPrice && (
+                    <span className="text-sm line-through text-slate-500 font-medium">₹{(plan as any).originalPrice}</span>
+                  )}
+                </div>
+                <p className="text-sm text-slate-300 leading-relaxed font-medium max-w-lg">{plan.desc}</p>
+              </div>
+              {/* Right */}
+              <div className="relative z-10 flex-1 space-y-5">
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs text-slate-200 font-medium">
+                  {plan.features.map((feat: string, fIdx: number) => (
+                    <li key={fIdx} className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span>{feat}</span>
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  onClick={() => {
+                    setCheckoutCourses([{ id: 'vip_pass_3m', title: plan.name }]);
+                    setCheckoutPrice(1299);
+                    setIsCheckoutOpen(true);
+                  }}
+                  className="w-full sm:w-auto px-10 py-4 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 hover:from-amber-300 hover:to-amber-300 text-slate-950 text-sm font-black shadow-xl transition-all active:scale-95 hover:scale-105"
+                >
+                  {plan.cta}
+                </button>
+                <p className="text-[11px] text-slate-400">Use coupon <strong className="text-amber-400 font-mono">VIP300</strong> at checkout → ₹300 OFF, final price <strong className="text-amber-400">₹999</strong>!</p>
+              </div>
+            </div>
+          ))}
         </section>
 
 

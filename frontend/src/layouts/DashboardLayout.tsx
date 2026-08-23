@@ -370,7 +370,7 @@ export const DashboardLayout: React.FC = () => {
                             </span>
                           )}
                           
-                          {/* Premium PRO Badge */}
+                          {/* Premium VIP Badge */}
                           {item.isPremium && (
                             <span className={`text-[8.5px] font-black uppercase px-2 py-0.5 rounded-full border tracking-wider shrink-0 shadow-xs flex items-center gap-1 ${
                               isActive 
@@ -378,7 +378,7 @@ export const DashboardLayout: React.FC = () => {
                                 : 'bg-linear-to-r from-amber-400 via-amber-500 to-orange-500 text-slate-950 border-amber-300 shadow-amber-500/25 font-black'
                             }`}>
                               <Sparkles className="w-2.5 h-2.5 fill-current" />
-                              <span>PRO</span>
+                              <span>VIP</span>
                             </span>
                           )}
 

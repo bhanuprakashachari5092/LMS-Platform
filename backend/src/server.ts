@@ -2,6 +2,7 @@ import app from './app';
 import { env } from './config/env';
 import logger from './config/logger';
 import './firebase';
+
 import { CourseService } from './services/course/CourseService';
 import http from 'http';
 import { Server as SocketServer } from 'socket.io';

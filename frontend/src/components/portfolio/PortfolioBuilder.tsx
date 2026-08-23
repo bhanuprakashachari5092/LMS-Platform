@@ -24,16 +24,13 @@ import {
   Monitor,
   Upload,
   Mail,
-  Unlock,
-  CreditCard,
-  Tag,
-  ShieldCheck,
   X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { API_BASE_URL } from '@/config/api';
 import { CertificateService } from '@/services/achievementService';
+import { CheckoutModal } from '../courses/CheckoutModal';
 
 const Github: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -238,46 +235,14 @@ export const PortfolioBuilder: React.FC = () => {
   const [showLivePreviewModal, setShowLivePreviewModal] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
 
-  // PRO Unlock & Pricing States
-  const [isProUnlocked, setIsProUnlocked] = useState<boolean>(() => {
-    return localStorage.getItem('shaivika_portfolio_pro_unlocked') === 'true';
-  });
-  const [showProCheckoutModal, setShowProCheckoutModal] = useState(false);
-  const [couponCode, setCouponCode] = useState('');
-  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'upi' | 'card' | 'netbanking'>('upi');
+  // VIP Unlock States
+  const [isProUnlocked] = useState<boolean>(() =>
+    localStorage.getItem('shaivika_vip_unlocked') === 'true'
+  );
+  const [showVipModal, setShowVipModal] = useState(false);
 
-  const basePrice = 2999;
-  const proDiscountPrice = 1999;
-  const currentPrice = appliedCoupon ? proDiscountPrice : basePrice;
 
-  const handleApplyCoupon = () => {
-    const clean = couponCode.trim().toUpperCase();
-    if (!clean) {
-      toast.warning('Please enter a valid coupon code (e.g. KAIZEN50, PRO50, HALF).');
-      return;
-    }
-    if (['KAIZEN50', 'PRO50', 'PRO1999', 'HALF', 'DISCOUNT50', 'SPECIAL'].includes(clean) || clean.length >= 3) {
-      setAppliedCoupon(clean);
-      toast.success(`🎉 Coupon "${clean}" applied! Special price unlocked: ₹1,999 (Save ₹1,000)!`);
-    } else {
-      toast.error('Invalid coupon code. Try KAIZEN50 or PRO50.');
-    }
-  };
 
-  const handleUnlockProPayment = async () => {
-    setIsProcessingPayment(true);
-    toast.loading('Processing payment authorization...', { id: 'pro_pay' });
-    
-    setTimeout(() => {
-      setIsProUnlocked(true);
-      localStorage.setItem('shaivika_portfolio_pro_unlocked', 'true');
-      setIsProcessingPayment(false);
-      setShowProCheckoutModal(false);
-      toast.success('🎉 Congratulations! PRO Developer Showcase & Recruiter Suite Unlocked!', { id: 'pro_pay' });
-    }, 1200);
-  };
 
   // LMS Telemetry data
   const [userCertificates, setUserCertificates] = useState<any[]>([]);
@@ -503,16 +468,16 @@ export const PortfolioBuilder: React.FC = () => {
               {isPublished ? 'Live & Published' : 'Draft Mode (Unpublished)'}
             </span>
             <span
-              onClick={() => setShowProCheckoutModal(true)}
+              onClick={() => { if (!isProUnlocked) setShowVipModal(true); }}
               className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border cursor-pointer transition-all hover:scale-105 ${
                 isProUnlocked
-                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-xs'
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-xs'
                   : 'bg-gradient-to-r from-amber-500/30 via-indigo-500/20 to-amber-500/30 text-amber-200 border-amber-500/50 shadow-md animate-pulse'
               }`}
-              title="Manage PRO Showcase & Recruiter Suite"
+              title="Manage VIP All-Access Pro Pass"
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              {isProUnlocked ? 'PRO Unlocked ⚡' : 'Upgrade to PRO (₹1,999) ⚡'}
+              {isProUnlocked ? 'VIP Unlocked 👑' : 'Upgrade to VIP Pass 👑'}
             </span>
           </div>
 
@@ -1238,54 +1203,38 @@ export const PortfolioBuilder: React.FC = () => {
                   <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${
                     isProUnlocked ? 'bg-emerald-500 text-slate-950' : 'bg-amber-500 text-slate-950'
                   }`}>
-                    {isProUnlocked ? 'PRO UNLOCKED ⚡' : 'PRO SHOWCASE'}
+                    {isProUnlocked ? 'VIP UNLOCKED 👑' : 'VIP PASS'}
                   </span>
                   <span className="text-xs font-bold text-white">
-                    {isProUnlocked ? 'Lifetime Recruiter Suite Unlocked' : 'Unlock PRO Recruiter Suite'}
+                    {isProUnlocked ? 'VIP All-Access Active' : 'Unlock VIP All-Access Pro Pass'}
                   </span>
                 </div>
                 {!isProUnlocked && (
                   <div className="flex items-center gap-1.5 font-mono text-xs">
                     <span className="line-through text-slate-500">₹2,999</span>
-                    <span className="text-emerald-400 font-extrabold text-sm">{appliedCoupon ? '₹1,999' : '₹2,999'}</span>
+                    <span className="text-emerald-400 font-extrabold text-sm">₹1,299</span>
                   </div>
                 )}
               </div>
 
               {!isProUnlocked ? (
                 <div className="pt-2.5 border-t border-slate-800/80 flex flex-col sm:flex-row items-center gap-2">
-                  <div className="flex items-center gap-1.5 w-full sm:flex-1 bg-slate-900/90 px-3 py-1.5 rounded-xl border border-slate-800">
-                    <Tag className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                    <input
-                      type="text"
-                      value={couponCode}
-                      onChange={(e) => setCouponCode(e.target.value)}
-                      placeholder="Coupon (e.g. PRO50)"
-                      className="bg-transparent text-xs text-white font-mono uppercase focus:outline-hidden w-full placeholder:text-slate-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleApplyCoupon}
-                      className="text-[10px] font-bold text-cyan-400 hover:text-cyan-300 px-2 py-0.5 rounded bg-cyan-950/60 border border-cyan-800/60 shrink-0 cursor-pointer"
-                    >
-                      {appliedCoupon ? 'Applied ✓' : 'Apply'}
-                    </button>
-                  </div>
+                  <p className="text-xs text-slate-400 flex-1">Use code <strong className="text-amber-400 font-mono">VIP300</strong> at checkout → ₹300 OFF!</p>
                   <button
                     type="button"
                     onClick={() => {
                       setShowShareModal(false);
-                      setShowProCheckoutModal(true);
+                      setShowVipModal(true);
                     }}
                     className="w-full sm:w-auto px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 text-xs font-black shadow-md cursor-pointer transition-all active:scale-95 shrink-0"
                   >
-                    Unlock PRO ({appliedCoupon ? '₹1,999' : '₹2,999'}) ⚡
+                    Unlock VIP Pass 👑
                   </button>
                 </div>
               ) : (
                 <div className="text-[11px] text-emerald-400 font-medium flex items-center gap-1.5 pt-1">
                   <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>All Recruiter Broadcasting & Vanity Domain URLs are active for your account.</span>
+                  <span>All VIP features, Portfolio & Recruiter Suite active for your account.</span>
                 </div>
               )}
             </div>
@@ -1392,146 +1341,7 @@ export const PortfolioBuilder: React.FC = () => {
         </div>
       )}
 
-      {/* ── PRO CHECKOUT PAYMENT UNLOCK MODAL ── */}
-      {showProCheckoutModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
-          <div className="w-full max-w-md bg-slate-900 border border-amber-500/40 rounded-3xl p-6 sm:p-8 shadow-2xl text-white space-y-6 animate-in zoom-in-95 duration-150">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-300 p-0.5 shadow-lg">
-                  <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center text-amber-400">
-                    <Sparkles className="w-6 h-6" />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <h3 className="text-lg font-black text-white">Unlock PRO Showcase</h3>
-                    <span className="px-2 py-0.5 rounded bg-amber-500 text-slate-950 text-[9px] font-black uppercase">PRO TIER</span>
-                  </div>
-                  <p className="text-xs text-slate-400">Verified Recruiter Suite & Custom Domain License</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowProCheckoutModal(false)}
-                className="p-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white cursor-pointer transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            {/* Price & Savings Display */}
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-950 via-indigo-950/30 to-slate-950 border border-slate-800 flex items-center justify-between">
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Investment</span>
-                <div className="flex items-baseline gap-2 pt-0.5">
-                  <span className="text-2xl font-black text-emerald-400">₹{currentPrice}</span>
-                  <span className="text-sm line-through text-slate-500">₹{basePrice}</span>
-                </div>
-              </div>
-              {appliedCoupon ? (
-                <div className="px-3 py-1 rounded-xl bg-emerald-950/80 border border-emerald-800 text-emerald-300 text-xs font-bold">
-                  Coupon Applied (Saved ₹1,000)
-                </div>
-              ) : (
-                <div className="px-3 py-1 rounded-xl bg-amber-950/60 border border-amber-800 text-amber-300 text-xs font-bold">
-                  Offer Available
-                </div>
-              )}
-            </div>
-
-            {/* Coupon Code Input */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                <Tag className="w-3.5 h-3.5 text-amber-400" />
-                <span>Apply Promo / Coupon Code</span>
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value)}
-                  placeholder="Enter Coupon (e.g. PRO50, KAIZEN50)"
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white font-mono uppercase focus:outline-hidden focus:border-amber-500/60"
-                />
-                <button
-                  type="button"
-                  onClick={handleApplyCoupon}
-                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-400 text-xs font-bold border border-slate-700 cursor-pointer shrink-0 transition-all"
-                >
-                  Apply Code
-                </button>
-              </div>
-              <p className="text-[10px] text-slate-400">Tip: Use code <strong className="text-amber-400 font-mono">PRO50</strong> or <strong className="text-amber-400 font-mono">KAIZEN50</strong> to get 33% OFF (₹1,999).</p>
-            </div>
-
-            {/* Payment Method Selector */}
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                <CreditCard className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Select Payment Method</span>
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('upi')}
-                  className={`p-3 rounded-xl border text-center transition-all cursor-pointer ${
-                    paymentMethod === 'upi'
-                      ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300 font-bold'
-                      : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <span className="text-xs block font-bold">UPI</span>
-                  <span className="text-[9px] block text-slate-400">GPay / PhonePe</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('card')}
-                  className={`p-3 rounded-xl border text-center transition-all cursor-pointer ${
-                    paymentMethod === 'card'
-                      ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300 font-bold'
-                      : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <span className="text-xs block font-bold">Card</span>
-                  <span className="text-[9px] block text-slate-400">Credit / Debit</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('netbanking')}
-                  className={`p-3 rounded-xl border text-center transition-all cursor-pointer ${
-                    paymentMethod === 'netbanking'
-                      ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300 font-bold'
-                      : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <span className="text-xs block font-bold">Netbanking</span>
-                  <span className="text-[9px] block text-slate-400">All Banks</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Guarantees */}
-            <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-400">
-              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Instant Lifetime Activation • 256-bit SSL Secure Payment</span>
-            </div>
-
-            {/* Action Unlock Button */}
-            <button
-              type="button"
-              disabled={isProcessingPayment}
-              onClick={handleUnlockProPayment}
-              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 text-sm font-black shadow-xl cursor-pointer transition-all active:scale-98 flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              <Unlock className="w-4 h-4" />
-              <span>{isProcessingPayment ? 'Authorizing Payment...' : `Pay ₹${currentPrice} & Unlock PRO Showcase`}</span>
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* ── LIVE PREVIEW MODAL ── */}
       {showLivePreviewModal && (
@@ -1605,6 +1415,12 @@ export const PortfolioBuilder: React.FC = () => {
           </div>
         </div>
       )}
+      <CheckoutModal
+        isOpen={showVipModal}
+        onClose={() => setShowVipModal(false)}
+        courses={[{ id: 'vip_pass_3m', title: 'VIP 3-Month All-Access Pro Pass' }]}
+        totalPrice={1299}
+      />
     </div>
   );
 };

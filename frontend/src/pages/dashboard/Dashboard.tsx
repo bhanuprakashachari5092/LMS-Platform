@@ -98,6 +98,17 @@ export const Dashboard: React.FC = () => {
   useEffect(() => {
     setWeakTopics([]);
   }, []);
+
+  // VIP unlock on successful payment redirect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const success = params.get('payment_success');
+    if (success === 'true') {
+      localStorage.setItem('shaivika_vip_unlocked', 'true');
+      localStorage.setItem('shaivika_portfolio_pro_unlocked', 'true');
+      toast.success('👑 Congratulations! Your VIP All-Access Pro Pass is now active!');
+    }
+  }, []);
   const badgeService = useMemo(() => new BadgeService(), []);
   const streakService = useMemo(() => new AchievementService(), []);
 

@@ -541,35 +541,23 @@ export class CertificateDeliveryService {
             }
           }
 
-          pdfBuffer = await googleSlidesService.generateCertificateFromTemplate({
-            certificateId,
-            studentId: displayStudentId,
-            studentName: dynamicStudentName,
-            courseTitle: cleanCourseTitleForCertificate(dynamicCourseTitle),
-            instructorName: payload.instructorName || 'Shaivika Groups Board',
-            completionDate,
-            courseDuration: dynamicCourseDuration,
-            modulesCount: actualModulesCount,
-            achievement: dynamicAchievement,
-            qrCodeBuffer,
-            courseId: payload.courseId,
-            forceRegenerate: isForce,
-            requestId,
-          });
-      try {
-        pdfBuffer = await googleSlidesService.generateCertificateFromTemplate({
-          certificateId,
-          studentId: displayStudentId,
-          studentName: dynamicStudentName,
-          courseTitle: cleanCourseTitleForCertificate(dynamicCourseTitle),
-          instructorName: payload.instructorName || 'Shaivika Groups Board',
-          completionDate,
-          courseDuration: dynamicCourseDuration,
-          modulesCount: actualModulesCount,
-          achievement: dynamicAchievement,
-          qrCodeBuffer,
-        });
-      } catch (slideErr: any) {
+          try {
+            pdfBuffer = await googleSlidesService.generateCertificateFromTemplate({
+              certificateId,
+              studentId: displayStudentId,
+              studentName: dynamicStudentName,
+              courseTitle: cleanCourseTitleForCertificate(dynamicCourseTitle),
+              instructorName: payload.instructorName || 'Shaivika Groups Board',
+              completionDate,
+              courseDuration: dynamicCourseDuration,
+              modulesCount: actualModulesCount,
+              achievement: dynamicAchievement,
+              qrCodeBuffer,
+              courseId: payload.courseId,
+              forceRegenerate: isForce,
+              requestId,
+            });
+          } catch (slideErr: any) {
         logger.warn(`[AUTOMATED CERTIFICATE SYSTEM] Google Slides PDF generation failed/not configured: ${slideErr?.message || slideErr}. Falling back to local PDFCertificateGenerator.`);
         const { pdfCertificateGenerator } = await import('./PDFCertificateGenerator');
         pdfBuffer = await pdfCertificateGenerator.generateCertificateBuffer({

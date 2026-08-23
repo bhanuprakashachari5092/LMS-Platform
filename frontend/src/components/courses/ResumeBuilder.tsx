@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { API_BASE_URL } from '@/config/api';
 import { CertificateService } from '@/services/achievementService';
 import { toast } from 'sonner';
+import { CheckoutModal } from './CheckoutModal';
 
 interface Experience {
   role: string;
@@ -96,6 +97,10 @@ export const ResumeBuilder: React.FC = () => {
   const [newRole, setNewRole] = useState({ role: '', company: '', duration: '', desc: '' });
   const [newEd, setNewEd] = useState({ degree: '', school: '', duration: '' });
   const [isSaving, setIsSaving] = useState(false);
+  const [showVipModal, setShowVipModal] = useState(false);
+  const [isVipUnlocked, setIsVipUnlocked] = useState<boolean>(() =>
+    localStorage.getItem('shaivika_vip_unlocked') === 'true'
+  );
 
   // Load from backend on mount
   useEffect(() => {
@@ -175,6 +180,11 @@ export const ResumeBuilder: React.FC = () => {
   };
 
   const handleAutoImport = () => {
+    if (!isVipUnlocked) {
+      toast.error('👑 Auto-Import Credentials is a VIP All-Access Pass feature!');
+      setShowVipModal(true);
+      return;
+    }
     const certService = new CertificateService();
     const realCerts = certService.getCertificates(userId);
     
@@ -234,6 +244,11 @@ export const ResumeBuilder: React.FC = () => {
   };
 
   const handlePrint = () => {
+    if (!isVipUnlocked) {
+      toast.error('👑 PDF Export / Print is a VIP All-Access Pass feature!');
+      setShowVipModal(true);
+      return;
+    }
     window.print();
   };
 
@@ -594,6 +609,12 @@ export const ResumeBuilder: React.FC = () => {
           )}
         </div>
       </div>
+      <CheckoutModal
+        isOpen={showVipModal}
+        onClose={() => setShowVipModal(false)}
+        courses={[{ id: 'vip_pass_3m', title: 'VIP 3-Month All-Access Pro Pass' }]}
+        totalPrice={1299}
+      />
     </div>
   );
 };
