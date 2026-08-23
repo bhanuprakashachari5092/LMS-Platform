@@ -626,6 +626,43 @@ export class CourseService {
           certificate: true,
           featured: true,
           createdBy: 'seeder',
+        },
+        {
+          title: 'Linux Systems & Administration Mastery',
+          slug: 'linux-systems-administration-mastery',
+          description: 'Enterprise curriculum covering Linux Architecture, Kernel Mechanics, Permissions, Systemd, Bash Scripting, and SSH Security.',
+          shortDescription: 'Enterprise curriculum covering Linux Architecture, Kernel Mechanics, Permissions, Systemd, Bash Scripting, and SSH Security.',
+          category: 'Linux & Systems',
+          subcategory: 'Linux',
+          level: 'all_levels',
+          thumbnail: '/assets/images/linux_course_thumbnail.webp',
+          bannerImage: '/assets/images/linux_course_thumbnail.webp',
+          duration: '32 Hours',
+          price: 0,
+          currency: 'INR',
+          status: 'published',
+          language: 'English',
+          instructor: {
+            uid: 'instructor-kaizen-q',
+            name: 'KaizenQ Systems Team',
+          },
+          lessonsCount: 15,
+          modulesCount: 15,
+          studentsEnrolled: 0,
+          rating: 5.0,
+          totalRatings: 145,
+          tags: ['linux', 'sysadmin', 'bash', 'kernel', 'devops', 'security'],
+          prerequisites: ['Basic computer literacy', 'Terminal awareness is helpful but not required'],
+          learningOutcomes: [
+            'Understand Monolithic Kernel architecture, LKMs, and System Call execution',
+            'Manage User & Group security permissions using octal notation and ACLs',
+            'Control system daemons using systemctl and inspect binary logs with journalctl',
+            'Write modular Bash automation scripts with control loops and position arguments',
+            'Harden remote SSH daemons and configure UFW firewall rules'
+          ],
+          certificate: true,
+          featured: true,
+          createdBy: 'seeder',
         }
       ];
 
@@ -633,7 +670,17 @@ export class CourseService {
       for (const courseData of sampleCourses) {
         const existing = await this.collection().where('slug', '==', courseData.slug).limit(1).get();
         if (existing.empty) {
-          const docRef = this.collection().doc(courseData.slug === 'git-github-mastery' ? 'git-github-mastery-course-id' : (courseData.slug === 'database-management-system' ? 'database-management-system' : (courseData.slug === 'kubernetes-complete-course-beginner-to-advanced' ? 'kubernetes-complete-course-beginner-to-advanced' : (courseData.slug === 'react-js-complete-course' ? 'react-js-complete-course' : (courseData.slug === 'c-programming' ? 'c-programming-course-id' : (courseData.slug === 'python-through-oops' ? 'python-through-oops-course-id' : (courseData.slug === 'java-through-oops' ? 'java-through-oops-course-id' : this.collection().doc().id)))))));
+          const docRef = this.collection().doc(
+            courseData.slug === 'git-github-mastery' ? 'git-github-mastery-course-id' :
+            (courseData.slug === 'database-management-system' ? 'database-management-system' :
+            (courseData.slug === 'kubernetes-complete-course-beginner-to-advanced' ? 'kubernetes-complete-course-beginner-to-advanced' :
+            (courseData.slug === 'react-js-complete-course' ? 'react-js-complete-course' :
+            (courseData.slug === 'c-programming' ? 'c-programming-course-id' :
+            (courseData.slug === 'python-through-oops' ? 'python-through-oops-course-id' :
+            (courseData.slug === 'java-through-oops' ? 'java-through-oops-course-id' :
+            (courseData.slug === 'linux-systems-administration-mastery' ? 'course_linux_101' :
+            this.collection().doc().id)))))))
+          );
           const course: Course = {
             ...courseData,
             id: docRef.id,
@@ -659,6 +706,8 @@ export class CourseService {
             await this.seedPythonCourseDetails(docRef.id);
           } else if (courseData.slug === 'java-through-oops') {
             await this.seedJavaCourseDetails(docRef.id);
+          } else if (courseData.slug === 'linux-systems-administration-mastery') {
+            await this.seedLinuxCourseDetails(docRef.id);
           }
         } else {
           // If the course exists, update its details to ensure the requested instructor/desc etc. are correct.
@@ -682,6 +731,8 @@ export class CourseService {
             await this.seedCCourseDetails(courseDoc.id);
           } else if (courseData.slug === 'java-through-oops') {
             await this.seedJavaCourseDetails(courseDoc.id);
+          } else if (courseData.slug === 'linux-systems-administration-mastery') {
+            await this.seedLinuxCourseDetails(courseDoc.id);
           }
         }
       }
@@ -1131,6 +1182,119 @@ export class CourseService {
       console.log('Successfully seeded React JS course structure.');
     } catch (error) {
       console.error('Error seeding React JS course details:', error);
+    }
+  }
+
+  /**
+   * Seeds Modules, Lessons, Quizzes, and Assignments for the Linux course.
+   */
+  async seedLinuxCourseDetails(courseId: string): Promise<void> {
+    try {
+      const { modulesCollection, lessonsCollection, coursesCollection } = await import('../../firebase/collections');
+      
+      console.log('Seeding Linux Complete Course detailed syllabus collections dynamically from JSON...');
+
+      const jsonPath = path.resolve(__dirname, '../../../../Linux_Complete_Course_Content.json');
+      if (!fs.existsSync(jsonPath)) {
+        throw new Error(`JSON file not found at: ${jsonPath}`);
+      }
+      const jsonContent = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+
+      const userRequestedTitles = [
+        "Module 1 – Introduction to Linux",
+        "Module 2 – Installing Linux",
+        "Module 3 – Linux File System",
+        "Module 4 – Linux File Management Commands",
+        "Module 5 – File Permissions and Ownership",
+        "Module 6 – Text Processing Commands",
+        "Module 7 – Package Management",
+        "Module 8 – Process Management",
+        "Module 9 – Shell Scripting",
+        "Module 10 – Networking in Linux",
+        "Module 11 – Disk Management",
+        "Module 12 – User & Group Management",
+        "Module 13 – Linux Services & System Administration",
+        "Module 14 – Linux Security & Best Practices",
+        "Module 15 – Linux Interview Preparation & Projects"
+      ];
+
+      // 1. Seed Modules
+      const modulesData = jsonContent.modules.map((m: any) => {
+        const title = userRequestedTitles[m.moduleNumber - 1] || m.title;
+        return {
+          id: `linux-mod-${m.moduleNumber}`,
+          title,
+          order: m.moduleNumber,
+          duration: '4 Hours', // Default duration
+          courseId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+      });
+
+      for (const mod of modulesData) {
+        await modulesCollection().doc(mod.id).set(toDocument(mod));
+      }
+
+      // 2. Seed exactly 1 lesson per module with unified notes & build nested structure
+      const modulesForCourseDoc: any[] = [];
+      for (const m of jsonContent.modules) {
+        const lessonId = `linux-unit-${m.moduleNumber}-notes`;
+        const lessonTitle = `${userRequestedTitles[m.moduleNumber - 1] || m.title} - Complete Notes`;
+        const lessonDesc = `${userRequestedTitles[m.moduleNumber - 1] || m.title} Complete Notes.`;
+        
+        await lessonsCollection().doc(lessonId).set(toDocument({
+          id: lessonId,
+          title: lessonTitle,
+          description: lessonDesc,
+          order: 1,
+          duration: '4 Hours',
+          type: 'reading',
+          readingTime: '4 Hours',
+          content: m.readingContent,
+          moduleId: `linux-mod-${m.moduleNumber}`,
+          courseId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }));
+
+        modulesForCourseDoc.push({
+          id: `linux-mod-${m.moduleNumber}`,
+          title: userRequestedTitles[m.moduleNumber - 1] || m.title,
+          description: userRequestedTitles[m.moduleNumber - 1] || m.title,
+          duration: '4 Hours',
+          topics: [
+            {
+              id: `linux-topic-${m.moduleNumber}`,
+              title: `${userRequestedTitles[m.moduleNumber - 1] || m.title} - Complete Notes`,
+              description: `${userRequestedTitles[m.moduleNumber - 1] || m.title} Complete Notes.`,
+              estimatedDuration: '4 Hours',
+              learningUnits: [
+                {
+                  id: lessonId,
+                  title: lessonTitle,
+                  description: lessonDesc,
+                  duration: '4 Hours',
+                  type: 'Reading',
+                  readingContent: m.readingContent
+                }
+              ]
+            }
+          ]
+        });
+      }
+
+      // Save nested structure directly to course document
+      await coursesCollection().doc(courseId).update({
+        modules: modulesForCourseDoc,
+        modulesCount: 15,
+        lessonsCount: 15,
+        updatedAt: new Date()
+      });
+
+      console.log('Successfully seeded Linux Complete Course structure.');
+    } catch (error) {
+      console.error('Error seeding Linux course details:', error);
     }
   }
 
