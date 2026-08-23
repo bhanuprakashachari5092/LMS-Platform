@@ -98,7 +98,7 @@ export const ResumeBuilder: React.FC = () => {
   const [newEd, setNewEd] = useState({ degree: '', school: '', duration: '' });
   const [isSaving, setIsSaving] = useState(false);
   const [showVipModal, setShowVipModal] = useState(false);
-  const [isVipUnlocked, setIsVipUnlocked] = useState<boolean>(() =>
+  const [isVipUnlocked] = useState<boolean>(() =>
     localStorage.getItem('shaivika_vip_unlocked') === 'true'
   );
 
