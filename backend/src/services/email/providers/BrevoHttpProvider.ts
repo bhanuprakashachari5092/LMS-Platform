@@ -60,6 +60,11 @@ export class BrevoHttpProvider implements IEmailProvider {
       console.warn('[BREVO] Notice: BREVO_API_KEY is not configured in environment variables.');
       return false;
     }
+    if (this.apiKey.startsWith('xsmtpsib-')) {
+      console.warn(
+        '[BREVO] ⚠️ Configuration Warning: BREVO_API_KEY is currently set to an SMTP key ("xsmtpsib-..."). Brevo HTTP API requires an API V3 Key starting with "xkeysib-...". Generate one at https://app.brevo.com/settings/keys/api'
+      );
+    }
     console.log('[BREVO] Email service ready.');
     return true;
   }
