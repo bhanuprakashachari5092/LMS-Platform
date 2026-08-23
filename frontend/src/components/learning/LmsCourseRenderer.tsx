@@ -1481,11 +1481,7 @@ export const LmsCourseRenderer: React.FC<LmsCourseRendererProps> = ({ content, i
                 blockContent = (
                   <CodeBlock
                     code={block.code}
-<<<<<<< HEAD
-                    language={block.lang || ((isGit || isLinux) ? 'bash' : (isK8s ? 'yaml' : (isReact ? 'jsx' : 'python')))}
-=======
-                    language={block.lang || (isDbms ? 'sql' : (isGit ? 'bash' : (isK8s ? 'yaml' : (isReact ? 'jsx' : 'python'))))}
->>>>>>> 7e3ecf7 (feat(dbms): enable 3D gamified architecture flows, interactive objectives and SQL console in DBMS course)
+                    language={block.lang || (isDbms ? 'sql' : ((isGit || isLinux) ? 'bash' : (isK8s ? 'yaml' : (isReact ? 'jsx' : 'python'))))}
                   />
                 );
                 break;
