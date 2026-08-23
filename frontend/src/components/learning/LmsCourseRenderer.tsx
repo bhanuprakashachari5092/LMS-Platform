@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { CodeBlock } from './CodeBlock';
 import { Sparkles, CheckCircle2, AlertTriangle, Lightbulb } from 'lucide-react';
 import { soundService } from '@/services/soundService';
+import { GamifiedArchitectureFlow } from './GamifiedArchitectureFlow';
 
 interface LmsCourseRendererProps {
   content: string;
@@ -437,154 +438,13 @@ const getVisualKey = (title: string, desc: string, isK8s: boolean, isGit?: boole
 // 🔍 FLOWCHART & TABLE & QUESTION RENDERERS
 // ---------------------------------------------------------------------
 const FlowchartRenderer: React.FC<{ lines: string[]; isNightMode: boolean }> = ({ lines, isNightMode }) => {
-  // If it contains branching tree characters, preserve the layout inside a monospace block to display the 2D layout correctly
-  const hasBranching = lines.some(l => l.includes('┌') || l.includes('┬') || l.includes('┼') || l.includes('┐') || l.includes('├') || l.includes('┤') || l.includes('└') || l.includes('┘'));
-  
-  if (hasBranching) {
-    return (
-      <pre className={`p-4 rounded-2xl border overflow-x-auto font-mono text-xs leading-relaxed my-4 ${
-        isNightMode 
-          ? 'bg-slate-950 border-slate-800 text-primary' 
-          : 'bg-sky-50/30 border-sky-100 text-primary'
-      }`}>
-        {lines.join('\n')}
-      </pre>
-    );
-  }
-
-  const blocks: string[] = [];
-  let currentBlockParts: string[] = [];
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (trimmed === '↓' || trimmed === '▼' || trimmed === '→') {
-      if (currentBlockParts.length > 0) {
-        blocks.push(currentBlockParts.join(' ').replace(/\s+/g, ' '));
-        currentBlockParts = [];
-      }
-      continue;
-    }
-    
-    if (/[│▼↓→]+/.test(trimmed)) {
-      if (currentBlockParts.length > 0) {
-        blocks.push(currentBlockParts.join(' ').replace(/\s+/g, ' '));
-        currentBlockParts = [];
-      }
-      const parts = trimmed.split(/[│▼↓→]+/).map(p => p.trim()).filter(Boolean);
-      blocks.push(...parts);
-      continue;
-    }
-
-    currentBlockParts.push(trimmed);
-  }
-
-  if (currentBlockParts.length > 0) {
-    blocks.push(currentBlockParts.join(' ').replace(/\s+/g, ' '));
-  }
-
-  const finalBlocks = blocks.filter(Boolean);
-
-  if (finalBlocks.length === 0) return null;
-
-  const isReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const [activeStep, setActiveStep] = useState(isReduced ? finalBlocks.length - 1 : 0);
-  const [completed, setCompleted] = useState(isReduced);
-
-  const handleNextStep = () => {
-    if (activeStep < finalBlocks.length - 1) {
-      const nextStep = activeStep + 1;
-      setActiveStep(nextStep);
-      soundService.play('select');
-      if (nextStep === finalBlocks.length - 1) {
-        setCompleted(true);
-        soundService.play('success');
-      }
-    }
-  };
-
-  const handleReset = () => {
-    setActiveStep(0);
-    setCompleted(false);
-    soundService.play('select');
-  };
-
+  const raw = lines.join('\n');
   return (
-    <div className="flex flex-col items-center gap-3 my-6 p-4 rounded-3xl border border-slate-800 bg-slate-950/20 max-w-md mx-auto shadow-md">
-      <div className="flex items-center justify-between w-full border-b border-slate-800 pb-2 mb-2 text-[10px] font-mono">
-        <span className="text-slate-450 uppercase tracking-widest font-black">
-          ⚡ Flowchart Path ({activeStep + 1} / {finalBlocks.length})
-        </span>
-        {completed ? (
-          <span className="text-emerald-450 font-black animate-pulse flex items-center gap-1">
-            ✓ FLOW COMPLETE
-          </span>
-        ) : (
-          <span className="text-primary font-black animate-pulse">
-            ● IN PROGRESS
-          </span>
-        )}
-      </div>
-
-      <div className="flex flex-col items-center gap-2 w-full">
-        {finalBlocks.map((block, idx) => {
-          const isCurrent = idx === activeStep;
-          const isPassed = idx < activeStep;
-
-          let blockClass = '';
-          if (isCurrent) {
-            blockClass = 'border-primary bg-primary/10 text-primary scale-102 font-black shadow-[0_0_12px_var(--color-primary)]';
-          } else if (isPassed) {
-            blockClass = 'border-primary/40 bg-primary/5 text-primary/80 opacity-90';
-          } else {
-            blockClass = 'border-slate-800 bg-slate-900/50 text-slate-550 opacity-40';
-          }
-
-          return (
-            <React.Fragment key={idx}>
-              <div 
-                className={`px-5 py-3 rounded-2xl border text-sm font-semibold font-mono tracking-wide w-full text-center transition-all duration-305 ${blockClass}`}
-              >
-                {block}
-              </div>
-              {idx < finalBlocks.length - 1 && (
-                <div 
-                  className={`text-xl font-bold transition-all duration-305 ${
-                    idx < activeStep ? 'text-primary/70' : (idx === activeStep ? 'text-primary animate-bounce' : 'text-slate-800')
-                  }`}
-                >
-                  ↓
-                </div>
-              )}
-            </React.Fragment>
-          );
-        })}
-      </div>
-
-      {!isReduced && (
-        <div className="flex items-center gap-3 mt-2 w-full">
-          {activeStep < finalBlocks.length - 1 ? (
-            <button
-              onClick={handleNextStep}
-              className="flex-1 bg-linear-to-r from-primary to-secondary text-slate-955 font-mono text-[10px] font-black py-2.5 px-4 rounded-xl cursor-pointer active:scale-95 transition-all shadow-[0_0_8px_var(--color-primary)] text-center"
-            >
-              [ NEXT STEP → ]
-            </button>
-          ) : (
-            <div className="flex-1 flex flex-col items-center gap-2">
-              <div className="text-[10px] font-mono font-black text-emerald-450 uppercase tracking-widest text-center mt-1">
-                🎯 CONCEPT MASTERED
-              </div>
-              <button
-                onClick={handleReset}
-                className="w-full bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-350 hover:text-white font-mono text-[9px] font-bold py-2 px-4 rounded-xl cursor-pointer active:scale-95 transition-all text-center"
-              >
-                [ ↻ REPLAY FLOW ]
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+    <GamifiedArchitectureFlow
+      rawContent={raw}
+      isNightMode={isNightMode}
+      title="Architecture & Workflow Simulation"
+    />
   );
 };
 
