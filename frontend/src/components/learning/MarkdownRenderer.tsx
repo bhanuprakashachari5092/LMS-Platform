@@ -298,6 +298,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isN
     courseId === 'kubernetes-complete-course-beginner-to-advanced' ||
     courseId === 'git-github-mastery-course-id' ||
     courseId === 'git-github-mastery' ||
+    courseId === 'course_linux_101' ||
     isReactCourse
   ) {
     return <LmsCourseRenderer content={content} isNightMode={isNightMode} courseId={courseId} />;

@@ -187,6 +187,18 @@ const TopicVisual: React.FC<{ topicKey: string; isNightMode: boolean }> = ({ top
         </svg>
       );
 
+    case 'Linux Overview':
+      return (
+        <svg viewBox="0 0 100 40" className="w-full max-h-32 object-contain my-4">
+          <rect x="5" y="5" width="90" height="30" rx="6" fill={fillColor} stroke={strokeColor} strokeWidth="1.5" />
+          <circle cx="12" cy="11" r="1.5" fill="#ef4444" />
+          <circle cx="17" cy="11" r="1.5" fill="#f59e0b" />
+          <circle cx="22" cy="11" r="1.5" fill="#10b981" />
+          <path d="M12 22 L18 25 L12 28" fill="none" stroke={strokeColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          <line x1="21" y1="28" x2="30" y2="28" stroke={strokeColor} strokeWidth="1.5" />
+          <text x="35" y="27" fontFamily="monospace" fontSize="8" fontWeight="bold" fill={isNightMode ? '#cbd5e1' : '#475569'}>root@linux:~#</text>
+        </svg>
+      );
     // --- GIT VISUALS ---
     case 'Git Overview':
       return (
@@ -371,11 +383,15 @@ const TopicVisual: React.FC<{ topicKey: string; isNightMode: boolean }> = ({ top
   }
 };
 
-const getVisualKey = (title: string, desc: string, isK8s: boolean, isGit?: boolean, isReact?: boolean): string => {
+const getVisualKey = (title: string, desc: string, isK8s: boolean, isGit?: boolean, isReact?: boolean, isLinux?: boolean): string => {
   const searchStr = `${title} ${desc}`.toLowerCase();
 
   if (isReact) {
     return 'Default';
+  }
+
+  if (isLinux) {
+    return 'Linux Overview';
   }
 
   if (isGit) {
@@ -627,7 +643,7 @@ const TableRenderer: React.FC<{ lines: string[]; isNightMode: boolean }> = ({ li
   );
 };
 
-const QuestionCard: React.FC<{ question: string; answer: string[]; isNightMode: boolean; isK8s: boolean; isGit?: boolean; isReact?: boolean }> = ({ question, answer, isNightMode, isK8s, isGit = false, isReact = false }) => {
+const QuestionCard: React.FC<{ question: string; answer: string[]; isNightMode: boolean; isK8s: boolean; isGit?: boolean; isReact?: boolean; isLinux?: boolean }> = ({ question, answer, isNightMode, isK8s, isGit = false, isReact = false, isLinux = false }) => {
   if (isReact) {
     const fullAnswerText = answer
       .map(ans => ans.trim())
@@ -665,7 +681,7 @@ const QuestionCard: React.FC<{ question: string; answer: string[]; isNightMode: 
     );
   }
 
-  if (isGit) {
+  if (isGit || isLinux) {
     return (
       <div className="my-6 space-y-3">
         <h4 className={`text-base sm:text-lg font-heading font-bold px-4 py-2.5 rounded-xl border flex items-start gap-2.5 ${
@@ -709,7 +725,7 @@ const QuestionCard: React.FC<{ question: string; answer: string[]; isNightMode: 
               );
             }
             
-            if (isCodeLine(trimmedAns, isK8s, isGit, isReact)) {
+            if (isCodeLine(trimmedAns, isK8s, isGit, isReact, isLinux)) {
               return (
                 <div key={idx} className="my-2">
                   <CodeBlock code={trimmedAns} language={isReact ? 'jsx' : 'bash'} />
@@ -758,11 +774,11 @@ const QuestionCard: React.FC<{ question: string; answer: string[]; isNightMode: 
           let isInlineAnswer = false;
           let displayText = ans;
           
-          if (isGit && trimmedAns.toLowerCase().startsWith('answer:')) {
+          if ((isGit || isLinux) && trimmedAns.toLowerCase().startsWith('answer:')) {
             isInlineAnswer = true;
             displayText = trimmedAns.slice(7).trim();
           } else if (trimmedAns.toLowerCase() === 'answer:') {
-            if (isGit) {
+            if (isGit || isLinux) {
               return (
                 <div key={idx} className="font-semibold text-slate-800 dark:text-slate-200 mt-1">
                   Answer:
@@ -772,10 +788,10 @@ const QuestionCard: React.FC<{ question: string; answer: string[]; isNightMode: 
             return null;
           }
           
-          if (isCodeLine(trimmedAns, isK8s, isGit)) {
+          if (isCodeLine(trimmedAns, isK8s, isGit, false, isLinux)) {
             return (
               <div key={idx} className="my-2">
-                <CodeBlock code={trimmedAns} language={isGit ? 'bash' : (isK8s ? 'yaml' : 'python')} />
+                <CodeBlock code={trimmedAns} language={(isGit || isLinux) ? 'bash' : (isK8s ? 'yaml' : 'python')} />
               </div>
             );
           }
@@ -808,7 +824,7 @@ const QuestionCard: React.FC<{ question: string; answer: string[]; isNightMode: 
 // ---------------------------------------------------------------------
 // 📦 HELPER FUNCTIONS FOR PYTHON & KUBERNETES PARSING
 // ---------------------------------------------------------------------
-function isCodeLine(line: string, isK8s: boolean, isGit?: boolean, isReact?: boolean): boolean {
+function isCodeLine(line: string, isK8s: boolean, isGit?: boolean, isReact?: boolean, isLinux?: boolean): boolean {
   const trimmed = line.trim();
   if (!trimmed) return false;
 
@@ -829,6 +845,15 @@ function isCodeLine(line: string, isK8s: boolean, isGit?: boolean, isReact?: boo
       /^\s*(react-app\/|├──\s*node_modules|└──\s*src\/)/
     ];
     return reactPatterns.some(regex => regex.test(line));
+  }
+
+  if (isLinux) {
+    const linuxPatterns = [
+      /^\s*(git|mkdir|cd|touch|cat|echo|sudo|apt|dnf|brew|rm|tar|unzip|chmod|chown|docker|kubectl|minikube|pwd|ls|grep|systemctl|useradd|groupadd|usermod|passwd|chage|setfacl|getfacl|df|du|find|awk|sed|head|tail|who|cut|uniq|sort|wc|ssh|ufw|iptables|journalctl|ssh-keygen|ssh-copy-id|ping|ifconfig|ip|netstat|ss|curl|wget|nslookup|dig|sysctl|uname|top|htop|ps|kill|pkill|killall|crontab|lsof|fdisk|mkfs|mount|umount)\b/,
+      /^\s*#\s+.+$/,
+      /^\s*(host|Client Version)\s*:/i,
+    ];
+    return linuxPatterns.some(regex => regex.test(line));
   }
   
   if (isGit) {
@@ -1021,14 +1046,21 @@ export const LmsCourseRenderer: React.FC<LmsCourseRendererProps> = ({ content, i
   const isK8s = courseId === 'kubernetes-complete-course-beginner-to-advanced';
   const isGit = courseId === 'git-github-mastery-course-id' || courseId === 'git-github-mastery';
   const isReact = (courseId || '').toLowerCase().includes('react');
+  const isLinux = courseId === 'course_linux_101';
 
   const blocks = useMemo(() => {
     let cleanContent = content
       .replace(/\r/g, '')
       .trim();
 
+    if (isLinux) {
+      cleanContent = cleanContent
+        .replace(/\n+\s*([↓→│▼])\s*\n+/g, '\n$1\n')
+        .replace(/\n+\s*([↓→│▼])\s*\n+/g, '\n$1\n');
+    }
+
     // Dynamically heal Python Module 1 to skip Page 5 Table of Contents (TOC) index page
-    if (!isK8s && !isGit && !isReact && cleanContent.includes('Module') && cleanContent.includes('15:')) {
+    if (!isK8s && !isGit && !isReact && !isLinux && cleanContent.includes('Module') && cleanContent.includes('15:')) {
       const headingMatch = cleanContent.match(/(🐍\s*)?Module\s+1\s*:/i);
       if (headingMatch && headingMatch.index !== undefined) {
         cleanContent = cleanContent.slice(headingMatch.index);
@@ -1037,7 +1069,7 @@ export const LmsCourseRenderer: React.FC<LmsCourseRendererProps> = ({ content, i
 
     let lines = cleanContent.split('\n');
 
-    if (isGit || isReact) {
+    if (isGit || isReact || isLinux) {
       // Pass 1: Merge split question lines (e.g., questions with multiple parts/lines before Answer:)
       let mergedLines: string[] = [];
       for (let i = 0; i < lines.length; i++) {
@@ -1092,10 +1124,42 @@ export const LmsCourseRenderer: React.FC<LmsCourseRendererProps> = ({ content, i
       }
       lines = cleanFenceLines;
 
-      // Pass 3: Split inline bullet sequences with ❌
+      // Pass 3: Split inline bullet sequences with ❌, ●, ✔
       let splitCrossLines: string[] = [];
       for (const line of lines) {
-        const trimmed = line.trim();
+        let trimmed = line.trim();
+        
+        if (isLinux) {
+          if (trimmed.includes('●')) {
+            const startsWithBullet = trimmed.startsWith('●');
+            const parts = trimmed.split('●').map(p => p.trim()).filter(Boolean);
+            if (parts.length > 1) {
+              parts.forEach((part, index) => {
+                if (index === 0 && !startsWithBullet) {
+                  splitCrossLines.push(part);
+                } else {
+                  splitCrossLines.push(`● ${part}`);
+                }
+              });
+              continue;
+            }
+          }
+          if (trimmed.includes('✔')) {
+            const startsWithCheck = trimmed.startsWith('✔');
+            const parts = trimmed.split('✔').map(p => p.trim()).filter(Boolean);
+            if (parts.length > 1) {
+              parts.forEach((part, index) => {
+                if (index === 0 && !startsWithCheck) {
+                  splitCrossLines.push(part);
+                } else {
+                  splitCrossLines.push(`✔ ${part}`);
+                }
+              });
+              continue;
+            }
+          }
+        }
+
         if (trimmed.includes('❌')) {
           const startsWithCross = trimmed.startsWith('❌');
           const parts = trimmed.split('❌').map(p => p.trim()).filter(Boolean);
@@ -1263,7 +1327,7 @@ export const LmsCourseRenderer: React.FC<LmsCourseRendererProps> = ({ content, i
             }
           }
 
-          const isNextCode = nextNonEmptyLine && isCodeLine(nextNonEmptyLine, isK8s, isGit, isReact);
+          const isNextCode = nextNonEmptyLine && isCodeLine(nextNonEmptyLine, isK8s, isGit, isReact, isLinux);
           
           if (currentCodeLines.length > 0 && isNextCode) {
             currentCodeLines.push('');
@@ -1274,14 +1338,15 @@ export const LmsCourseRenderer: React.FC<LmsCourseRendererProps> = ({ content, i
               /^\d+\.\d+\s+/.test(nextNonEmptyLine) ||
               /^\s*Q\d+\.?\s+/.test(nextNonEmptyLine) ||
               (isK8s && /^\s*(\d+)\.\s+([A-Z].*\?)\s*$/.test(nextNonEmptyLine)) ||
-              (isGit && /^\s*(\d+)\.\s+/.test(nextNonEmptyLine)) ||
-              (isGit && /^\s*(Task\s+\d+|Scenario\s+\d+|Problem\s+\d+|Program\s+\d+|Step\s+\d+|Question\s+\d+|Q\d+)\b/i.test(nextNonEmptyLine)) ||
-              (isGit && nextNonEmptyLine.startsWith('❌')) ||
+              ((isGit || isLinux) && /^\s*(\d+)\.\s+/.test(nextNonEmptyLine)) ||
+              ((isGit || isLinux) && /^\s*(Task\s+\d+|Scenario\s+\d+|Problem\s+\d+|Program\s+\d+|Step\s+\d+|Question\s+\d+|Q\d+)\b/i.test(nextNonEmptyLine)) ||
+              ((isGit || isLinux) && nextNonEmptyLine.startsWith('❌')) ||
               nextNonEmptyLine.startsWith('```') ||
               /↓|→|↙|↘/.test(nextNonEmptyLine) ||
+              ((isReact || isLinux) && /[▼│┌┐─┼]/.test(nextNonEmptyLine)) ||
               nextNonEmptyLine.includes('|') ||
               (nextNonEmptyLine.includes('│') && nextNonEmptyLine.length > 5) ||
-              isCodeLine(nextNonEmptyLine, isK8s, isGit) ||
+              isCodeLine(nextNonEmptyLine, isK8s, isGit, false, isLinux) ||
               nextNonEmptyLine.startsWith('●') || nextNonEmptyLine.startsWith('•') || nextNonEmptyLine.startsWith('- ') || nextNonEmptyLine.startsWith('* ') ||
               nextNonEmptyLine.includes('●') || nextNonEmptyLine.includes('•') ||
               nextNonEmptyLine.toLowerCase().startsWith('mistake ') || nextNonEmptyLine.toLowerCase().startsWith('warning:') || nextNonEmptyLine.toLowerCase().startsWith('note:');
@@ -1302,7 +1367,7 @@ export const LmsCourseRenderer: React.FC<LmsCourseRendererProps> = ({ content, i
         continue;
       }
 
-      const isHeading = trimmed.startsWith('#') || (trimmed.toLowerCase().includes('module ') && (trimmed.includes(':') || trimmed.includes('—'))) || (isReact && (trimmed.toLowerCase().startsWith('interview questions') || trimmed.toLowerCase().startsWith('practical exercise') || trimmed.toLowerCase().startsWith('practical lab') || trimmed.toLowerCase().startsWith('real-time scenario') || trimmed.toLowerCase().includes('common mistakes')));
+      const isHeading = trimmed.startsWith('#') || (trimmed.toLowerCase().includes('module ') && (trimmed.includes(':') || trimmed.includes('—'))) || ((isReact || isLinux) && (trimmed.toLowerCase().startsWith('interview questions') || trimmed.toLowerCase().startsWith('practical exercise') || trimmed.toLowerCase().startsWith('practical lab') || trimmed.toLowerCase().startsWith('real-time scenario') || trimmed.toLowerCase().includes('common mistakes')));
       const isSubheading = /^\d+\.\d+\s+/.test(trimmed);
       const questionMatch = trimmed.match(/^\s*Q(\d+)\.?\s+(.+)$/i);
       const k8sQuestionMatch = isK8s ? trimmed.match(/^\s*(\d+)\.\s+([A-Z].*\?)\s*$/) : null;
@@ -1317,7 +1382,7 @@ export const LmsCourseRenderer: React.FC<LmsCourseRendererProps> = ({ content, i
       // Git/React-specific interview question lookahead: match a numeric line if followed by "Answer"
       let isGitQuestion = false;
       let gitQMatch: RegExpMatchArray | null = null;
-      if ((isGit || isReact) && /^\s*(\d+)\.\s+/.test(trimmed)) {
+      if ((isGit || isReact || isLinux) && /^\s*(\d+)\.\s+/.test(trimmed)) {
         let hasAnswerLookahead = false;
         for (let look = i + 1; look <= Math.min(i + 3, lines.length - 1); look++) {
           if (lines[look].trim().toLowerCase().startsWith('answer')) {
@@ -1332,10 +1397,10 @@ export const LmsCourseRenderer: React.FC<LmsCourseRendererProps> = ({ content, i
       }
 
       // Flush paragraph blocks for numeric list items and lab tasks to render them on separate lines
-      const isGitOrDbmsOrK8s = isGit || isK8s || isReact || courseId === 'database-management-system' || courseId === 'c-programming-course-id';
-      const isNumericList = (isGit || isReact) ? /^\s*\d+\.\s+/.test(trimmed) : (isGitOrDbmsOrK8s && /^\s*\d+\.\s+[A-Z\u00C0-\u00FF]/.test(trimmed));
+      const isGitOrDbmsOrK8s = isGit || isK8s || isReact || isLinux || courseId === 'database-management-system' || courseId === 'c-programming-course-id';
+      const isNumericList = (isGit || isReact || isLinux) ? /^\s*\d+\.\s+/.test(trimmed) : (isGitOrDbmsOrK8s && /^\s*\d+\.\s+[A-Z\u00C0-\u00FF]/.test(trimmed));
       const isTaskLine = isGitOrDbmsOrK8s && /^\s*(Task\s+\d+|Scenario\s+\d+|Problem\s+\d+|Program\s+\d+|Step\s+\d+|Question\s+\d+|Q\d+)\b/i.test(trimmed);
-      const isMistakeLine = (isGit || isReact) && trimmed.startsWith('❌');
+      const isMistakeLine = (isGit || isReact || isLinux) && trimmed.startsWith('❌');
 
       if (isGitOrDbmsOrK8s && (isNumericList || isTaskLine || isMistakeLine) && !isGitQuestion) {
         flushAllAccumulators();
@@ -1377,7 +1442,7 @@ export const LmsCourseRenderer: React.FC<LmsCourseRendererProps> = ({ content, i
       }
 
       // Flowchart detection
-      if (/↓|→|↙|↘/.test(trimmed) || (isReact && (/[▼│┌┐─┼]/.test(trimmed) || trimmed.toLowerCase().startsWith('step')))) {
+      if (/↓|→|↙|↘/.test(trimmed) || ((isReact || isLinux) && (/[▼│┌┐─┼]/.test(trimmed) || trimmed.toLowerCase().startsWith('step')))) {
         flushText();
         flushCodeBlock();
         flushTableBlock();
@@ -1397,14 +1462,14 @@ export const LmsCourseRenderer: React.FC<LmsCourseRendererProps> = ({ content, i
       // Code detection
       const inlineCodeStatements = splitInlineCodeStatements(trimmed, isK8s);
       // Example Line Detection
-      const isExampleLine = (isGit || isReact) && (trimmed.toLowerCase().startsWith('example:') || trimmed.toLowerCase().startsWith('real-time example') || trimmed.toLowerCase().startsWith('real-time scenario') || trimmed.toLowerCase().startsWith('real-time example:'));
+      const isExampleLine = (isGit || isReact || isLinux) && (trimmed.toLowerCase().startsWith('example:') || trimmed.toLowerCase().startsWith('real-time example') || trimmed.toLowerCase().startsWith('real-time scenario') || trimmed.toLowerCase().startsWith('real-time example:'));
       if (isExampleLine) {
         flushAllAccumulators();
         parsedBlocks.push({ type: 'example', text: trimmed });
         continue;
       }
 
-      if (isCodeLine(trimmed, isK8s, isGit, isReact) || inlineCodeStatements.length > 1) {
+      if (isCodeLine(trimmed, isK8s, isGit, isReact, isLinux) || inlineCodeStatements.length > 1) {
         flushText();
         flushFlowchartBlock();
         flushTableBlock();
@@ -1413,7 +1478,7 @@ export const LmsCourseRenderer: React.FC<LmsCourseRendererProps> = ({ content, i
       }
 
       // Bullet points detection (●, •, -, *, ❌)
-      if (trimmed.startsWith('●') || trimmed.startsWith('•') || trimmed.startsWith('- ') || trimmed.startsWith('* ') || trimmed.startsWith('❌')) {
+      if (trimmed.startsWith('●') || trimmed.startsWith('•') || trimmed.startsWith('- ') || trimmed.startsWith('* ') || trimmed.startsWith('❌') || trimmed.startsWith('✔')) {
         flushAllAccumulators();
         const isCross = trimmed.startsWith('❌');
         const separators = /[●•]/g;
@@ -1481,13 +1546,13 @@ export const LmsCourseRenderer: React.FC<LmsCourseRendererProps> = ({ content, i
     }
 
     return groupedBlocks;
-  }, [content, isK8s, isGit, isReact]);
+  }, [content, isK8s, isGit, isReact, isLinux]);
 
   const topicVisualKey = useMemo(() => {
     const heading = blocks.find(b => b.type === 'heading')?.text || '';
     const subheading = blocks.find(b => b.type === 'subheading')?.text || '';
-    return getVisualKey(heading, subheading + ' ' + content.slice(0, 100), isK8s, isGit, isReact);
-  }, [blocks, content, isK8s, isGit, isReact]);
+    return getVisualKey(heading, subheading + ' ' + content.slice(0, 100), isK8s, isGit, isReact, isLinux);
+  }, [blocks, content, isK8s, isGit, isReact, isLinux]);
 
   return (
     <div className="space-y-6">
@@ -1555,7 +1620,7 @@ export const LmsCourseRenderer: React.FC<LmsCourseRendererProps> = ({ content, i
                 blockContent = (
                   <CodeBlock
                     code={block.code}
-                    language={block.lang || (isGit ? 'bash' : (isK8s ? 'yaml' : (isReact ? 'jsx' : 'python')))}
+                    language={block.lang || ((isGit || isLinux) ? 'bash' : (isK8s ? 'yaml' : (isReact ? 'jsx' : 'python')))}
                   />
                 );
                 break;
@@ -1587,6 +1652,7 @@ export const LmsCourseRenderer: React.FC<LmsCourseRendererProps> = ({ content, i
                     isK8s={isK8s}
                     isGit={isGit}
                     isReact={isReact}
+                    isLinux={isLinux}
                   />
                 );
                 break;
