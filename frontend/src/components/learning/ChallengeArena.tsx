@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { soundService } from '@/services/soundService';
 import type { Challenge } from '@/services/challengeEngine';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { GamifiedArchitectureFlow } from './GamifiedArchitectureFlow';
 import { useTheme } from '@/contexts/ThemeContext';
 
 function parseContent(content: string) {
@@ -430,20 +431,12 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
 
             if (stage.id === 'flowchart') {
               return (
-                <div 
-                  key="flowchart" 
-                  className={`bg-white/95 dark:bg-[#0E1325]/85 border border-slate-200 dark:border-slate-800/90 rounded-3xl p-5 sm:p-6 space-y-3.5 shadow-xs dark:shadow-md transition-all ${animClass}`}
-                >
-                  <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-primary border-b border-slate-200 dark:border-slate-800 pb-2.5 flex items-center gap-2">
-                    <span>🔀 ARCHITECTURE & FLOWCHART</span>
-                  </h3>
-                  <div className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm leading-relaxed font-sans font-normal">
-                    <MarkdownRenderer
-                      content={flowchart}
-                      isNightMode={isNightMode}
-                      courseId={courseId}
-                    />
-                  </div>
+                <div key="flowchart" className={animClass}>
+                  <GamifiedArchitectureFlow
+                    rawContent={flowchart}
+                    isNightMode={isNightMode}
+                    title="SYSTEM ARCHITECTURE & EXECUTION FLOW"
+                  />
                 </div>
               );
             }
