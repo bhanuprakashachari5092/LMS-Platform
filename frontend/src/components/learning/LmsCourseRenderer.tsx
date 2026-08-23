@@ -905,6 +905,7 @@ const InteractiveExampleCard: React.FC<{ title: string; isNightMode: boolean; ch
 export const LmsCourseRenderer: React.FC<LmsCourseRendererProps> = ({ content, isNightMode = false, courseId }) => {
   const isK8s = courseId === 'kubernetes-complete-course-beginner-to-advanced';
   const isGit = courseId === 'git-github-mastery-course-id' || courseId === 'git-github-mastery';
+  const isDbms = courseId === 'database-management-system' || (courseId || '').toLowerCase().includes('dbms') || (courseId || '').toLowerCase().includes('database');
   const isReact = (courseId || '').toLowerCase().includes('react');
   const isLinux = courseId === 'course_linux_101';
 
@@ -920,7 +921,7 @@ export const LmsCourseRenderer: React.FC<LmsCourseRendererProps> = ({ content, i
     }
 
     // Dynamically heal Python Module 1 to skip Page 5 Table of Contents (TOC) index page
-    if (!isK8s && !isGit && !isReact && !isLinux && cleanContent.includes('Module') && cleanContent.includes('15:')) {
+    if (!isK8s && !isGit && !isReact && !isLinux && !isDbms && cleanContent.includes('Module') && cleanContent.includes('15:')) {
       const headingMatch = cleanContent.match(/(🐍\s*)?Module\s+1\s*:/i);
       if (headingMatch && headingMatch.index !== undefined) {
         cleanContent = cleanContent.slice(headingMatch.index);
@@ -929,7 +930,7 @@ export const LmsCourseRenderer: React.FC<LmsCourseRendererProps> = ({ content, i
 
     let lines = cleanContent.split('\n');
 
-    if (isGit || isReact || isLinux) {
+    if (isGit || isReact || isLinux || isDbms) {
       // Pass 1: Merge split question lines (e.g., questions with multiple parts/lines before Answer:)
       let mergedLines: string[] = [];
       for (let i = 0; i < lines.length; i++) {
@@ -1480,7 +1481,11 @@ export const LmsCourseRenderer: React.FC<LmsCourseRendererProps> = ({ content, i
                 blockContent = (
                   <CodeBlock
                     code={block.code}
+<<<<<<< HEAD
                     language={block.lang || ((isGit || isLinux) ? 'bash' : (isK8s ? 'yaml' : (isReact ? 'jsx' : 'python')))}
+=======
+                    language={block.lang || (isDbms ? 'sql' : (isGit ? 'bash' : (isK8s ? 'yaml' : (isReact ? 'jsx' : 'python'))))}
+>>>>>>> 7e3ecf7 (feat(dbms): enable 3D gamified architecture flows, interactive objectives and SQL console in DBMS course)
                   />
                 );
                 break;

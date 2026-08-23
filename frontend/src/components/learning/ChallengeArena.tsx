@@ -548,7 +548,21 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
                   <div className="bg-slate-900 px-4 py-2.5 border-b border-slate-800 text-[10px] text-slate-400 flex justify-between select-none font-mono">
                     <span className="flex items-center gap-1.5 text-emerald-400">
                       <Code2 className="w-3.5 h-3.5" />
-                      <span>practice_editor.py</span>
+                      <span>
+                        {(courseId || '').toLowerCase().includes('dbms') || (courseId || '').toLowerCase().includes('database')
+                          ? 'query_console.sql'
+                          : (courseId || '').toLowerCase().includes('git')
+                          ? 'git_workflow.sh'
+                          : (courseId || '').toLowerCase().includes('c-prog')
+                          ? 'main.c'
+                          : (courseId || '').toLowerCase().includes('java')
+                          ? 'Main.java'
+                          : (courseId || '').toLowerCase().includes('react')
+                          ? 'App.jsx'
+                          : (courseId || '').toLowerCase().includes('kubernetes')
+                          ? 'deployment.yaml'
+                          : 'practice_editor.py'}
+                      </span>
                     </span>
                     <span>{isLockedIn ? '🔒 READ ONLY' : 'Tab spacing: 4'}</span>
                   </div>
