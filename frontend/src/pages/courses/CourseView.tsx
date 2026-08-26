@@ -74,7 +74,7 @@ export const CourseView: React.FC = () => {
   const studentAvatar = userProfile?.photoURL || user?.photoURL || undefined;
   const studentName = userProfile?.name || user?.displayName || userProfile?.githubUsername || 'Student User';
   const idOrSlug = (courseId || slug || '').trim();
-  const { getCourseById } = useCourses();
+  const { getCourseById, refreshCourses } = useCourses();
   const dynamicCourse = getCourseById(idOrSlug);
 
   // Validation: Mismatched course IDs cannot occur, and fallback is removed
@@ -101,6 +101,18 @@ export const CourseView: React.FC = () => {
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [location.pathname, isLearningMode]);
+
+  useEffect(() => {
+    const handleSync = () => {
+      refreshCourses();
+    };
+    window.addEventListener('shaivika_courses_updated', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      window.removeEventListener('shaivika_courses_updated', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, [refreshCourses]);
 
   useEffect(() => {
     if (targetCourseId) {
@@ -341,7 +353,7 @@ export const CourseView: React.FC = () => {
         course={{
           id: targetCourseId,
           title: activeCourseData.title,
-          price: (dynamicCourse as any)?.price ?? 999,
+          price: (dynamicCourse as any)?.price ?? 299,
           instructor: { name: activeCourseData.instructor },
           duration: activeCourseData.duration,
         }}

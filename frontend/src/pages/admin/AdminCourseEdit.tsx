@@ -180,13 +180,30 @@ export const AdminCourseEdit: React.FC = () => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-300">Price (₹ INR)</label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-300">Price (₹ INR)</label>
+                <span className="text-[10px] font-mono text-emerald-400 font-bold">Manual / Customizable</span>
+              </div>
               <input
                 type="number"
-                step="0.01"
+                min="0"
+                step="1"
                 {...register('price', { valueAsNumber: true })}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-xs text-white focus:outline-none font-medium"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-xs font-mono font-bold text-white focus:outline-none focus:border-emerald-500 font-medium"
               />
+              <div className="flex items-center gap-1.5 pt-1">
+                <span className="text-[9px] font-bold text-slate-500 uppercase">Presets:</span>
+                {[0, 199, 299, 399, 499].map((pVal) => (
+                  <button
+                    key={pVal}
+                    type="button"
+                    onClick={() => setValue('price', pVal)}
+                    className="px-2 py-0.5 rounded-md bg-slate-800 hover:bg-slate-700 text-[10px] font-mono font-bold text-slate-300 border border-slate-700 hover:border-emerald-500 cursor-pointer transition-colors"
+                  >
+                    {pVal === 0 ? 'Free' : `₹${pVal}`}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="space-y-1.5">

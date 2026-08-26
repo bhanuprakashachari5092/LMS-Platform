@@ -987,6 +987,9 @@ class CourseService {
   private saveStoredCourses(courses: ICourse[]): void {
     localStorage.setItem('shaivika_courses_data', JSON.stringify(courses));
     localStorage.setItem(this.localCacheKey, JSON.stringify(courses));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('shaivika_courses_updated', { detail: { courses } }));
+    }
   }
 
   private getStoredEnrollments(): Record<string, EnrollmentRecord[]> {
@@ -1211,7 +1214,7 @@ class CourseService {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ ...dto, price: 0 }),
+        body: JSON.stringify({ ...dto, price: typeof dto.price === 'number' ? dto.price : 299 }),
       });
 
       if (res.ok) {
@@ -1229,7 +1232,7 @@ class CourseService {
       ...dto,
       id,
       slug,
-      price: 0,
+      price: typeof dto.price === 'number' ? dto.price : 299,
       banner: dto.banner || '',
       enrollmentCount: 0,
       rating: 5.0,
@@ -1278,6 +1281,9 @@ class CourseService {
     if (index === -1) return null;
 
     const existing = list[index];
+    this.courseDetailsCache.delete(id);
+    if (existing.slug) this.courseDetailsCache.delete(existing.slug);
+
     const updated: ICourse = {
       ...existing,
       ...updates,

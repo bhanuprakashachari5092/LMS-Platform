@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import type { ICourse } from '../../../../shared/types/course';
 import { courseService } from '../../services/courseService';
@@ -482,26 +482,29 @@ export const CoursePlayerModal: React.FC<CoursePlayerModalProps> = ({
     module: any;
   }
 
-  const allLessons: CourseLessonPath[] = [];
-  syllabus.forEach((mod: any, mIdx: number) => {
-    const curr = getCurriculumForModule(mIdx);
-    curr.forEach((lesson: LessonDetail, lIdx: number) => {
-      lesson.subtopics.forEach((sub: SubtopicDetail, sIdx: number) => {
-        allLessons.push({
-          moduleIdx: mIdx,
-          lessonIdx: lIdx,
-          subtopicIdx: sIdx,
-          subtopicId: sub.id,
-          subtopicTitle: sub.title,
-          topicTitle: lesson.title,
-          moduleTitle: mod.title,
-          subtopic: sub,
-          lesson: lesson,
-          module: mod,
+  const allLessons: CourseLessonPath[] = useMemo(() => {
+    const list: CourseLessonPath[] = [];
+    syllabus.forEach((mod: any, mIdx: number) => {
+      const curr = getCurriculumForModule(mIdx);
+      curr.forEach((lesson: LessonDetail, lIdx: number) => {
+        lesson.subtopics.forEach((sub: SubtopicDetail, sIdx: number) => {
+          list.push({
+            moduleIdx: mIdx,
+            lessonIdx: lIdx,
+            subtopicIdx: sIdx,
+            subtopicId: sub.id,
+            subtopicTitle: sub.title,
+            topicTitle: lesson.title,
+            moduleTitle: mod.title,
+            subtopic: sub,
+            lesson: lesson,
+            module: mod,
+          });
         });
       });
     });
-  });
+    return list;
+  }, [syllabus]);
 
 
 
@@ -1188,7 +1191,7 @@ export const CoursePlayerModal: React.FC<CoursePlayerModalProps> = ({
         onProgressUpdate(Math.min(100, Math.max(5, progressPercent)));
       }
     }
-  }, [course.id, activeModuleIdx, currentLessonIdx, currentSubtopicIdx, completedSubtopics, completedModules, inProgressSubtopics, progressPercent, currentLesson, currentSubtopic]);
+  }, [course.id, activeModuleIdx, currentLessonIdx, currentSubtopicIdx, completedSubtopics, completedModules, inProgressSubtopics, progressPercent, currentLesson, currentSubtopic, onProgressUpdate, user?.uid]);
 
 
   const handleForceCompleteCourse = async () => {

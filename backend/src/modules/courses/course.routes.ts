@@ -8,6 +8,8 @@ const controller = new CourseController();
 // Public / Student endpoints
 router.get('/', controller.getCourses);
 router.get('/:id', controller.getCourseByIdOrSlug);
+router.get('/:id/modules', controller.getCourseModules);
+router.get('/:id/modules/:moduleId/lessons', controller.getModuleLessons);
 
 // Admin-only endpoints
 router.post('/', verifyFirebaseToken, requireRole('admin'), controller.createCourse);

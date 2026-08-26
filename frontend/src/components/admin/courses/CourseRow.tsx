@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { MoreVertical, Eye, Edit, Globe, FileText, Trash2 } from 'lucide-react';
+import { MoreVertical, Eye, Edit, Globe, FileText, Trash2, Tag, Check, X, IndianRupee } from 'lucide-react';
 import type { CourseItem } from '@/contexts/CourseContext';
+import { useCourses } from '@/contexts/CourseContext';
+import { toast } from 'sonner';
 
 interface CourseRowProps {
   course: CourseItem;
@@ -18,8 +20,33 @@ export const CourseRow: React.FC<CourseRowProps> = ({
   onTogglePublish,
   onDelete,
 }) => {
+  const { updateCourse } = useCourses();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isPriceModalOpen, setIsPriceModalOpen] = useState(false);
+  const [priceInput, setPriceInput] = useState<string>(() => String(course.price !== undefined ? course.price : 299));
+  const [isSavingPrice, setIsSavingPrice] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const currentPrice = course.price !== undefined ? Number(course.price) : 299;
+
+  const handleSavePrice = async (newPriceVal?: number) => {
+    const valToSave = newPriceVal !== undefined ? newPriceVal : Number(priceInput);
+    if (isNaN(valToSave) || valToSave < 0) {
+      toast.error('Please enter a valid non-negative course price.');
+      return;
+    }
+
+    setIsSavingPrice(true);
+    try {
+      await updateCourse(course.id, { price: valToSave });
+      toast.success(`Course "${course.title}" price set to ₹${valToSave}`);
+      setIsPriceModalOpen(false);
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to update course price.');
+    } finally {
+      setIsSavingPrice(false);
+    }
+  };
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -95,6 +122,23 @@ export const CourseRow: React.FC<CourseRowProps> = ({
         </span>
       </td>
 
+      {/* Price (Manual Admin Edit) */}
+      <td className="py-4 px-4 align-middle">
+        <button
+          type="button"
+          onClick={() => {
+            setPriceInput(String(currentPrice));
+            setIsPriceModalOpen(true);
+          }}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/80 cursor-pointer shadow-2xs group/price"
+          title="Click to edit course price"
+        >
+          <IndianRupee className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+          <span>{currentPrice === 0 ? 'Free' : currentPrice.toLocaleString()}</span>
+          <Edit className="w-2.5 h-2.5 text-emerald-500 opacity-60 group-hover/price:opacity-100 transition-opacity ml-0.5" />
+        </button>
+      </td>
+
       {/* Instructor */}
       <td className="py-4 px-4 align-middle">
         <div className="flex items-center gap-2">
@@ -151,7 +195,7 @@ export const CourseRow: React.FC<CourseRowProps> = ({
           </button>
 
           {menuOpen && (
-            <div className="absolute right-4 mt-1 w-44 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 z-40 text-left animate-in fade-in slide-in-from-top-2">
+            <div className="absolute right-4 mt-1 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 z-40 text-left animate-in fade-in slide-in-from-top-2">
               <button
                 onClick={() => {
                   setMenuOpen(false);
@@ -161,6 +205,18 @@ export const CourseRow: React.FC<CourseRowProps> = ({
               >
                 <Eye className="w-3.5 h-3.5 text-slate-400 group-hover:text-sky-500" />
                 <span>View Course</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  setPriceInput(String(currentPrice));
+                  setIsPriceModalOpen(true);
+                }}
+                className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-xl transition-colors cursor-pointer"
+              >
+                <Tag className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Change Price (₹)</span>
               </button>
 
               <button
@@ -218,6 +274,93 @@ export const CourseRow: React.FC<CourseRowProps> = ({
             </div>
           )}
         </div>
+
+        {/* Quick Price Editor Modal */}
+        {isPriceModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-2xl max-w-sm w-full space-y-5 text-left font-['Sora'] animate-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                    <Tag className="w-4 h-4" />
+                  </span>
+                  <div>
+                    <h3 className="font-heading font-black text-sm text-slate-900 dark:text-white">Manual Course Price</h3>
+                    <p className="text-[10px] text-slate-400 truncate max-w-56">{course.title}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsPriceModalOpen(false)}
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                  Price in Indian Rupees (₹ INR)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-mono font-bold text-slate-400">₹</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={priceInput}
+                    onChange={(e) => setPriceInput(e.target.value)}
+                    placeholder="Enter amount (e.g., 299)"
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-2.5 pl-8 pr-4 text-sm font-mono font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                    autoFocus
+                  />
+                </div>
+
+                {/* Preset Quick Buttons */}
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Recommended Under ₹500:</span>
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {[0, 199, 299, 399, 499].map((amt) => (
+                      <button
+                        key={amt}
+                        type="button"
+                        onClick={() => {
+                          setPriceInput(String(amt));
+                          handleSavePrice(amt);
+                        }}
+                        className={`py-1.5 rounded-lg text-[10px] font-mono font-bold border transition-all cursor-pointer ${
+                          Number(priceInput) === amt
+                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                            : 'bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-emerald-500'
+                        }`}
+                      >
+                        {amt === 0 ? 'Free' : `₹${amt}`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsPriceModalOpen(false)}
+                  className="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isSavingPrice}
+                  onClick={() => handleSavePrice()}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>{isSavingPrice ? 'Saving...' : 'Save Price'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </td>
 
     </tr>

@@ -1,0 +1,81 @@
+/**
+ * TypeScript Interfaces and Types for Course, Module, Lesson, and Syllabus Content
+ */
+
+export type LessonType = 'reading' | 'video' | 'quiz' | 'assignment' | 'interactive' | 'lab';
+
+export interface CourseLessonDoc {
+  id: string;
+  courseId: string;
+  moduleId: string;
+  title: string;
+  description?: string;
+  order: number;
+  duration: string;
+  type: LessonType;
+  readingTime?: string;
+  content?: string;
+  videoUrl?: string;
+  published?: boolean;
+  isFree?: boolean;
+  resources?: {
+    id: string;
+    title: string;
+    type: string;
+    url: string;
+    size?: string;
+  }[];
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+}
+
+export interface CourseModuleDoc {
+  id: string;
+  courseId: string;
+  moduleNumber?: number;
+  title: string;
+  description?: string;
+  order: number;
+  duration?: string;
+  published?: boolean;
+  lessonsCount?: number;
+  topics?: CourseTopic[];
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+}
+
+export interface CourseTopic {
+  id: string;
+  title: string;
+  description?: string;
+  estimatedDuration?: string;
+  learningUnits?: CourseLearningUnit[];
+}
+
+export interface CourseLearningUnit {
+  id: string;
+  title: string;
+  description?: string;
+  duration?: string;
+  type: string;
+  readingContent?: string;
+  videoUrl?: string;
+}
+
+export interface CourseContentSummary {
+  courseId: string;
+  title: string;
+  modulesCount: number;
+  lessonsCount: number;
+  modules: Array<{
+    id: string;
+    title: string;
+    order: number;
+    duration?: string;
+    lessonsCount: number;
+  }>;
+}
+
+export interface LessonQueryOptions {
+  includeContent?: boolean;
+}

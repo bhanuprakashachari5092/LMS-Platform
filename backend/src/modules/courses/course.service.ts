@@ -90,6 +90,16 @@ export class CourseService {
     });
   }
 
+  async getCourseModules(courseId: string) {
+    const { courseContentService } = await import('../../services/course/courseContent.service');
+    return courseContentService.getCourseModules(courseId);
+  }
+
+  async getModuleLessons(courseId: string, moduleId: string, options?: any) {
+    const { courseContentService } = await import('../../services/course/courseContent.service');
+    return courseContentService.getModuleLessons(courseId, moduleId, options);
+  }
+
   private generateSlug(title: string): string {
     return title
       .toLowerCase()

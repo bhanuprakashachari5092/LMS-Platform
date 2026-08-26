@@ -195,6 +195,18 @@ export const Dashboard: React.FC = () => {
     loadDashboardData();
   }, [loadDashboardData]);
 
+  useEffect(() => {
+    const handleCourseSync = () => {
+      loadDashboardData();
+    };
+    window.addEventListener('shaivika_courses_updated', handleCourseSync);
+    window.addEventListener('storage', handleCourseSync);
+    return () => {
+      window.removeEventListener('shaivika_courses_updated', handleCourseSync);
+      window.removeEventListener('storage', handleCourseSync);
+    };
+  }, [loadDashboardData]);
+
   // Phase 5: Daily Mission & Streak Engagement State
   const [dailyCompletedCount, setDailyCompletedCount] = useState(0);
   const [isDailyClaimed, setIsDailyClaimed] = useState(false);
@@ -215,7 +227,13 @@ export const Dashboard: React.FC = () => {
   const top5Entries = useMemo(() => leaderboardEntries.slice(0, 5), [leaderboardEntries]);
 
   const currentUserRankInfo = useMemo(() => {
-    const userEntry = leaderboardEntries.find(e => e.isCurrentUser || e.id === activeUserId);
+    const userEmail = (user?.email || '').toLowerCase().trim();
+    const userEntry = leaderboardEntries.find(e => 
+      e.isCurrentUser || 
+      e.id === activeUserId || 
+      e.id === user?.uid || 
+      (userEmail && (e as any).email && (e as any).email.toLowerCase() === userEmail)
+    );
     if (!userEntry) return null;
 
     const rank = userEntry.rank;
@@ -229,7 +247,7 @@ export const Dashboard: React.FC = () => {
       nextRankName: nextEntry ? nextEntry.name : null,
       isFirst: rank === 1
     };
-  }, [leaderboardEntries, activeUserId]);
+  }, [leaderboardEntries, activeUserId, user]);
 
   const showCurrentUserAtBottom = useMemo(() => {
     if (!currentUserRankInfo) return false;

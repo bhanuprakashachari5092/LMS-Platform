@@ -5,9 +5,35 @@ import { ApiError } from '../../utils/ApiError';
 import { fromDocument, handleFirestoreError, toDocument } from '../../utils/firestore';
 import { FieldValue, Query } from 'firebase-admin/firestore';
 import { db } from '../../firebase';
-import { cSyllabusNotes } from './cSyllabusData';
+import { courseContentService } from './courseContent.service';
 import * as fs from 'fs';
 import * as path from 'path';
+
+/**
+ * Loads course syllabus notes dynamically from external JSON without bloating TypeScript AST.
+ */
+const loadSyllabusJson = (filename: string): Record<number, string> => {
+  try {
+    const candidates = [
+      path.resolve(__dirname, '../../../data', filename),
+      path.resolve(__dirname, '../../../../data', filename),
+      path.resolve(__dirname, '../../../data/syllabus_backup', filename),
+      path.resolve(__dirname, '../../../../data/syllabus_backup', filename),
+      path.resolve(process.cwd(), 'data', filename),
+      path.resolve(process.cwd(), 'data/syllabus_backup', filename),
+      path.resolve(process.cwd(), 'backend/data', filename),
+      path.resolve(process.cwd(), 'backend/data/syllabus_backup', filename),
+    ];
+    for (const p of candidates) {
+      if (fs.existsSync(p)) {
+        return JSON.parse(fs.readFileSync(p, 'utf8'));
+      }
+    }
+  } catch (err) {
+    console.warn(`Could not load syllabus JSON ${filename}:`, err);
+  }
+  return {};
+};
 
 /**
  * Formats Zod validation errors into a human-readable comma-separated string.
@@ -783,7 +809,7 @@ export class CourseService {
 
       // Create exactly 1 reading unit per module
       const modulesForCourseDoc: any[] = [];
-      const { gitSyllabusNotes } = await import('./gitSyllabusData');
+      const gitSyllabusNotes = loadSyllabusJson('git_syllabus_data.json');
 
       for (const mod of modulesData) {
         const lessonId = `git-unit-${mod.order}-notes`;
@@ -1340,7 +1366,7 @@ export class CourseService {
 
       // Create exactly 1 reading unit per module
       const modulesForCourseDoc: any[] = [];
-      const { cSyllabusNotes } = await import('./cSyllabusData');
+      const cSyllabusNotes = loadSyllabusJson('c_syllabus_data.json');
 
       for (const mod of modulesData) {
         const lessonId = `c-unit-${mod.order}-notes`;
@@ -1446,7 +1472,7 @@ export class CourseService {
 
       // Create exactly 1 reading unit per module
       const modulesForCourseDoc: any[] = [];
-      const { pythonSyllabusNotes } = await import('./pythonSyllabusData');
+      const pythonSyllabusNotes = loadSyllabusJson('python_syllabus_data.json');
 
       for (const mod of modulesData) {
         const lessonId = `python-unit-${mod.order}-notes`;
@@ -1561,7 +1587,7 @@ export class CourseService {
 
       // Create exactly 1 reading unit per module
       const modulesForCourseDoc: any[] = [];
-      const { javaSyllabusNotes } = await import('./javaSyllabusData');
+      const javaSyllabusNotes = loadSyllabusJson('java_syllabus_data.json');
 
       for (const mod of modulesData) {
         const lessonId = `java-unit-${mod.order}-notes`;
@@ -1624,6 +1650,33 @@ export class CourseService {
     } catch (error) {
       console.error('Error seeding Java Through OOPs course details:', error);
     }
+  }
+
+  /**
+   * On-demand Content Methods (Delegated to CourseContentService with caching)
+   */
+  async getCourseModules(courseId: string) {
+    return courseContentService.getCourseModules(courseId);
+  }
+
+  async getModuleLessons(courseId: string, moduleId: string, options?: any) {
+    return courseContentService.getModuleLessons(courseId, moduleId, options);
+  }
+
+  async getLessonById(lessonId: string, courseId?: string, moduleId?: string) {
+    return courseContentService.getLessonById(lessonId, courseId, moduleId);
+  }
+
+  async saveModule(courseId: string, moduleDoc: any) {
+    return courseContentService.saveModule(courseId, moduleDoc);
+  }
+
+  async saveLesson(courseId: string, moduleId: string, lessonDoc: any) {
+    return courseContentService.saveLesson(courseId, moduleId, lessonDoc);
+  }
+
+  async deleteLesson(lessonId: string, courseId?: string, moduleId?: string) {
+    return courseContentService.deleteLesson(lessonId, courseId, moduleId);
   }
 }
 export default CourseService;

@@ -78,6 +78,7 @@ export interface CourseItem {
   tracks?: string;
   thumbnail: string;
   status: 'Published' | 'Draft';
+  price?: number;
   description: string;
   syllabus: string[];
   modules?: ModuleItem[];
@@ -972,6 +973,28 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     refreshCourses();
   }, [refreshCourses]);
 
+  // Real-time synchronization for course updates across all tabs and components
+  useEffect(() => {
+    const handleCoursesChanged = () => {
+      try {
+        const stored = localStorage.getItem('shaivika_courses_data');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setCourses(parsed);
+          }
+        }
+      } catch (e) {}
+    };
+
+    window.addEventListener('shaivika_courses_updated', handleCoursesChanged);
+    window.addEventListener('storage', handleCoursesChanged);
+    return () => {
+      window.removeEventListener('shaivika_courses_updated', handleCoursesChanged);
+      window.removeEventListener('storage', handleCoursesChanged);
+    };
+  }, []);
+
   // Update LocalStorage whenever courses state changes
   useEffect(() => {
     localStorage.setItem('shaivika_courses_data', JSON.stringify(courses));
@@ -996,6 +1019,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       level: coursePayload.level || 'Beginner to Advanced',
       badge: 'New Track',
       status: coursePayload.status || 'Published',
+      price: coursePayload.price !== undefined ? coursePayload.price : 299,
       thumbnail: coursePayload.thumbnail || '/assets/images/linux_course_thumbnail.webp',
       description: coursePayload.description || 'Enterprise technical course with hands-on labs and automated AI evaluations.',
       syllabus: coursePayload.syllabus || [
@@ -1057,7 +1081,26 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const updateCourse = async (id: number | string, updates: Partial<CourseItem>) => {
     const targetId = String(id) === 'course_linux_101' ? '1' : String(id);
-    setCourses((prev) => prev.map((c) => (String(c.id) === targetId ? { ...c, ...updates } : c)));
+    setCourses((prev) => {
+      const next = prev.map((c) => {
+        const cId = String(c.id);
+        const cSlug = String((c as any).slug || '');
+        if (
+          cId === targetId ||
+          cSlug === targetId ||
+          (cId === '1' && targetId === 'course_linux_101') ||
+          (cId === 'course_linux_101' && targetId === '1')
+        ) {
+          return { ...c, ...updates };
+        }
+        return c;
+      });
+      localStorage.setItem('shaivika_courses_data', JSON.stringify(next));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('shaivika_courses_updated', { detail: { courseId: targetId, updates } }));
+      }
+      return next;
+    });
 
     try {
       await courseService.updateCourse(targetId, updates as any);

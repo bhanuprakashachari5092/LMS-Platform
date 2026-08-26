@@ -84,4 +84,18 @@ export class CourseController {
     const course = await this.courseService.duplicateCourse(id);
     res.status(201).json(formatResponse(true, course, 'Course duplicated successfully'));
   });
+
+  getCourseModules = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const modules = await this.courseService.getCourseModules(id);
+    res.json(formatResponse(true, modules, 'Course modules retrieved successfully'));
+  });
+
+  getModuleLessons = asyncHandler(async (req: Request, res: Response) => {
+    const courseId = req.params.id as string;
+    const moduleId = req.params.moduleId as string;
+    const includeContent = req.query.includeContent === 'true';
+    const lessons = await this.courseService.getModuleLessons(courseId, moduleId, { includeContent });
+    res.json(formatResponse(true, lessons, 'Module lessons retrieved successfully'));
+  });
 }

@@ -26,6 +26,7 @@ export const CourseTable: React.FC<CourseTableProps> = ({
             <th className="py-3 px-4 font-bold">Course Title</th>
             <th className="py-3 px-4 font-bold">Category</th>
             <th className="py-3 px-4 font-bold">Level</th>
+            <th className="py-3 px-4 font-bold">Price (₹)</th>
             <th className="py-3 px-4 font-bold">Instructor</th>
             <th className="py-3 px-4 font-bold">Duration</th>
             <th className="py-3 px-4 font-bold">Status</th>

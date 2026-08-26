@@ -61,7 +61,7 @@ describe('Firestore Helper Utilities', () => {
     const date = new Date('2026-07-23T12:00:00.000Z');
     const timestamp = toFirestoreDateTime(date);
     expect(timestamp).toBeInstanceOf(admin.firestore.Timestamp);
-    expect(timestamp.toDate().toISOString()).toBe(date.toISOString());
+    expect((timestamp as admin.firestore.Timestamp).toDate().toISOString()).toBe(date.toISOString());
   });
 
   it('should clean typescript objects for saving as Firestore documents', () => {

@@ -1407,7 +1407,7 @@ export const LmsCourseRenderer: React.FC<LmsCourseRendererProps> = ({ content, i
     }
 
     return groupedBlocks;
-  }, [content, isK8s, isGit, isReact, isLinux]);
+  }, [content, isK8s, isGit, isReact, isLinux, isDbms, courseId]);
 
   const topicVisualKey = useMemo(() => {
     const heading = blocks.find(b => b.type === 'heading')?.text || '';

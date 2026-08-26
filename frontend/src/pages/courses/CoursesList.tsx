@@ -143,6 +143,19 @@ export const CoursesList: React.FC = () => {
     fetchCourses();
   }, [fetchCourses]);
 
+  useEffect(() => {
+    const handleUpdated = () => {
+      refreshCourses();
+      fetchCourses();
+    };
+    window.addEventListener('shaivika_courses_updated', handleUpdated);
+    window.addEventListener('storage', handleUpdated);
+    return () => {
+      window.removeEventListener('shaivika_courses_updated', handleUpdated);
+      window.removeEventListener('storage', handleUpdated);
+    };
+  }, [refreshCourses, fetchCourses]);
+
   const handleReset = () => {
     setSearch('');
     setSelectedCategory('All');

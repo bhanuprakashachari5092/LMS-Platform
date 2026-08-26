@@ -182,27 +182,54 @@ export class XPService {
   private pointsKey = 'shaivika_points_default_student';
 
   getXPPoints(userId = 'default_student'): number {
-    const claimsKey = `shaivika_user_xp_claims_${userId}`;
-    const data = localStorage.getItem(claimsKey);
-    if (data) {
-      try {
-        const parsed = JSON.parse(data);
-        if (Array.isArray(parsed)) {
-          const filtered = parsed.filter(
-            (c: any) => c.id !== 'claim_1' && c.id !== 'claim_2' && c.id !== 'claim_3' && c.id !== 'claim_4'
-          );
-          if (filtered.length > 0) {
-            return filtered.reduce((sum: number, c: any) => sum + (c.xp || 0), 0);
+    let loggedInEmail = '';
+    let loggedInUid = '';
+    try {
+      const userRaw = localStorage.getItem('shaivika_user');
+      if (userRaw) {
+        const u = JSON.parse(userRaw);
+        if (u.email) loggedInEmail = u.email.toLowerCase().trim();
+        if (u.uid || u.id) loggedInUid = u.uid || u.id;
+      }
+    } catch (e) {}
+
+    const candidateKeys = Array.from(new Set([
+      `shaivika_user_xp_claims_${userId}`,
+      loggedInUid ? `shaivika_user_xp_claims_${loggedInUid}` : '',
+      loggedInEmail ? `shaivika_user_xp_claims_${loggedInEmail}` : '',
+      'shaivika_user_xp_claims_default_student',
+    ].filter(Boolean)));
+
+    for (const key of candidateKeys) {
+      const data = localStorage.getItem(key);
+      if (data) {
+        try {
+          const parsed = JSON.parse(data);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const sum = parsed.reduce((acc: number, c: any) => acc + (typeof c.xp === 'number' ? c.xp : 0), 0);
+            if (sum > 0) return sum;
           }
-        }
-      } catch (e) {}
+        } catch (e) {}
+      }
     }
-    const currentPts = localStorage.getItem(this.pointsKey);
-    if (currentPts) {
-      return parseInt(currentPts, 10);
+
+    const legacyCandidates = [
+      `shaivika_user_xp_${userId}`,
+      loggedInUid ? `shaivika_user_xp_${loggedInUid}` : '',
+      `shaivika_points_${userId}`,
+      'shaivika_user_xp_points',
+      this.pointsKey,
+    ].filter(Boolean);
+
+    for (const lKey of legacyCandidates) {
+      const val = localStorage.getItem(lKey);
+      if (val) {
+        const parsed = parseInt(val, 10);
+        if (!isNaN(parsed) && parsed > 0) return parsed;
+      }
     }
-    const val = localStorage.getItem(`${this.xpKeyPrefix}${userId}`);
-    return val ? parseInt(val, 10) : 150;
+
+    return 350;
   }
 
   addXP(points: number, activityName: string, userId = 'default_student'): number {
@@ -598,6 +625,10 @@ export class LeaderboardService {
     const userStreak = statService.getStreaks(userId).dailyStreak;
 
     let loggedInName = 'You (Scholar)';
+    let loggedInEmail = '';
+    let loggedInUid = '';
+    let loggedInPhoto = '';
+    let loggedInGithub = '';
     try {
       const userRaw = localStorage.getItem('shaivika_user');
       if (userRaw) {
@@ -605,6 +636,10 @@ export class LeaderboardService {
         if (u.fullName || u.name || u.displayName) {
           loggedInName = u.fullName || u.name || u.displayName;
         }
+        if (u.email) loggedInEmail = String(u.email).toLowerCase().trim();
+        if (u.uid || u.id) loggedInUid = String(u.uid || u.id);
+        if (u.photoURL || u.profilePhoto) loggedInPhoto = u.photoURL || u.profilePhoto;
+        if (u.githubUsername || u.github) loggedInGithub = u.githubUsername || u.github;
       }
     } catch (e) {
       // Ignore fallback
@@ -619,15 +654,18 @@ export class LeaderboardService {
       else if (s.githubUrl) ghUser = String(s.githubUrl).replace(/^https?:\/\/github\.com\//, '').replace(/\/$/, '');
       else if (s.githubProfile?.login) ghUser = String(s.githubProfile.login);
       else if (isCurr) {
-        const storedGh = localStorage.getItem('shaivika_portfolio_github') || localStorage.getItem('shaivika_portfolio_handle');
-        if (storedGh) ghUser = storedGh.replace(/^https?:\/\/github\.com\//, '').replace(/\/$/, '');
+        if (loggedInGithub) ghUser = loggedInGithub.replace(/^https?:\/\/github\.com\//, '').replace(/\/$/, '');
+        else {
+          const storedGh = localStorage.getItem('shaivika_portfolio_github') || localStorage.getItem('shaivika_portfolio_handle');
+          if (storedGh) ghUser = storedGh.replace(/^https?:\/\/github\.com\//, '').replace(/\/$/, '');
+        }
       }
 
       if (!ghUser && s.email && s.email.includes('@')) {
         ghUser = s.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_-]/g, '');
       }
 
-      const avatar = s.photoURL || s.profilePhoto || (ghUser ? `https://github.com/${ghUser}.png?size=200` : `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name || s.fullName || 'Scholar')}&background=0284c7&color=fff&bold=true`);
+      const avatar = (isCurr && loggedInPhoto) || s.photoURL || s.profilePhoto || (ghUser ? `https://github.com/${ghUser}.png?size=200` : `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name || s.fullName || loggedInName || 'Scholar')}&background=0284c7&color=fff&bold=true`);
       const ghUrl = ghUser ? `https://github.com/${ghUser}` : undefined;
 
       return { ghUser, ghUrl, avatar };
@@ -647,12 +685,10 @@ export class LeaderboardService {
 
     // Helper to determine track dynamically
     const resolveTrack = (s: any, idx = 0): string => {
-      // 1. Explicit track on student object
       if (s.track && s.track !== 'Python & AI Engineering' && s.track.trim()) {
         return s.track;
       }
       
-      // 2. Enrolled / Current course title
       const courseTitle = (s.enrolledCourse || s.currentCourse || s.courseTitle || s.course || '').toLowerCase();
       if (courseTitle.includes('react') || courseTitle.includes('web') || courseTitle.includes('frontend')) return 'React & Full-Stack Web';
       if (courseTitle.includes('python') || courseTitle.includes('machine') || courseTitle.includes('ml')) return 'Python & AI Engineering';
@@ -661,7 +697,6 @@ export class LeaderboardService {
       if (courseTitle.includes('linux') || courseTitle.includes('shell') || courseTitle.includes('bash') || courseTitle.includes('os')) return 'Linux Kernel & Systems';
       if (courseTitle.includes('sql') || courseTitle.includes('db') || courseTitle.includes('database') || courseTitle.includes('postgres')) return 'SQL & Database Engineering';
 
-      // 3. Branch / Department parsing
       const branch = (s.branch || s.department || s.specialty || '').toLowerCase();
       if (branch.includes('react') || branch.includes('web') || branch.includes('frontend')) return 'React & Full-Stack Web';
       if (branch.includes('cloud') || branch.includes('devops') || branch.includes('aws')) return 'Cloud Architecture & DevOps';
@@ -670,7 +705,6 @@ export class LeaderboardService {
       if (branch.includes('data') || branch.includes('sql') || branch.includes('analytics')) return 'SQL & Database Engineering';
       if (branch.includes('python') || branch.includes('ml') || branch.includes('machine')) return 'Python & AI Engineering';
 
-      // 4. For Current User: Check active course in localStorage
       if (s.isCurrentUser || s.id === userId || s.uid === userId) {
         try {
           const lastCourse = localStorage.getItem('shaivika_last_course') || localStorage.getItem('shaivika_current_course_title');
@@ -686,13 +720,11 @@ export class LeaderboardService {
         } catch (e) {}
       }
 
-      // 5. Dynamic deterministic track distribution based on student's identifier
-      const strToHash = String(s.id || s.uid || s.email || s.name || idx);
+      const strToHash = String(s.email || s.name || s.id || s.uid || idx);
       const hash = Math.abs(Array.from(strToHash).reduce((acc, c) => acc + c.charCodeAt(0) * 17, idx * 31));
       return TRACK_SPECIALTIES[hash % TRACK_SPECIALTIES.length];
     };
 
-    // Helper to build badge list for a student
     const resolveBadgesList = (s: any, rawXp: number, streak: number, courses: number): Badge[] => {
       if (Array.isArray(s.badges) && s.badges.length > 0) {
         return s.badges;
@@ -719,11 +751,32 @@ export class LeaderboardService {
       return badges.length > 0 ? badges : [{ ...STATIC_BADGES[6], earnedDate: 'Earned' }];
     };
 
+    // Helper to check if a student record represents the current user
+    const checkIsCurrent = (s: any): boolean => {
+      const sId = String(s.id || '').trim();
+      const sUid = String(s.uid || '').trim();
+      const sEmail = String(s.email || '').toLowerCase().trim();
+
+      if (userId && userId !== 'default_student') {
+        if (sId === userId || sUid === userId || (sEmail && sEmail === userId.toLowerCase())) return true;
+      }
+      if (loggedInUid && (sId === loggedInUid || sUid === loggedInUid)) return true;
+      if (loggedInEmail && sEmail && sEmail === loggedInEmail) return true;
+      if (userId === 'default_student' && (s.isCurrentUser || sId === 'default_student')) return true;
+      return false;
+    };
+
+    const seenKeys = new Set<string>();
+
     // Map real registered students
     students.forEach((s, sIdx) => {
-      const isCurrent = (s.id === userId || s.uid === userId || s.email === userId);
+      const isCurrent = checkIsCurrent(s);
+      const uniqueKey = (s.email || s.id || s.uid || `idx_${sIdx}`).toLowerCase();
+      if (seenKeys.has(uniqueKey)) return;
+      seenKeys.add(uniqueKey);
+
       const rawXp = isCurrent
-        ? Math.max(s.xp || 0, userXp)
+        ? Math.max(s.xp || 0, userXp, 350)
         : (s.xp || (s.learningScore ? s.learningScore * 20 : 350));
 
       let effectiveXp = rawXp;
@@ -736,7 +789,7 @@ export class LeaderboardService {
       }
 
       const coursesCompleted = s.completedCourses || s.courses || (rawXp >= 1000 ? 1 : 0);
-      const streak = isCurrent ? userStreak : ((s as any).streak || (s as any).dailyStreak || Math.max(1, Math.min(30, Math.floor(rawXp / 150))));
+      const streak = isCurrent ? Math.max(userStreak, 1) : ((s as any).streak || (s as any).dailyStreak || Math.max(1, Math.min(30, Math.floor(rawXp / 150))));
       const badgesList = resolveBadgesList(s, rawXp, streak, coursesCompleted);
       const badgesCount = isCurrent
         ? Math.max(badgesList.length, userBadges)
@@ -753,8 +806,8 @@ export class LeaderboardService {
       const dynamicTrack = resolveTrack({ ...s, isCurrentUser: isCurrent }, sIdx);
 
       cohort.push({
-        id: s.id || s.uid,
-        name: isCurrent ? `${s.name || loggedInName}` : (s.name || s.fullName || s.email?.split('@')[0] || 'Student Scholar'),
+        id: (isCurrent && loggedInUid) ? loggedInUid : (s.id || s.uid || `st_${sIdx}`),
+        name: isCurrent ? (loggedInName !== 'You (Scholar)' ? loggedInName : (s.name || s.fullName || 'You (Scholar)')) : (s.name || s.fullName || s.email?.split('@')[0] || 'Student Scholar'),
         avatarUrl: avatar,
         githubUsername: ghUser,
         githubUrl: ghUrl,
@@ -774,23 +827,24 @@ export class LeaderboardService {
 
     // Ensure active logged-in user is included if not in student roster
     if (!currentUserIncluded) {
-      let effectiveXp = userXp;
+      const rawXp = Math.max(userXp, 350);
+      let effectiveXp = rawXp;
       if (filter === 'weekly') {
-        effectiveXp = Math.max(80, Math.round(userXp * 0.35));
+        effectiveXp = Math.max(80, Math.round(rawXp * 0.35));
       } else if (filter === 'monthly') {
-        effectiveXp = Math.max(180, Math.round(userXp * 0.70));
+        effectiveXp = Math.max(180, Math.round(rawXp * 0.70));
       } else if (filter === 'course') {
-        effectiveXp = Math.max(120, Math.round(userXp * 0.55));
+        effectiveXp = Math.max(120, Math.round(rawXp * 0.55));
       }
 
-      const level = getLevelForXP(userXp);
-      const { ghUser, ghUrl, avatar } = extractGithubInfo({ name: loggedInName, email: userId }, true);
-      const coursesCompleted = userXp >= 2000 ? 2 : userXp >= 500 ? 1 : 0;
-      const badgesList = resolveBadgesList({ name: loggedInName }, userXp, userStreak, coursesCompleted);
+      const level = getLevelForXP(rawXp);
+      const { ghUser, ghUrl, avatar } = extractGithubInfo({ name: loggedInName, email: loggedInEmail || userId }, true);
+      const coursesCompleted = rawXp >= 2000 ? 2 : rawXp >= 500 ? 1 : 0;
+      const badgesList = resolveBadgesList({ name: loggedInName }, rawXp, userStreak, coursesCompleted);
       const dynamicCurrentUserTrack = resolveTrack({ name: loggedInName, isCurrentUser: true }, 0);
 
       cohort.push({
-        id: userId,
+        id: loggedInUid || userId,
         name: loggedInName,
         avatarUrl: avatar,
         githubUsername: ghUser,
@@ -799,7 +853,7 @@ export class LeaderboardService {
         badgesCount: Math.max(userBadges, badgesList.length),
         badges: badgesList,
         coursesCompleted,
-        streak: userStreak,
+        streak: Math.max(userStreak, 1),
         level,
         levelTitle: getLevelTitle(level),
         isCurrentUser: true,

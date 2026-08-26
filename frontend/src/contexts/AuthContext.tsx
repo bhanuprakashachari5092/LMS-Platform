@@ -229,6 +229,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await syncStudent(profileData);
         }
 
+        try {
+          localStorage.setItem('shaivika_user', JSON.stringify(profileData));
+        } catch (e) {}
+
         setUserProfile(profileData);
         return profileData;
       } else {
