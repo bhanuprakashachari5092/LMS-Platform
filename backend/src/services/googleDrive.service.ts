@@ -1,9 +1,18 @@
- import { google, drive_v3 } from 'googleapis';
 import fs from 'fs';
 import path from 'path';
 import { Readable } from 'stream';
 import { env } from '../config/env';
 import logger from '../config/logger';
+
+// Lazy-load googleapis at runtime without ballooning tsc compile-time memory
+let cachedGoogle: any = null;
+const getGoogle = async (): Promise<any> => {
+  if (!cachedGoogle) {
+    const g = await (Function('return import("googleapis")')() as Promise<any>);
+    cachedGoogle = g.google || g;
+  }
+  return cachedGoogle;
+};
 
 export interface UploadCertificateParams {
   pdfFilePath: string | Buffer;
@@ -19,8 +28,14 @@ export interface DriveUploadResponse {
   fileName: string;
 }
 
+interface DriveFileMetadata {
+  name: string;
+  mimeType: string;
+  parents?: string[];
+}
+
 export class GoogleDriveService {
-  private driveClient?: drive_v3.Drive;
+  private driveClient?: any;
   private isConnected: boolean = false;
   private rootFolderId?: string;
 
@@ -33,6 +48,7 @@ export class GoogleDriveService {
    */
   public async connectGoogleDrive(): Promise<boolean> {
     try {
+      const google = await getGoogle();
       // 1. Locate Service Account JSON credentials file
       const possiblePaths = [
         path.resolve(process.cwd(), 'config/google-drive.json'),
@@ -83,10 +99,11 @@ export class GoogleDriveService {
         return false;
       }
 
-      this.driveClient = google.drive({ version: 'v3', auth });
+      const driveClient = google.drive({ version: 'v3', auth });
+      this.driveClient = driveClient;
 
       // Verify connection at server startup
-      const about = await this.driveClient.about.get({ fields: 'user, storageQuota' });
+      const about = await driveClient.about.get({ fields: 'user, storageQuota' });
       this.isConnected = true;
 
       console.log('✅ Google Drive Connected');
@@ -96,7 +113,7 @@ export class GoogleDriveService {
       // STEP 3: Validate root GOOGLE_DRIVE_FOLDER_ID if set
       if (this.rootFolderId) {
         try {
-          await this.driveClient.files.get({ fileId: this.rootFolderId, fields: 'id, name' });
+          await driveClient.files.get({ fileId: this.rootFolderId, fields: 'id, name' });
           logger.info(`[GOOGLE DRIVE] Root Folder Verified ID: ${this.rootFolderId}`);
         } catch (folderErr: any) {
           logger.warn(`⚠️ [GOOGLE DRIVE] Root Folder ID "${this.rootFolderId}" invalid or unaccessible: ${folderErr?.message}`);
@@ -151,7 +168,7 @@ export class GoogleDriveService {
       }
 
       // 2. Create new course folder
-      const folderMetadata: drive_v3.Schema$File = {
+      const folderMetadata: DriveFileMetadata = {
         name: sanitizedCourseName,
         mimeType: 'application/vnd.google-apps.folder',
       };
@@ -238,7 +255,7 @@ export class GoogleDriveService {
         }
 
         // 3. Upload File to Google Drive
-        const fileMetadata: drive_v3.Schema$File = {
+        const fileMetadata: DriveFileMetadata = {
           name: fileName,
           parents: [courseFolderId],
           mimeType: 'application/pdf',

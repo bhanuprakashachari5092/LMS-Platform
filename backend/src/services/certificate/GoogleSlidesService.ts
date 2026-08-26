@@ -1,10 +1,19 @@
-import { google } from 'googleapis';
 import { Readable } from 'stream';
 import { env } from '../../config/env';
 import logger from '../../config/logger';
 import fs from 'fs';
 import path from 'path';
 import { db } from '../../firebase';
+
+// Lazy-load googleapis at runtime without ballooning tsc compile-time memory
+let cachedGoogle: any = null;
+const getGoogle = async (): Promise<any> => {
+  if (!cachedGoogle) {
+    const g = await (Function('return import("googleapis")')() as Promise<any>);
+    cachedGoogle = g.google || g;
+  }
+  return cachedGoogle;
+};
 
 export interface CertificateData {
   certificateId: string;
@@ -42,7 +51,8 @@ export class GoogleSlidesService {
     return message.includes('quota exceeded') || message.includes('resource_exhausted') || message.includes('429');
   }
 
-  private getAuthClient(): any {
+  private async getAuthClient(): Promise<any> {
+    const google = await getGoogle();
     const clientId = env.GOOGLE_OAUTH_CLIENT_ID || process.env.GOOGLE_OAUTH_CLIENT_ID;
     const clientSecret = env.GOOGLE_OAUTH_CLIENT_SECRET || process.env.GOOGLE_OAUTH_CLIENT_SECRET;
     const refreshToken = env.GOOGLE_OAUTH_REFRESH_TOKEN || process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
@@ -287,7 +297,8 @@ export class GoogleSlidesService {
     // 1. AUTH STAGE
     logger.info(`[CERT] [${requestId}] [AUTH START]`);
     const authStart = Date.now();
-    const auth = this.getAuthClient();
+    const google = await getGoogle();
+    const auth = await this.getAuthClient();
     if (auth && typeof auth.getAccessToken === 'function') {
       await auth.getAccessToken().catch(() => null);
     } else if (auth && typeof auth.authorize === 'function') {

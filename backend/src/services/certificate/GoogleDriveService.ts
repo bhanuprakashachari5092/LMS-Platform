@@ -1,7 +1,16 @@
-import { google } from 'googleapis';
 import { Readable } from 'stream';
 import { env } from '../../config/env';
 import logger from '../../config/logger';
+
+// Lazy-load googleapis at runtime without ballooning tsc compile-time memory
+let cachedGoogle: any = null;
+const getGoogle = async (): Promise<any> => {
+  if (!cachedGoogle) {
+    const g = await (Function('return import("googleapis")')() as Promise<any>);
+    cachedGoogle = g.google || g;
+  }
+  return cachedGoogle;
+};
 
 export interface DriveUploadResult {
   fileId: string;
@@ -13,20 +22,26 @@ export interface DriveUploadResult {
 export class GoogleDriveService {
   private driveClient?: any;
   private isConfigured: boolean = false;
+  private isInitializing: boolean = false;
 
   constructor() {
-    this.initializeDriveClient();
+    // Client initialized on-demand during upload
   }
 
   /**
-   * Initializes Google Drive API v3 authentication using Service Account
+   * Initializes Google Drive API v3 authentication using Service Account on demand
    */
-  private initializeDriveClient(): void {
+  private async initializeDriveClient(): Promise<any> {
+    if (this.driveClient) return this.driveClient;
+    if (this.isInitializing) return;
+    this.isInitializing = true;
+
     const clientEmail = env.GOOGLE_DRIVE_CLIENT_EMAIL || process.env.GOOGLE_DRIVE_CLIENT_EMAIL;
     let privateKey = env.GOOGLE_DRIVE_PRIVATE_KEY || process.env.GOOGLE_DRIVE_PRIVATE_KEY;
 
     if (clientEmail && privateKey) {
       try {
+        const google = await getGoogle();
         // Handle escaped newlines in private key
         if (privateKey.includes('\\n')) {
           privateKey = privateKey.replace(/\\n/g, '\n');
@@ -44,10 +59,13 @@ export class GoogleDriveService {
       } catch (err: any) {
         logger.error(`[GOOGLE DRIVE SERVICE] ❌ Failed to initialize Google Drive auth: ${err?.message || err}`);
         this.isConfigured = false;
+      } finally {
+        this.isInitializing = false;
       }
     } else {
       logger.info('[GOOGLE DRIVE SERVICE] ℹ️ Google Drive API credentials not provided in .env - operating in auto-managed Google Drive link generator mode.');
       this.isConfigured = false;
+      this.isInitializing = false;
     }
   }
 
@@ -60,6 +78,7 @@ export class GoogleDriveService {
     folderId?: string,
     maxRetries: number = 3
   ): Promise<DriveUploadResult> {
+    await this.initializeDriveClient();
     let attempt = 0;
     let lastError: any = null;
 
