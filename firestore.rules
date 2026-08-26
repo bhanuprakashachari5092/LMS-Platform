@@ -2,7 +2,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // --- HELPER FUNCTIONS ---
+    // =========================================================================
+    // HELPER FUNCTIONS
+    // =========================================================================
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -33,165 +35,175 @@ service cloud.firestore {
     }
     
     function isAssignedInstructor(resourceData) {
-      return isInstructor() && (resourceData.instructorId == request.auth.uid || resourceData.createdBy == request.auth.uid);
+      return isInstructor() && (
+        resourceData.instructorId == request.auth.uid || 
+        resourceData.createdBy == request.auth.uid
+      );
     }
 
-    function liveClassMetadataUnchanged() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasAny([
-        'instructorId', 'courseId', 'createdBy', 'startTime', 'endTime', 'status', 'meetingRoomId', 'meetingUrl'
-      ]) == false;
-    }
+    // =========================================================================
+    // 1. CORE USER & ROLE MANAGEMENT
+    // =========================================================================
 
-    // --- CORE USER & PROFILE COLLECTIONS ---
-
-    // 1. Users Collection
+    // Users Collection (Central Profile Repository)
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow create, update: if isOwner(userId) || isAdmin();
       allow delete: if isAdmin();
     }
 
-    // 2. Admins Collection
+    // Admins Collection
     match /admins/{adminId} {
       allow read, write: if isAdmin();
     }
 
-    // 3. Students Collection
+    // Students Collection
     match /students/{studentId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && isOwner(studentId);
       allow update, delete: if isAdmin() || isOwner(studentId);
     }
 
-    // 3b. Instructors Collection
+    // Instructors Collection
     match /instructors/{instructorId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow update, delete: if isAdmin() || isOwner(instructorId);
     }
 
-    // --- CURRICULUM & COURSE CONTENT COLLECTIONS ---
+    // =========================================================================
+    // 2. CURRICULUM, COURSES, MODULES & LESSONS (HIERARCHICAL & FLAT)
+    // =========================================================================
 
-    // 4. Courses Collection (Root & Subcollections)
+    // Courses Collection (Root and Nested Subcollections)
     match /courses/{courseId} {
-      allow read: if true; // Public catalog view
+      allow read: if true; // Public catalog access
       allow write: if isAdmin() || isInstructor();
 
+      // Nested Subcollection: courses/{courseId}/modules/{moduleId}
+      match /modules/{moduleId} {
+        allow read: if true;
+        allow write: if isAdmin() || isInstructor();
+
+        // Nested Subcollection: courses/{courseId}/modules/{moduleId}/lessons/{lessonId}
+        match /lessons/{lessonId} {
+          allow read: if true;
+          allow write: if isAdmin() || isInstructor();
+        }
+      }
+
+      // Catch-all for any other nested subcollections under courses
       match /{allSubcollections=**} {
         allow read: if true;
         allow write: if isAdmin() || isInstructor();
       }
     }
 
-    // 5. Modules
+    // Top-Level Modules Collection
     match /modules/{id} {
       allow read: if true;
       allow write: if isAdmin() || isInstructor();
     }
 
-    // 6. Lessons
+    // Top-Level Lessons Collection
     match /lessons/{id} {
       allow read: if true;
       allow write: if isAdmin() || isInstructor();
     }
 
-    // 7. Course Modules Aux
+    // Auxiliary Collections for Course Modules & Lessons
     match /course_modules/{id} {
       allow read: if true;
       allow write: if isAdmin() || isInstructor();
     }
 
-    // 8. Course Lessons Aux
     match /course_lessons/{id} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin() || isInstructor();
     }
 
-    // 9. Course Knowledge
     match /course_knowledge/{id} {
       allow read: if isAuthenticated();
       allow write: if isAdmin() || isInstructor();
     }
 
-    // 10. Question Bank
     match /question_bank/{id} {
       allow read, write: if isAdmin() || isInstructor();
     }
 
-    // 11. Generated Quizzes
     match /generated_quizzes/{id} {
       allow read: if isAuthenticated();
       allow write: if isAdmin() || isInstructor();
     }
 
-    // 12. Resources
     match /resources/{id} {
       allow read: if isAuthenticated();
       allow write: if isAdmin() || isInstructor();
     }
 
-    // 13. Quizzes
     match /quizzes/{id} {
       allow read: if isAuthenticated();
       allow write: if isAdmin() || isInstructor();
     }
 
-    // 14. Assignments
     match /assignments/{id} {
       allow read: if isAuthenticated();
       allow write: if isAdmin() || isInstructor();
     }
 
-    // --- ENROLLMENT, PROGRESS & ASSESSMENT COLLECTIONS ---
+    // =========================================================================
+    // 3. ENROLLMENTS, PROGRESS, ATTEMPTS & CERTIFICATES
+    // =========================================================================
 
-    // 15. Enrollments
+    // Enrollments
     match /enrollments/{id} {
       allow read: if isAuthenticated();
       allow write: if isAuthenticated();
     }
 
-    // 16. Progress
+    // Progress Tracker
     match /progress/{id} {
       allow read: if isAuthenticated() && (isAdmin() || resource.data.studentId == request.auth.uid);
       allow write: if isAuthenticated() && (isAdmin() || request.resource.data.studentId == request.auth.uid);
     }
 
-    // 17. Student Progress
+    // Student Progress Collection
     match /student_progress/{progressId} {
       allow read: if isAuthenticated() && (isAdmin() || isInstructor() || resource.data.studentId == request.auth.uid);
       allow write: if isAuthenticated() && (isAdmin() || isInstructor() || request.resource.data.studentId == request.auth.uid);
     }
 
-    // 18. Student Analysis
+    // Student Learning Analytics
     match /student_analysis/{analysisId} {
       allow read: if isAuthenticated() && (isAdmin() || isInstructor() || resource.data.studentId == request.auth.uid);
       allow write: if isAdmin() || isInstructor();
     }
 
-    // 19. Quiz Attempts
+    // Quiz Attempts
     match /quiz_attempts/{attemptId} {
       allow read: if isAuthenticated() && (isAdmin() || isInstructor() || resource.data.studentId == request.auth.uid);
       allow create: if isAuthenticated() && request.resource.data.studentId == request.auth.uid;
       allow update, delete: if isAdmin() || isInstructor();
     }
 
-    // 20. Assignment Submissions
+    // Assignment Submissions
     match /assignment_submissions/{submissionId} {
       allow read: if isAuthenticated() && (isAdmin() || isInstructor() || resource.data.studentId == request.auth.uid);
       allow create: if isAuthenticated() && request.resource.data.studentId == request.auth.uid;
       allow update, delete: if isAdmin() || isInstructor();
     }
 
-    // 21. Certificates
+    // Certificates (Public Verification)
     match /certificates/{certificateId} {
-      allow read: if true; // Public certificate verification
+      allow read: if true; // Public certificate validation
       allow create: if isAuthenticated();
       allow update, delete: if isAdmin();
     }
 
-    // --- SYSTEM, NOTIFICATIONS & AUDIT COLLECTIONS ---
+    // =========================================================================
+    // 4. NOTIFICATIONS, SYSTEM LOGS & AUDIT
+    // =========================================================================
 
-    // 22. Notifications
     match /notifications/{notifId} {
       allow read: if isAuthenticated() && (
         isAdmin() || 
@@ -203,12 +215,10 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
-    // 23. Email Logs
     match /email_logs/{logId} {
       allow read, write: if isAdmin();
     }
 
-    // 24. Audit Logs
     match /audit_logs/{logId} {
       allow read, write: if isAdmin();
     }
@@ -217,86 +227,96 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // --- LIVE CLASSROOM SYSTEM (HIERARCHICAL ARCHITECTURE) ---
+    // =========================================================================
+    // 5. LIVE CLASSROOM SYSTEM (HIERARCHICAL)
+    // =========================================================================
 
-    // 25. Live Classes Root Collection
     match /liveClasses/{classId} {
       allow read: if isAuthenticated();
       allow create, delete: if isAdmin();
-      allow update: if isAdmin() || (isAssignedInstructor(resource.data) && request.resource.data.instructorId == resource.data.instructorId && request.resource.data.courseId == resource.data.courseId && request.resource.data.createdBy == resource.data.createdBy);
+      allow update: if isAdmin() || (
+        isAssignedInstructor(resource.data) && 
+        request.resource.data.instructorId == resource.data.instructorId && 
+        request.resource.data.courseId == resource.data.courseId && 
+        request.resource.data.createdBy == resource.data.createdBy
+      );
 
-      // 25.1 Subcollection: attendance
+      // Attendance Subcollection
       match /attendance/{attendanceId} {
         allow read: if isAdmin() || isInstructor() || (isAuthenticated() && resource.data.studentId == request.auth.uid);
         allow create: if isAuthenticated() && request.resource.data.studentId == request.auth.uid;
         allow update, delete: if isAdmin() || isInstructor();
       }
 
-      // 25.2 Subcollection: chat
+      // Chat Subcollection
       match /chat/{messageId} {
         allow read: if isAuthenticated();
         allow create: if isAuthenticated() && request.resource.data.senderId == request.auth.uid;
-        allow update: if isAdmin() || isAssignedInstructor(get(/databases/$(database)/documents/liveClasses/$(classId)).data) || (isAuthenticated() && resource.data.senderId == request.auth.uid && request.resource.data.senderId == resource.data.senderId && request.resource.data.senderName == resource.data.senderName && request.resource.data.senderRole == resource.data.senderRole);
+        allow update: if isAdmin() || 
+          isAssignedInstructor(get(/databases/$(database)/documents/liveClasses/$(classId)).data) || 
+          (isAuthenticated() && resource.data.senderId == request.auth.uid);
         allow delete: if isAdmin() || isAssignedInstructor(get(/databases/$(database)/documents/liveClasses/$(classId)).data);
       }
 
-      // 25.3 Subcollection: questions
+      // Questions Subcollection
       match /questions/{questionId} {
         allow read: if isAuthenticated();
         allow create: if isAuthenticated() && request.resource.data.studentId == request.auth.uid;
         allow update, delete: if isAdmin() || isAssignedInstructor(get(/databases/$(database)/documents/liveClasses/$(classId)).data);
       }
 
-      // 25.4 Subcollection: notes
+      // Notes Subcollection
       match /notes/{noteId} {
         allow read: if isAuthenticated();
         allow write: if isAdmin() || isInstructor();
       }
 
-      // 25.5 Subcollection: resources
+      // Resources Subcollection
       match /resources/{resourceId} {
         allow read: if isAuthenticated();
         allow write: if isAdmin() || isInstructor();
       }
 
-      // 25.6 Subcollection: polls
+      // Polls Subcollection
       match /polls/{pollId} {
         allow read: if isAuthenticated();
         allow write: if isAdmin() || isInstructor();
       }
 
-      // 25.7 Subcollection: quizzes
+      // Quizzes Subcollection
       match /quizzes/{quizId} {
         allow read: if isAuthenticated();
         allow write: if isAdmin() || isInstructor();
       }
 
-      // 25.8 Subcollection: quizAttempts
+      // Quiz Attempts Subcollection
       match /quizAttempts/{attemptId} {
         allow read: if isAdmin() || isInstructor() || (isAuthenticated() && resource.data.studentId == request.auth.uid);
         allow create: if isAuthenticated() && request.resource.data.studentId == request.auth.uid;
         allow update, delete: if isAdmin() || isInstructor();
       }
 
-      // 25.9 Subcollection: recordings
+      // Recordings Subcollection
       match /recordings/{recordingId} {
         allow read: if isAuthenticated();
         allow write: if isAdmin() || isInstructor();
       }
 
-      // 25.10 Subcollection: announcements
+      // Announcements Subcollection
       match /announcements/{announcementId} {
         allow read: if isAuthenticated();
         allow write: if isAdmin() || isInstructor();
       }
 
-      // 25.11 Subcollection: analytics
+      // Analytics Subcollection
       match /analytics/{analyticsId} {
         allow read, write: if isAdmin() || isInstructor();
       }
     }
 
-    // --- 26. EMAIL PROTECTION RULES (PREVENT CLIENT SPAM / ROGUE MAIL TRIGGERS) ---
+    // =========================================================================
+    // 6. TRANSACTIONAL MAILS & TRIGGERS (ADMIN ONLY)
+    // =========================================================================
     match /mail/{mailId} {
       allow read, write: if isAdmin();
     }
@@ -309,7 +329,9 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // --- 27. DEVELOPER PORTFOLIO SYSTEM ---
+    // =========================================================================
+    // 7. DEVELOPER PORTFOLIO & RESUME BUILDER
+    // =========================================================================
     match /portfolios/{studentId} {
       allow read: if true; // Public portfolio showcase
       allow create, update: if isAuthenticated() && (isOwner(studentId) || isAdmin());
@@ -321,12 +343,13 @@ service cloud.firestore {
       allow write: if isAuthenticated();
     }
 
-    // --- 28. RESUME BUILDER DRAFTS ---
     match /resumes/{studentId} {
       allow read, write: if isAuthenticated() && (isOwner(studentId) || isAdmin());
     }
 
-    // --- 29. PAYMENTS & TRANSACTIONS (SECURED AGAINST TAMPERING) ---
+    // =========================================================================
+    // 8. PAYMENTS & TRANSACTIONS
+    // =========================================================================
     match /payments/{paymentId} {
       allow read: if isAuthenticated() && (isAdmin() || resource.data.studentId == request.auth.uid);
       allow write: if isAdmin();
