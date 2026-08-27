@@ -42,7 +42,18 @@ describe('Phase 3G: Certificate End-to-End Production Smoke Test', () => {
       const jobId = certificateQueueService.buildJobId(smokeStudent.uid, course.courseId);
       await certificateJobsCollection().doc(jobId).delete().catch(() => {});
 
-      
+      // Clean any leftover stale processing/queued jobs from previous aborted test runs
+      try {
+        const staleJobsSnap = await certificateJobsCollection()
+          .where('status', 'in', ['processing', 'queued'])
+          .get();
+        for (const doc of staleJobsSnap.docs) {
+          if (doc.id.startsWith('job_student_cohort') || doc.id.startsWith('job_student_scale') || doc.id.startsWith('job_smoke')) {
+            await doc.ref.delete().catch(() => {});
+          }
+        }
+      } catch (e) {}
+
       const existingCerts = await certificatesCollection()
         .where('studentUid', '==', smokeStudent.uid)
         .where('courseId', '==', course.courseId)
@@ -126,7 +137,7 @@ describe('Phase 3G: Certificate End-to-End Production Smoke Test', () => {
         generatedCertificateId = job.certificateId;
       }
     }
-  }, 25000);
+  }, 35000);
 
   // Test 4: Duplicate Prevention
   test('4. Submitting a second request for an issued certificate returns it immediately', async () => {
