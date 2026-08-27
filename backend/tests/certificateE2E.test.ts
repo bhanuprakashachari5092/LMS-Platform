@@ -194,8 +194,4 @@ describe('Phase 3G: Certificate End-to-End Production Smoke Test', () => {
     const res = await request(app).get('/api/certificates/download?certificateId=KQ-SMOKE-2026-TEST-VERIFY');
     expect([401, 403]).toContain(res.status);
   });
-
-  afterAll(() => {
-    jest.restoreAllMocks();
-  });
 });

@@ -16,9 +16,6 @@ describe('CertificateQueueService & FIFO Queue Pipeline Tests', () => {
     });
   });
 
-  afterAll(() => {
-    jest.restoreAllMocks();
-  });
 
   test('builds deterministic, idempotent jobId from studentId and courseId', () => {
     const id1 = certificateQueueService.buildJobId('student_123', 'course_linux_101');
