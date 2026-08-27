@@ -1,12 +1,11 @@
 import { Request, Response } from 'express';
-import { db, adminAuth } from '../firebase';
+import { db } from '../firebase';
 import { certificateDeliveryService, cleanCourseTitleForCertificate } from '../services/certificate/CertificateDeliveryService';
 import { certificateQueueService } from '../services/certificate/CertificateQueueService';
-import { googleSlidesService } from '../services/certificate/GoogleSlidesService';
+import { pdfCertificateGenerator } from '../services/certificate/PDFCertificateGenerator';
 import { qrCodeService } from '../services/certificate/QRCodeService';
 import { googleSheetsService } from '../services/certificate/GoogleSheetsService';
 import logger from '../config/logger';
-import { CourseService } from '../services/course/CourseService';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import {
   studentProgressCollection,
@@ -54,28 +53,24 @@ export class CertificateController {
     // 1. Direct doc lookup in 'users' collection
     let userDoc = await db.collection('users').doc(studentId).get();
     if (userDoc.exists) {
-      logger.info(`[CERTIFICATE PROFILE RESOLUTION] Found profile in 'users' collection by ID: ${studentId}`);
       return userDoc.data();
     }
 
     // 2. Query 'users' collection by 'uid'
     let querySnap = await db.collection('users').where('uid', '==', studentId).get();
     if (!querySnap.empty) {
-      logger.info(`[CERTIFICATE PROFILE RESOLUTION] Found profile in 'users' collection by 'uid' field: ${studentId}`);
       return querySnap.docs[0].data();
     }
 
     // 3. Direct doc lookup in 'students' collection
     userDoc = await db.collection('students').doc(studentId).get();
     if (userDoc.exists) {
-      logger.info(`[CERTIFICATE PROFILE RESOLUTION] Found profile in 'students' collection by ID: ${studentId}`);
       return userDoc.data();
     }
 
     // 4. Query 'students' collection by 'uid'
     querySnap = await db.collection('students').where('uid', '==', studentId).get();
     if (!querySnap.empty) {
-      logger.info(`[CERTIFICATE PROFILE RESOLUTION] Found profile in 'students' collection by 'uid' field: ${studentId}`);
       return querySnap.docs[0].data();
     }
 
@@ -83,32 +78,32 @@ export class CertificateController {
     if (fallbackEmail) {
       querySnap = await db.collection('users').where('email', '==', fallbackEmail).get();
       if (!querySnap.empty) {
-        logger.info(`[CERTIFICATE PROFILE RESOLUTION] Found profile in 'users' collection by 'email' field: ${fallbackEmail}`);
         return querySnap.docs[0].data();
       }
 
       // 6. Query 'students' collection by 'email'
       querySnap = await db.collection('students').where('email', '==', fallbackEmail).get();
       if (!querySnap.empty) {
-        logger.info(`[CERTIFICATE PROFILE RESOLUTION] Found profile in 'students' collection by 'email' field: ${fallbackEmail}`);
         return querySnap.docs[0].data();
       }
     }
 
-    logger.warn(`[CERTIFICATE PROFILE RESOLUTION] ⚠️ Could not resolve profile in 'users' or 'students' collections for ID: ${studentId}, Email: ${fallbackEmail}`);
     return null;
   }
 
   /**
    * POST /api/certificates/generate & POST /api/certificates/complete-and-deliver
-   * Enqueues or returns existing certificate/job safely & idempotently
+   * Enqueues or returns existing certificate/job safely & idempotently (Protected)
    */
   public async handleCompletionAndDeliver(req: AuthenticatedRequest, res: Response): Promise<Response> {
     try {
-      let studentId = req.user?.uid;
-      if ((!studentId || studentId === 'dev-user-id') && req.body.studentId) {
+      const authUid = req.user?.uid;
+      const isAdmin = req.user?.role === 'admin';
+      let studentId = authUid;
+      if (isAdmin && req.body.studentId) {
         studentId = req.body.studentId;
       }
+
       const {
         courseId,
         courseTitle,
@@ -129,14 +124,14 @@ export class CertificateController {
         });
       }
 
-      const fallbackEmail = req.user?.email || req.body.studentEmail;
+      const fallbackEmail = req.user?.email || bodyStudentEmail;
       let studentName = bodyStudentName || '';
       let studentEmail = bodyStudentEmail || '';
       let resolvedStudentId = studentId;
 
       if (db) {
         try {
-          let userData = await this.resolveStudentData(studentId, fallbackEmail);
+          const userData = await this.resolveStudentData(studentId, fallbackEmail);
           if (userData) {
             studentName = userData.fullName || userData.name || studentName || '';
             studentEmail = userData.email || studentEmail || '';
@@ -147,11 +142,11 @@ export class CertificateController {
         }
       }
 
-      if (!studentName && req.body.studentName) {
-        studentName = req.body.studentName;
+      if (!studentName && bodyStudentName) {
+        studentName = bodyStudentName;
       }
-      if (!studentEmail && req.body.studentEmail) {
-        studentEmail = req.body.studentEmail;
+      if (!studentEmail && bodyStudentEmail) {
+        studentEmail = bodyStudentEmail;
       }
       if (!studentEmail && req.user?.email) {
         studentEmail = req.user.email;
@@ -183,14 +178,14 @@ export class CertificateController {
       logger.error(`[CERTIFICATE CONTROLLER] ❌ Exception in certificate request: ${err?.message || err}`);
       return res.status(500).json({
         success: false,
-        error: err?.message || String(err),
+        error: 'Failed to process certificate request',
       });
     }
   }
 
   /**
    * GET /api/certificates/jobs/:jobId
-   * Retrieves real-time queue position, estimated wait, and status for a specific job
+   * Retrieves real-time queue position, estimated wait, and status for a specific job (Ownership Protected)
    */
   public async getJobStatus(req: AuthenticatedRequest, res: Response): Promise<Response> {
     try {
@@ -204,24 +199,37 @@ export class CertificateController {
         return res.status(404).json({ success: false, error: 'Certificate job not found' });
       }
 
+      const authUid = req.user?.uid;
+      const isAdmin = req.user?.role === 'admin';
+
+      // Strictly protect against cross-student IDOR
+      if (job.studentUid !== authUid && job.studentId !== authUid && !isAdmin) {
+        return res.status(403).json({
+          success: false,
+          error: 'Forbidden: You cannot access another student\'s queue job.',
+        });
+      }
+
       return res.status(200).json({ success: true, job });
     } catch (err: any) {
       logger.error(`[CERTIFICATE CONTROLLER] ❌ Error fetching job status: ${err?.message || err}`);
-      return res.status(500).json({ success: false, error: err?.message || String(err) });
+      return res.status(500).json({ success: false, error: 'Failed to fetch job status' });
     }
   }
 
   /**
    * GET /api/certificates/job/status
-   * Helper to query job status by studentId and courseId
+   * Helper to query job status by studentId and courseId (Ownership Protected)
    */
   public async getJobByParams(req: AuthenticatedRequest, res: Response): Promise<Response> {
     try {
-      const studentId = String(req.query.studentId || req.user?.uid || '');
+      const authUid = req.user?.uid;
+      const isAdmin = req.user?.role === 'admin';
+      const studentId = isAdmin && req.query.studentId ? String(req.query.studentId) : String(authUid || '');
       const courseId = String(req.query.courseId || '');
 
       if (!studentId || !courseId) {
-        return res.status(400).json({ success: false, error: 'studentId and courseId are required' });
+        return res.status(400).json({ success: false, error: 'courseId is required' });
       }
 
       const jobId = certificateQueueService.buildJobId(studentId, courseId);
@@ -231,23 +239,383 @@ export class CertificateController {
         return res.status(404).json({ success: false, error: 'No active job found for this course' });
       }
 
+      if (job.studentUid !== authUid && job.studentId !== authUid && !isAdmin) {
+        return res.status(403).json({
+          success: false,
+          error: 'Forbidden: You cannot access another student\'s queue job.',
+        });
+      }
+
       return res.status(200).json({ success: true, job });
     } catch (err: any) {
       logger.error(`[CERTIFICATE CONTROLLER] ❌ Error fetching job by params: ${err?.message || err}`);
-      return res.status(500).json({ success: false, error: err?.message || String(err) });
+      return res.status(500).json({ success: false, error: 'Failed to fetch job status' });
+    }
+  }
+
+  /**
+   * GET /api/certificates/download
+   * Authenticated, authoritative certificate download
+   */
+  public async downloadCertificate(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const certificateId = String(req.query.certificateId || req.params.certificateId || '').trim();
+      if (!certificateId) {
+        res.status(400).json({ success: false, error: 'certificateId parameter is required' });
+        return;
+      }
+
+      if (!db) {
+        res.status(500).json({ success: false, error: 'Database uninitialized' });
+        return;
+      }
+
+      // Authoritative lookup from Firestore
+      let certDoc = await db.collection('certificates').doc(certificateId).get();
+      if (!certDoc.exists) {
+        const querySnap = await db.collection('certificates').where('verificationId', '==', certificateId).get();
+        if (!querySnap.empty) {
+          certDoc = querySnap.docs[0];
+        }
+      }
+
+      if (!certDoc.exists) {
+        res.status(404).json({ success: false, error: 'Certificate not found' });
+        return;
+      }
+
+      const cert = certDoc.data();
+      const authUid = req.user?.uid;
+      const isAdmin = req.user?.role === 'admin';
+
+      // Authorization Check
+      if (cert?.studentUid !== authUid && cert?.studentId !== authUid && !isAdmin) {
+        res.status(403).json({ success: false, error: 'Forbidden: You cannot download another student\'s certificate' });
+        return;
+      }
+
+      // Generate in-memory PDF Buffer from authoritative metadata
+      const pdfBuffer = await pdfCertificateGenerator.generateCertificateBuffer({
+        certificateId: cert?.certificateId || certificateId,
+        studentId: cert?.studentId || authUid || 'STUDENT',
+        studentName: cert?.studentName,
+        courseTitle: cert?.courseName || cert?.courseTitle,
+        completionDate: cert?.completionDate || cert?.issueDate,
+        courseDuration: cert?.courseDuration,
+        modulesCount: cert?.modulesCompleted || cert?.modulesCount,
+        achievement: cert?.achievement,
+      });
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${certificateId}.pdf"`);
+      res.send(pdfBuffer);
+    } catch (err: any) {
+      logger.error(`[DOWNLOAD CERTIFICATE] ❌ Error: ${err?.message || err}`);
+      res.status(500).json({ success: false, error: 'Failed to download certificate' });
+    }
+  }
+
+  /**
+   * GET /api/certificates/preview
+   * Authenticated, authoritative certificate inline preview
+   */
+  public async previewCertificate(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const certificateId = String(req.query.certificateId || req.params.certificateId || '').trim();
+      if (!certificateId) {
+        res.status(400).json({ success: false, error: 'certificateId parameter is required' });
+        return;
+      }
+
+      if (!db) {
+        res.status(500).json({ success: false, error: 'Database uninitialized' });
+        return;
+      }
+
+      // Authoritative lookup from Firestore
+      let certDoc = await db.collection('certificates').doc(certificateId).get();
+      if (!certDoc.exists) {
+        const querySnap = await db.collection('certificates').where('verificationId', '==', certificateId).get();
+        if (!querySnap.empty) {
+          certDoc = querySnap.docs[0];
+        }
+      }
+
+      if (!certDoc.exists) {
+        res.status(404).json({ success: false, error: 'Certificate not found' });
+        return;
+      }
+
+      const cert = certDoc.data();
+      const authUid = req.user?.uid;
+      const isAdmin = req.user?.role === 'admin';
+
+      // Authorization Check
+      if (cert?.studentUid !== authUid && cert?.studentId !== authUid && !isAdmin) {
+        res.status(403).json({ success: false, error: 'Forbidden: You cannot preview another student\'s certificate' });
+        return;
+      }
+
+      // Generate in-memory PDF Buffer from authoritative metadata
+      const pdfBuffer = await pdfCertificateGenerator.generateCertificateBuffer({
+        certificateId: cert?.certificateId || certificateId,
+        studentId: cert?.studentId || authUid || 'STUDENT',
+        studentName: cert?.studentName,
+        courseTitle: cert?.courseName || cert?.courseTitle,
+        completionDate: cert?.completionDate || cert?.issueDate,
+        courseDuration: cert?.courseDuration,
+        modulesCount: cert?.modulesCompleted || cert?.modulesCount,
+        achievement: cert?.achievement,
+      });
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${certificateId}.pdf"`);
+      res.send(pdfBuffer);
+    } catch (err: any) {
+      logger.error(`[PREVIEW CERTIFICATE] ❌ Error: ${err?.message || err}`);
+      res.status(500).json({ success: false, error: 'Failed to preview certificate' });
+    }
+  }
+
+  /**
+   * GET /api/certificates/my-certificates
+   * Fetches all registered certificates for the authenticated student
+   */
+  public async getMyCertificates(req: AuthenticatedRequest, res: Response): Promise<Response> {
+    try {
+      const authUid = req.user?.uid;
+      const authEmail = req.user?.email;
+
+      if (!authUid && !authEmail) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+      }
+
+      if (!db) {
+        return res.status(500).json({ success: false, error: 'Database uninitialized' });
+      }
+
+      const certs: any[] = [];
+      const seen = new Set<string>();
+
+      if (authUid) {
+        const snapUid = await db.collection('certificates').where('studentUid', '==', authUid).get();
+        snapUid.forEach((doc) => {
+          certs.push(doc.data());
+          seen.add(doc.id);
+        });
+      }
+
+      if (authEmail) {
+        const snapEmail = await db.collection('certificates').where('studentEmail', '==', authEmail).get();
+        snapEmail.forEach((doc) => {
+          if (!seen.has(doc.id)) {
+            certs.push(doc.data());
+            seen.add(doc.id);
+          }
+        });
+      }
+
+      return res.status(200).json({ success: true, data: certs });
+    } catch (err: any) {
+      logger.error(`[MY CERTIFICATES] ❌ Error: ${err?.message || err}`);
+      return res.status(500).json({ success: false, error: 'Failed to fetch certificates' });
+    }
+  }
+
+  /**
+   * GET /api/certificates/student/:studentEmail
+   * Fetches all registered certificates for an email (Ownership Protected)
+   */
+  public async getCertificatesByEmail(req: AuthenticatedRequest, res: Response): Promise<Response> {
+    try {
+      const studentEmail = String(req.params.studentEmail || '').trim().toLowerCase();
+      const authEmail = String(req.user?.email || '').trim().toLowerCase();
+      const isAdmin = req.user?.role === 'admin';
+
+      if (!studentEmail) {
+        return res.status(400).json({ success: false, error: 'Missing studentEmail parameter' });
+      }
+
+      // Ownership authorization check
+      if (authEmail !== studentEmail && !isAdmin) {
+        return res.status(403).json({
+          success: false,
+          error: 'Forbidden: You cannot access certificate history for another email.',
+        });
+      }
+
+      if (!db) {
+        return res.status(500).json({ success: false, error: 'Database uninitialized' });
+      }
+
+      const snap = await db.collection('certificates').where('studentEmail', '==', studentEmail).get();
+      const certs = snap.docs.map((doc) => doc.data());
+
+      return res.status(200).json({ success: true, data: certs });
+    } catch (err: any) {
+      logger.error(`[CERTIFICATES BY EMAIL] ❌ Error: ${err?.message || err}`);
+      return res.status(500).json({ success: false, error: 'Failed to fetch certificates' });
+    }
+  }
+
+  /**
+   * GET /api/certificates/verify/:certificateId
+   * Public Certificate Verification (Sanitized Public DTO - Zero PII/Secrets Exposed)
+   */
+  public async verifyCertificate(req: Request, res: Response): Promise<Response> {
+    try {
+      const certificateId = String(req.params.certificateId || '').trim();
+      if (!certificateId) {
+        return res.status(400).json({
+          success: false,
+          verified: false,
+          error: 'Missing Certificate ID parameter.',
+        });
+      }
+
+      if (!db) {
+        return res.status(500).json({
+          success: false,
+          verified: false,
+          error: 'Database uninitialized',
+        });
+      }
+
+      let certData: any = null;
+      const docSnap = await db.collection('certificates').doc(certificateId).get();
+      if (docSnap.exists) {
+        certData = docSnap.data();
+      } else {
+        const querySnap = await db.collection('certificates').where('verificationId', '==', certificateId).get();
+        if (!querySnap.empty) {
+          certData = querySnap.docs[0].data();
+        }
+      }
+
+      if (!certData) {
+        return res.status(404).json({
+          success: false,
+          verified: false,
+          error: 'Certificate not found',
+        });
+      }
+
+      // Explicit Public Verification DTO (Masks all private fields: studentUid, studentEmail, googleDriveFileId, etc.)
+      const publicVerificationDto = {
+        certificateId: certData.certificateId || certificateId,
+        verificationId: certData.verificationId || certificateId,
+        studentName: certData.studentName,
+        courseName: certData.courseName || certData.courseTitle,
+        issueDate: certData.issueDate || certData.completionDate,
+        completionDate: certData.completionDate || certData.issueDate,
+        courseDuration: certData.courseDuration || '25 Hours',
+        modulesCompleted: certData.modulesCompleted || 'All Modules',
+        achievement: certData.achievement || '100% Completed',
+        status: certData.status || 'Issued',
+      };
+
+      return res.status(200).json({
+        success: true,
+        verified: true,
+        certificate: publicVerificationDto,
+      });
+    } catch (err: any) {
+      logger.error(`[CERTIFICATE VERIFICATION] ❌ Error: ${err?.message || err}`);
+      return res.status(500).json({
+        success: false,
+        verified: false,
+        error: 'Failed to verify certificate',
+      });
+    }
+  }
+
+  /**
+   * POST /api/certificates/sync-state
+   * Syncs student's current learning progress, quiz scores, and assignment status to Firestore
+   */
+  public async syncState(req: AuthenticatedRequest, res: Response): Promise<Response> {
+    try {
+      const studentId = req.user?.uid;
+      const { courseId, completedLessons, completedModules, quizScores, assignmentSubmissions } = req.body;
+
+      if (!studentId || !courseId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing authenticated profile UID or courseId.',
+        });
+      }
+
+      if (db) {
+        // 1. Sync student_progress
+        await studentProgressCollection().doc(`${studentId}_${courseId}`).set(
+          {
+            studentId,
+            courseId,
+            completedLessons: completedLessons || [],
+            completedModules: completedModules || [],
+            completionPercentage: 100,
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+
+        // 2. Sync quiz attempts
+        if (Array.isArray(quizScores)) {
+          for (const quiz of quizScores) {
+            const attemptId = `${studentId}_${quiz.quizId}`;
+            await quizAttemptsCollection().doc(attemptId).set(
+              {
+                studentId,
+                courseId,
+                quizId: quiz.quizId,
+                percentage: Number(quiz.percentage || 0),
+                updatedAt: new Date().toISOString(),
+              },
+              { merge: true }
+            );
+          }
+        }
+
+        // 3. Sync assignment submissions
+        if (Array.isArray(assignmentSubmissions)) {
+          for (const assign of assignmentSubmissions) {
+            await assignmentSubmissionsCollection().doc(`${studentId}_${assign.assignmentId}`).set(
+              {
+                studentId,
+                courseId,
+                assignmentId: assign.assignmentId,
+                status: assign.status,
+                updatedAt: new Date().toISOString(),
+              },
+              { merge: true }
+            );
+          }
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Student progress and submissions synced successfully to Firestore.',
+      });
+    } catch (err: any) {
+      logger.error(`[CERTIFICATE SYNC] ❌ Exception: ${err?.message || err}`);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to sync learning state',
+      });
     }
   }
 
   /**
    * GET /api/certificates/test-delivery
-   * Instant diagnostic test route to simulate 100% course completion delivery
+   * Instant diagnostic test route to simulate 100% course completion delivery (Admin/Auth Only)
    */
-  public async testDelivery(req: Request, res: Response): Promise<Response> {
+  public async testDelivery(req: AuthenticatedRequest, res: Response): Promise<Response> {
     try {
-      const targetEmail = (req.query.email as string) || 'student@kaizenq.in';
-      const studentName = (req.query.name as string) || 'BALAM DEVISRI';
+      const targetEmail = (req.query.email as string) || req.user?.email || 'student@kaizenq.in';
+      const studentName = (req.query.name as string) || req.user?.name || 'Test Student';
       const courseTitle = (req.query.course as string) || 'C Programming';
-      const studentId = (req.query.studentId as string) || 'aTtKfoyKgEcYgdNs5pd4OkClGD12';
+      const studentId = (req.query.studentId as string) || req.user?.uid || 'test_uid_123';
       const courseId = (req.query.courseId as string) || 'c-programming';
       const forceRegenerate = req.query.forceRegenerate === 'true';
 
@@ -271,469 +639,7 @@ export class CertificateController {
     } catch (err: any) {
       return res.status(500).json({
         success: false,
-        error: err?.message || String(err),
-      });
-    }
-  }
-
-  /**
-   * GET /api/certificates/download
-   * Serves direct download of high-quality certificate PDF without requiring external Google Drive storage
-   */
-  public async downloadCertificate(req: Request, res: Response): Promise<void> {
-    try {
-      const {
-        certificateId,
-        studentId,
-        studentName,
-        courseTitle,
-        completionDate,
-        courseDuration,
-        modulesCount,
-        courseId
-      } = req.query;
-
-      if (!certificateId || !studentId || !studentName || !courseTitle) {
-        res.status(400).send('Missing required query parameters: certificateId, studentId, studentName, courseTitle.');
-        return;
-      }
-
-      let dynamicStudentName = String(studentName);
-      let dynamicCourseTitle = String(courseTitle);
-      let dynamicCourseDuration = String(courseDuration || '24 Hours');
-      let actualModulesCount = Number(modulesCount || 8);
-
-      if (db) {
-        try {
-          const studentData = await this.resolveStudentData(String(studentId));
-          if (studentData) {
-            dynamicStudentName = studentData.fullName || studentData.name || studentData.displayName || String(studentName);
-          }
-
-          if (courseId) {
-            const courseDoc = await this.resolveCourseDoc(String(courseId));
-            if (courseDoc && courseDoc.exists) {
-              const courseData = courseDoc.data();
-              if (courseData) {
-                dynamicCourseTitle = courseData.title || String(courseTitle);
-                dynamicCourseDuration = courseData.duration || String(courseDuration || '24 Hours');
-                
-                let count = 0;
-                if (Array.isArray(courseData.modules) && courseData.modules.length > 0) {
-                  count = courseData.modules.length;
-                } else if (Array.isArray(courseData.syllabus) && courseData.syllabus.length > 0) {
-                  count = courseData.syllabus.length;
-                } else {
-                  try {
-                    const modulesSnap = await db.collection('modules')
-                      .where('courseId', '==', courseDoc.id)
-                      .get();
-                    count = modulesSnap.size;
-                  } catch {}
-                }
-                if (count > 0) {
-                  actualModulesCount = count;
-                }
-              }
-            }
-          }
-        } catch (dbErr) {
-          logger.warn(`[DOWNLOAD CERTIFICATE] Failed to fetch student/course Firestore data: ${dbErr}`);
-        }
-      }
-
-      // Calculate achievement score from quiz attempts dynamically
-      let dynamicAchievement = 'Outstanding Achievement';
-      if (db) {
-        try {
-          const resolvedCourse = courseId ? await this.resolveCourseDoc(String(courseId)) : null;
-          const courseDocId = resolvedCourse ? resolvedCourse.id : String(courseId);
-          const courseIdsToCheck = Array.from(new Set([String(courseId), courseDocId]));
-
-          const quizAttempts = await quizAttemptsCollection()
-            .where('studentId', '==', String(studentId))
-            .where('courseId', 'in', courseIdsToCheck)
-            .get();
-          
-          if (!quizAttempts.empty) {
-            let totalScore = 0;
-            let count = 0;
-            quizAttempts.forEach((doc: any) => {
-              const attempt = doc.data();
-              if (typeof attempt.score === 'number') {
-                totalScore += attempt.score;
-                count++;
-              }
-            });
-            if (count > 0) {
-              const average = Math.round(totalScore / count);
-              dynamicAchievement = `Grade: ${average}% Completion Score`;
-            }
-          } else {
-            dynamicAchievement = '100% Score • Mastery';
-          }
-        } catch (qErr) {
-          logger.warn(`[DOWNLOAD CERTIFICATE] Failed to calculate quiz scores: ${qErr}`);
-        }
-      }
-
-      const qrCodeBuffer = await qrCodeService.generateVerificationQRCodeBuffer(
-        String(certificateId),
-        String(studentId)
-      );
-
-      let pdfBuffer: Buffer;
-      try {
-        pdfBuffer = await googleSlidesService.generateCertificateFromTemplate({
-          certificateId: String(certificateId),
-          studentId: String(studentId),
-          studentName: dynamicStudentName,
-          courseTitle: cleanCourseTitleForCertificate(dynamicCourseTitle),
-          instructorName: 'Shaivika Groups Board',
-          completionDate: String(completionDate || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })),
-          courseDuration: dynamicCourseDuration,
-          modulesCount: actualModulesCount,
-          achievement: dynamicAchievement,
-          qrCodeBuffer,
-          courseId: courseId ? String(courseId) : undefined,
-        });
-      } catch (slideErr: any) {
-        logger.warn(`[DOWNLOAD CERTIFICATE] Google Slides template generation failed: ${slideErr?.message || slideErr}. Falling back to local PDFCertificateGenerator.`);
-        const { pdfCertificateGenerator } = await import('../services/certificate/PDFCertificateGenerator');
-        pdfBuffer = await pdfCertificateGenerator.generateCertificateBuffer({
-          certificateId: String(certificateId),
-          studentId: String(studentId),
-          studentName: dynamicStudentName,
-          courseTitle: cleanCourseTitleForCertificate(dynamicCourseTitle),
-          instructorName: 'Shaivika Groups Board',
-          completionDate: String(completionDate || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })),
-          courseDuration: dynamicCourseDuration,
-          modulesCount: actualModulesCount,
-          qrCodeBuffer,
-        });
-      }
-
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="${certificateId}.pdf"`);
-      res.send(pdfBuffer);
-    } catch (err: any) {
-      logger.error(`[DOWNLOAD CERTIFICATE] ❌ Exception: ${err?.message || err}`);
-      if (err?.message?.toLowerCase().includes('quota')) {
-        res.status(429).send('Google Slides API quota temporarily exceeded. Please try again later.');
-      } else {
-        res.status(500).send('Failed to generate download certificate.');
-      }
-    }
-  }
-
-  /**
-   * GET /api/certificates/preview
-   * Serves inline presentation of high-quality certificate PDF inside the browser iframe
-   */
-  public async previewCertificate(req: Request, res: Response): Promise<void> {
-    try {
-      const {
-        certificateId,
-        studentId,
-        studentName,
-        courseTitle,
-        completionDate,
-        courseDuration,
-        modulesCount,
-        courseId
-      } = req.query;
-
-      if (!certificateId || !studentId || !studentName || !courseTitle) {
-        res.status(400).send('Missing required query parameters: certificateId, studentId, studentName, courseTitle.');
-        return;
-      }
-
-      let dynamicStudentName = String(studentName);
-      let dynamicCourseTitle = String(courseTitle);
-      let dynamicCourseDuration = String(courseDuration || '24 Hours');
-      let actualModulesCount = Number(modulesCount || 8);
-
-      if (db) {
-        try {
-          const studentData = await this.resolveStudentData(String(studentId));
-          if (studentData) {
-            dynamicStudentName = studentData.fullName || studentData.name || studentData.displayName || String(studentName);
-          }
-
-          if (courseId) {
-            const courseDoc = await this.resolveCourseDoc(String(courseId));
-            if (courseDoc && courseDoc.exists) {
-              const courseData = courseDoc.data();
-              if (courseData) {
-                dynamicCourseTitle = courseData.title || String(courseTitle);
-                dynamicCourseDuration = courseData.duration || String(courseDuration || '24 Hours');
-                
-                let count = 0;
-                if (Array.isArray(courseData.modules) && courseData.modules.length > 0) {
-                  count = courseData.modules.length;
-                } else if (Array.isArray(courseData.syllabus) && courseData.syllabus.length > 0) {
-                  count = courseData.syllabus.length;
-                } else {
-                  try {
-                    const modulesSnap = await db.collection('modules')
-                      .where('courseId', '==', courseDoc.id)
-                      .get();
-                    count = modulesSnap.size;
-                  } catch {}
-                }
-                if (count > 0) {
-                  actualModulesCount = count;
-                }
-              }
-            }
-          }
-        } catch (dbErr) {
-          logger.warn(`[PREVIEW CERTIFICATE] Failed to fetch student/course Firestore data: ${dbErr}`);
-        }
-      }
-
-      // Calculate achievement score from quiz attempts dynamically
-      let dynamicAchievement = 'Outstanding Achievement';
-      if (db) {
-        try {
-          const resolvedCourse = courseId ? await this.resolveCourseDoc(String(courseId)) : null;
-          const courseDocId = resolvedCourse ? resolvedCourse.id : String(courseId);
-          const courseIdsToCheck = Array.from(new Set([String(courseId), courseDocId]));
-
-          const quizAttempts = await quizAttemptsCollection()
-            .where('studentId', '==', String(studentId))
-            .where('courseId', 'in', courseIdsToCheck)
-            .get();
-          
-          if (!quizAttempts.empty) {
-            let totalScore = 0;
-            let count = 0;
-            quizAttempts.forEach((doc: any) => {
-              const attempt = doc.data();
-              if (typeof attempt.score === 'number') {
-                totalScore += attempt.score;
-                count++;
-              }
-            });
-            if (count > 0) {
-              const average = Math.round(totalScore / count);
-              dynamicAchievement = `Grade: ${average}% Completion Score`;
-            }
-          } else {
-            dynamicAchievement = '100% Score • Mastery';
-          }
-        } catch (qErr) {
-          logger.warn(`[PREVIEW CERTIFICATE] Failed to calculate quiz scores: ${qErr}`);
-        }
-      }
-
-      const qrCodeBuffer = await qrCodeService.generateVerificationQRCodeBuffer(
-        String(certificateId),
-        String(studentId)
-      );
-
-      let pdfBuffer: Buffer;
-      try {
-        pdfBuffer = await googleSlidesService.generateCertificateFromTemplate({
-          certificateId: String(certificateId),
-          studentId: String(studentId),
-          studentName: dynamicStudentName,
-          courseTitle: cleanCourseTitleForCertificate(dynamicCourseTitle),
-          instructorName: 'Shaivika Groups Board',
-          completionDate: String(completionDate || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })),
-          courseDuration: dynamicCourseDuration,
-          modulesCount: actualModulesCount,
-          achievement: dynamicAchievement,
-          qrCodeBuffer,
-          courseId: courseId ? String(courseId) : undefined,
-        });
-      } catch (slideErr: any) {
-        logger.warn(`[PREVIEW CERTIFICATE] Google Slides template generation failed: ${slideErr?.message || slideErr}. Falling back to local PDFCertificateGenerator.`);
-        const { pdfCertificateGenerator } = await import('../services/certificate/PDFCertificateGenerator');
-        pdfBuffer = await pdfCertificateGenerator.generateCertificateBuffer({
-          certificateId: String(certificateId),
-          studentId: String(studentId),
-          studentName: dynamicStudentName,
-          courseTitle: cleanCourseTitleForCertificate(dynamicCourseTitle),
-          instructorName: 'Shaivika Groups Board',
-          completionDate: String(completionDate || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })),
-          courseDuration: dynamicCourseDuration,
-          modulesCount: actualModulesCount,
-          qrCodeBuffer,
-        });
-      }
-
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', 'inline; filename="certificate-preview.pdf"');
-      res.send(pdfBuffer);
-    } catch (err: any) {
-      logger.error(`[PREVIEW CERTIFICATE] ❌ Exception: ${err?.message || err}`);
-      if (err?.message?.toLowerCase().includes('quota')) {
-        res.status(429).send('Google Slides API quota temporarily exceeded. Please try again later.');
-      } else {
-        res.status(500).send('Failed to generate preview certificate.');
-      }
-    }
-  }
-
-  /**
-   * GET /api/certificates/verify/:certificateId
-   * Searches the Google Sheets Certificate Registry for a matching Certificate ID to verify its authenticity
-   */
-  public async verifyCertificate(req: Request, res: Response): Promise<Response> {
-    try {
-      const { certificateId } = req.params;
-
-      if (!certificateId) {
-        return res.status(400).json({
-          success: false,
-          error: 'Missing Certificate ID parameter.',
-        });
-      }
-
-      logger.info(`[CERTIFICATE VERIFICATION] Searching certificates collection & registry for ID: ${certificateId}`);
-
-      // 1. Check Firestore certificates collection
-      let certData: any = null;
-      if (db) {
-        try {
-          const docSnap = await db.collection('certificates').doc(String(certificateId)).get();
-          if (docSnap.exists) {
-            certData = docSnap.data();
-          } else {
-            const querySnap = await db.collection('certificates').where('verificationId', '==', String(certificateId)).get();
-            if (!querySnap.empty) {
-              certData = querySnap.docs[0].data();
-            }
-          }
-        } catch (fErr: any) {
-          logger.warn(`[CERTIFICATE VERIFICATION] Firestore lookup notice: ${fErr?.message || fErr}`);
-        }
-      }
-
-      // 2. Fallback to Google Sheets registry
-      if (!certData) {
-        certData = await googleSheetsService.getCertificateById(String(certificateId));
-      }
-
-      if (!certData) {
-        logger.warn(`[CERTIFICATE VERIFICATION] ⚠️ Certificate ID ${certificateId} not found in Registry.`);
-        return res.status(404).json({
-          success: false,
-          error: `Certificate ID "${certificateId}" could not be verified. It does not exist in the registry.`,
-        });
-      }
-
-      logger.info(`[CERTIFICATE VERIFICATION] ✅ Certificate ID ${certificateId} verified successfully.`);
-      return res.status(200).json({
-        success: true,
-        data: certData,
-      });
-    } catch (err: any) {
-      logger.error(`[CERTIFICATE VERIFICATION] ❌ Exception: ${err?.message || err}`);
-      return res.status(500).json({
-        success: false,
-        error: err?.message || String(err),
-      });
-    }
-  }
-
-  /**
-   * GET /api/certificates/student/:studentEmail
-   * Fetches all registered certificates for a student email
-   */
-  public async getCertificatesByEmail(req: Request, res: Response): Promise<Response> {
-    try {
-      const { studentEmail } = req.params;
-
-      if (!studentEmail) {
-        return res.status(400).json({
-          success: false,
-          error: 'Missing studentEmail parameter.',
-        });
-      }
-
-      logger.info(`[CERTIFICATE LIST] Fetching certificates for email: ${studentEmail}`);
-      const certs = await googleSheetsService.getCertificatesByEmail(String(studentEmail));
-
-      return res.status(200).json({
-        success: true,
-        data: certs,
-      });
-    } catch (err: any) {
-      logger.error(`[CERTIFICATE LIST] ❌ Exception: ${err?.message || err}`);
-      return res.status(500).json({
-        success: false,
-        error: err?.message || String(err),
-      });
-    }
-  }
-
-  /**
-   * POST /api/certificates/sync-state
-   * Syncs student's current learning progress, quiz scores, and assignment status to Firestore
-   */
-  public async syncState(req: AuthenticatedRequest, res: Response): Promise<Response> {
-    try {
-      const studentId = req.user?.uid;
-      const { courseId, completedLessons, completedModules, quizScores, assignmentSubmissions } = req.body;
-
-      if (!studentId || !courseId) {
-        return res.status(400).json({
-          success: false,
-          error: 'Missing authenticated profile UID or courseId.',
-        });
-      }
-
-      logger.info(`[CERTIFICATE SYNC] Syncing state for student: ${studentId} in course: ${courseId}`);
-
-      // 1. Sync student_progress
-      await studentProgressCollection().doc(`${studentId}_${courseId}`).set({
-        studentId,
-        courseId,
-        completedLessons: completedLessons || [],
-        completedModules: completedModules || [],
-        completionPercentage: 100,
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
-
-      // 2. Sync quiz attempts (passing quizzes)
-      if (Array.isArray(quizScores)) {
-        for (const quiz of quizScores) {
-          const attemptId = `${studentId}_${quiz.quizId}`;
-          await quizAttemptsCollection().doc(attemptId).set({
-            studentId,
-            courseId,
-            quizId: quiz.quizId,
-            percentage: Number(quiz.percentage || 0),
-            updatedAt: new Date().toISOString()
-          }, { merge: true });
-        }
-      }
-
-      // 3. Sync assignment submissions
-      if (Array.isArray(assignmentSubmissions)) {
-        for (const assign of assignmentSubmissions) {
-          await assignmentSubmissionsCollection().doc(`${studentId}_${assign.assignmentId}`).set({
-            studentId,
-            courseId,
-            assignmentId: assign.assignmentId,
-            status: assign.status,
-            updatedAt: new Date().toISOString()
-          }, { merge: true });
-        }
-      }
-
-      logger.info(`[CERTIFICATE SYNC] Sync completed successfully for ${studentId}.`);
-      return res.status(200).json({
-        success: true,
-        message: 'Student progress and submissions synced successfully to Firestore.',
-      });
-    } catch (err: any) {
-      logger.error(`[CERTIFICATE SYNC] ❌ Exception: ${err?.message || err}`);
-      return res.status(500).json({
-        success: false,
-        error: err?.message || String(err),
+        error: 'Test delivery encountered an error',
       });
     }
   }

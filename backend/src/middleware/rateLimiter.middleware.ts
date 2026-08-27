@@ -47,3 +47,20 @@ export const aiRateLimiter = rateLimit({
     message: 'AI request limit reached. Please wait a minute before generating more content.',
   },
 });
+
+/**
+ * Dedicated Certificate Generation Rate Limiter
+ * Restricts certificate generation requests to 10 per 15 minutes per user/IP.
+ */
+export const certificateRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  keyGenerator: (req: any) => req.user?.uid || req.ip || 'anonymous_user',
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    statusCode: 429,
+    message: 'Certificate generation request limit exceeded. Please wait 15 minutes before requesting again.',
+  },
+});
