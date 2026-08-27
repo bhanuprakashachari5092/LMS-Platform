@@ -5,7 +5,8 @@ import { emailService } from '../email/EmailService';
 import { pdfCertificateGenerator } from './PDFCertificateGenerator';
 import { qrCodeService } from './QRCodeService';
 import { googleSheetsService } from './GoogleSheetsService';
-import { db, storage } from '../../firebase';
+import { googleDriveService } from '../googleDrive.service';
+import { db } from '../../firebase';
 import { CourseService } from '../course/CourseService';
 import { QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import {
@@ -40,7 +41,6 @@ export interface AutomatedDeliveryResult {
   completionDate: string;
   googleDriveLink?: string;
   googleDriveFileId?: string;
-  storagePath?: string;
   emailMessageId?: string;
   error?: string;
   timeline: Array<{ step: string; status: 'SUCCESS' | 'FAILED'; timestamp: string; details?: string }>;
@@ -522,27 +522,22 @@ export class CertificateDeliveryService {
           };
         }
 
-        // Firebase Storage destination & download URL preparation
-        const certYear = new Date().getFullYear();
-        const storagePath = `certificates/${certYear}/${certificateId}.pdf`;
+        // Google Drive destination & shareable URL preparation
+        let driveFileId = 'gdrive-pending';
         let downloadUrl = `${env.BACKEND_URL || 'http://localhost:5000'}/api/certificates/download?certificateId=${certificateId}&studentId=${payload.studentId}&studentName=${encodeURIComponent(payload.studentName)}&courseTitle=${encodeURIComponent(payload.courseTitle)}&completionDate=${encodeURIComponent(completionDate)}`;
 
-        if (storage && typeof (storage as any).bucket === 'function') {
-          try {
-            const bucket = (storage as any).bucket();
-            const fileRef = bucket.file(storagePath);
-            await fileRef.save(pdfBuffer, {
-              contentType: 'application/pdf',
-              metadata: {
-                certificateId,
-                studentId: displayStudentId,
-                courseId: payload.courseId,
-              },
-            });
-            logger.info(`[AUTOMATED CERTIFICATE SYSTEM] ✅ Certificate uploaded to Firebase Storage: ${storagePath}`);
-          } catch (storageErr: any) {
-            logger.warn(`[AUTOMATED CERTIFICATE SYSTEM] Firebase Storage upload notice: ${storageErr?.message || storageErr}`);
-          }
+        try {
+          const driveResult = await googleDriveService.uploadCertificate({
+            pdfFilePath: pdfBuffer,
+            courseName: payload.courseTitle,
+            certificateId,
+            studentName: payload.studentName,
+          });
+          driveFileId = driveResult.driveFileId;
+          downloadUrl = driveResult.driveUrl;
+          logger.info(`[AUTOMATED CERTIFICATE SYSTEM] ✅ Certificate uploaded to Google Drive: ${downloadUrl} (ID: ${driveFileId})`);
+        } catch (driveErr: any) {
+          logger.warn(`[AUTOMATED CERTIFICATE SYSTEM] Google Drive upload notice: ${driveErr?.message || driveErr}`);
         }
 
         const primaryFrontend = (env.FRONTEND_URL || 'https://www.kaizenq.in').split(',')[0].trim();
@@ -620,7 +615,8 @@ export class CertificateDeliveryService {
               instructorName: payload.instructorName || 'SHAIVIKA LMS Team',
               issueDate: completionDate,
               completionDate: completionDate,
-              storagePath,
+              googleDriveFileId: driveFileId,
+              googleDriveUrl: downloadUrl,
               pdfUrl: downloadUrl,
               status: 'Issued',
               emailStatus,
@@ -654,8 +650,7 @@ export class CertificateDeliveryService {
           courseTitle: payload.courseTitle,
           completionDate,
           googleDriveLink: downloadUrl,
-          googleDriveFileId: 'firebase-storage',
-          storagePath,
+          googleDriveFileId: driveFileId,
           emailMessageId: mailResult.messageId,
           timeline,
         };
