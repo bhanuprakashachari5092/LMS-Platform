@@ -1,3 +1,12 @@
+/**
+ * ============================================================================
+ * [ARCHIVED / HISTORICAL MIGRATION TOOLING]
+ * This script is preserved for historical reference only.
+ * DO NOT RUN IN PRODUCTION. Active course migrations must use the canonical
+ * script: backend/scripts/migrate-course-content.ts
+ * ============================================================================
+ */
+
 import * as fs from 'fs';
 import * as path from 'path';
 import { db, isFirebaseAdminInitialized } from '../firebase';

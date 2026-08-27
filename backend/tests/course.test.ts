@@ -88,19 +88,27 @@ describe('Firestore Helper Utilities', () => {
   });
 });
 
-describe('CourseContentService Canonical Reading & Telemetry', () => {
-  it('should query canonical subcollections and report zero fallback on valid canonical course', async () => {
+describe('CourseContentService Canonical Reading', () => {
+  it('should query canonical subcollections and retrieve modules and lessons correctly', async () => {
     const { courseContentService } = await import('../src/services/course/courseContent.service');
-    courseContentService.resetTelemetry();
     courseContentService.invalidateCache();
 
-    // Query Linux course modules (which exists in canonical subcollection)
+    // 1. Query Linux course canonical modules: courses/course_linux_101/modules
     const modules = await courseContentService.getCourseModules('course_linux_101');
     expect(Array.isArray(modules)).toBe(true);
-    expect(modules.length).toBeGreaterThan(0);
+    expect(modules.length).toBe(15);
+    expect(modules[0].orderIndex).toBe(1);
 
-    const telemetry = courseContentService.getTelemetry();
-    expect(telemetry.legacyModulesFallbackCount).toBe(0);
+    // 2. Query canonical lessons for first module: courses/course_linux_101/modules/linux-mod-1/lessons
+    const lessons = await courseContentService.getModuleLessons('course_linux_101', modules[0].id);
+    expect(Array.isArray(lessons)).toBe(true);
+    expect(lessons.length).toBeGreaterThan(0);
+
+    // 3. Query canonical lesson content: courses/course_linux_101/modules/linux-mod-1/lessons/{lessonId}
+    const lesson = await courseContentService.getLessonById(lessons[0].id, 'course_linux_101', modules[0].id);
+    expect(lesson).not.toBeNull();
+    expect(lesson?.id).toBe(lessons[0].id);
+    expect(lesson?.title).toBeDefined();
   });
 });
 
