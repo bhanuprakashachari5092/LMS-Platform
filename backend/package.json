@@ -19,6 +19,7 @@
     "backup:courses": "npx tsx scripts/backup-course-content.ts",
     "cleanup:legacy-course-data": "npx tsx scripts/cleanup-legacy-course-data.ts",
     "audit:legacy-decommission": "npx tsx scripts/audit-legacy-decommission.ts",
+    "decommission:legacy-collections": "npx tsx scripts/delete-legacy-collections.ts",
     "oauth:gen": "npx ts-node scripts/generate-google-oauth-token.ts"
   },
   "dependencies": {

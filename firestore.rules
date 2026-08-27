@@ -99,17 +99,8 @@ service cloud.firestore {
       }
     }
 
-    // Top-Level Modules Collection (Legacy Fallback)
-    match /modules/{id} {
-      allow read: if true;
-      allow write: if isAdmin() || isInstructor();
-    }
-
-    // Top-Level Lessons Collection (Legacy Fallback)
-    match /lessons/{id} {
-      allow read: if true;
-      allow write: if isAdmin() || isInstructor();
-    }
+    // Top-Level Modules & Lessons collections decommissioned in Phase 4G.
+    // Canonical curriculum is governed strictly under /courses/{courseId}/modules/...
 
     match /course_knowledge/{id} {
       allow read: if isAuthenticated();
