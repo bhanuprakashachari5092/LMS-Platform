@@ -23,8 +23,20 @@ export const studentsCollection = () => getCollection('students');
 export const instructorsCollection = () => getCollection('instructors');
 export const adminsCollection = () => getCollection('admins');
 export const coursesCollection = () => getCollection('courses');
-export const modulesCollection = () => getCollection('modules');
-export const lessonsCollection = () => getCollection('lessons');
+export const modulesCollection = (source = 'unknown') => {
+  try {
+    const { legacyCollectionMonitor } = require('../utils/legacyCollectionMonitor');
+    legacyCollectionMonitor.recordAccess('modules', 'read', source);
+  } catch (_) {}
+  return getCollection('modules');
+};
+export const lessonsCollection = (source = 'unknown') => {
+  try {
+    const { legacyCollectionMonitor } = require('../utils/legacyCollectionMonitor');
+    legacyCollectionMonitor.recordAccess('lessons', 'read', source);
+  } catch (_) {}
+  return getCollection('lessons');
+};
 export const enrollmentsCollection = () => getCollection('enrollments');
 export const studentProgressCollection = () => getCollection('student_progress');
 export const studentAnalysisCollection = () => getCollection('student_analysis');
