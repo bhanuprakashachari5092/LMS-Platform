@@ -121,4 +121,9 @@ describe('CertificateQueueService & FIFO Queue Pipeline Tests', () => {
       expect(res.success).toBe(true);
     });
   }, 20000);
+
+  afterAll(async () => {
+    // Wait briefly for in-flight worker tasks to settle
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  });
 });
