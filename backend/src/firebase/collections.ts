@@ -40,4 +40,6 @@ export const resourcesCollection = () => getCollection('resources');
 export const courseKnowledgeCollection = () => getCollection('course_knowledge');
 export const questionBankCollection = () => getCollection('question_bank');
 export const generatedQuizzesCollection = () => getCollection('generated_quizzes');
+export const certificateJobsCollection = () => getCollection('certificateJobs');
+
 

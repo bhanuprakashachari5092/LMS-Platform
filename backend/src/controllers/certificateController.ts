@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { db, adminAuth } from '../firebase';
 import { certificateDeliveryService, cleanCourseTitleForCertificate } from '../services/certificate/CertificateDeliveryService';
+import { certificateQueueService } from '../services/certificate/CertificateQueueService';
 import { googleSlidesService } from '../services/certificate/GoogleSlidesService';
 import { qrCodeService } from '../services/certificate/QRCodeService';
 import { googleSheetsService } from '../services/certificate/GoogleSheetsService';
@@ -44,54 +45,51 @@ export class CertificateController {
     return null;
   }
 
+  /**
+   * Helper to resolve student profile from database
+   */
   private async resolveStudentData(studentId: string, fallbackEmail?: string): Promise<any> {
-    if (!studentId || !db) return null;
-    
-    // 1. Direct doc lookup in users
-    logger.info(`[CERTIFICATE PROFILE RESOLUTION] Querying collection 'users' by document ID: ${studentId}`);
-    let doc = await db.collection('users').doc(studentId).get().catch(() => null);
-    if (doc && doc.exists) {
-      logger.info(`[CERTIFICATE PROFILE RESOLUTION] Found profile in 'users' collection by Document ID: ${studentId}`);
-      return doc.data();
+    if (!db) return null;
+
+    // 1. Direct doc lookup in 'users' collection
+    let userDoc = await db.collection('users').doc(studentId).get();
+    if (userDoc.exists) {
+      logger.info(`[CERTIFICATE PROFILE RESOLUTION] Found profile in 'users' collection by ID: ${studentId}`);
+      return userDoc.data();
     }
 
-    // 2. Direct doc lookup in students
-    logger.info(`[CERTIFICATE PROFILE RESOLUTION] Querying collection 'students' by document ID: ${studentId}`);
-    doc = await db.collection('students').doc(studentId).get().catch(() => null);
-    if (doc && doc.exists) {
-      logger.info(`[CERTIFICATE PROFILE RESOLUTION] Found profile in 'students' collection by Document ID: ${studentId}`);
-      return doc.data();
-    }
-
-    // 3. Fallback lookup by uid in users
-    logger.info(`[CERTIFICATE PROFILE RESOLUTION] Querying collection 'users' where 'uid' == ${studentId}`);
-    let querySnap = await db.collection('users').where('uid', '==', studentId).get().catch(() => null);
-    if (querySnap && !querySnap.empty) {
+    // 2. Query 'users' collection by 'uid'
+    let querySnap = await db.collection('users').where('uid', '==', studentId).get();
+    if (!querySnap.empty) {
       logger.info(`[CERTIFICATE PROFILE RESOLUTION] Found profile in 'users' collection by 'uid' field: ${studentId}`);
       return querySnap.docs[0].data();
     }
 
-    // 4. Fallback lookup by uid in students
-    logger.info(`[CERTIFICATE PROFILE RESOLUTION] Querying collection 'students' where 'uid' == ${studentId}`);
-    querySnap = await db.collection('students').where('uid', '==', studentId).get().catch(() => null);
-    if (querySnap && !querySnap.empty) {
+    // 3. Direct doc lookup in 'students' collection
+    userDoc = await db.collection('students').doc(studentId).get();
+    if (userDoc.exists) {
+      logger.info(`[CERTIFICATE PROFILE RESOLUTION] Found profile in 'students' collection by ID: ${studentId}`);
+      return userDoc.data();
+    }
+
+    // 4. Query 'students' collection by 'uid'
+    querySnap = await db.collection('students').where('uid', '==', studentId).get();
+    if (!querySnap.empty) {
       logger.info(`[CERTIFICATE PROFILE RESOLUTION] Found profile in 'students' collection by 'uid' field: ${studentId}`);
       return querySnap.docs[0].data();
     }
 
-    // 5. Fallback lookup by email in users
+    // 5. Query 'users' collection by 'email'
     if (fallbackEmail) {
-      logger.info(`[CERTIFICATE PROFILE RESOLUTION] Querying collection 'users' where 'email' == ${fallbackEmail}`);
-      querySnap = await db.collection('users').where('email', '==', fallbackEmail).get().catch(() => null);
-      if (querySnap && !querySnap.empty) {
+      querySnap = await db.collection('users').where('email', '==', fallbackEmail).get();
+      if (!querySnap.empty) {
         logger.info(`[CERTIFICATE PROFILE RESOLUTION] Found profile in 'users' collection by 'email' field: ${fallbackEmail}`);
         return querySnap.docs[0].data();
       }
 
-      // 6. Fallback lookup by email in students
-      logger.info(`[CERTIFICATE PROFILE RESOLUTION] Querying collection 'students' where 'email' == ${fallbackEmail}`);
-      querySnap = await db.collection('students').where('email', '==', fallbackEmail).get().catch(() => null);
-      if (querySnap && !querySnap.empty) {
+      // 6. Query 'students' collection by 'email'
+      querySnap = await db.collection('students').where('email', '==', fallbackEmail).get();
+      if (!querySnap.empty) {
         logger.info(`[CERTIFICATE PROFILE RESOLUTION] Found profile in 'students' collection by 'email' field: ${fallbackEmail}`);
         return querySnap.docs[0].data();
       }
@@ -102,13 +100,12 @@ export class CertificateController {
   }
 
   /**
-   * POST /api/certificates/complete-and-deliver
-   * Triggered when student reaches 100% course completion
+   * POST /api/certificates/generate & POST /api/certificates/complete-and-deliver
+   * Enqueues or returns existing certificate/job safely & idempotently
    */
   public async handleCompletionAndDeliver(req: AuthenticatedRequest, res: Response): Promise<Response> {
     try {
       let studentId = req.user?.uid;
-      // Fallback to req.body.studentId if authenticated UID is missing or is generic default
       if ((!studentId || studentId === 'dev-user-id') && req.body.studentId) {
         studentId = req.body.studentId;
       }
@@ -119,6 +116,7 @@ export class CertificateController {
         instructorName,
         courseDuration,
         modulesCount,
+        achievement,
         forceRegenerate,
         studentName: bodyStudentName,
         studentEmail: bodyStudentEmail,
@@ -132,9 +130,6 @@ export class CertificateController {
       }
 
       const fallbackEmail = req.user?.email || req.body.studentEmail;
-
-      // Resolve student profile from Firestore users/students collection
-      // Resolve student profile from Firestore users collection
       let studentName = bodyStudentName || '';
       let studentEmail = bodyStudentEmail || '';
       let resolvedStudentId = studentId;
@@ -142,34 +137,6 @@ export class CertificateController {
       if (db) {
         try {
           let userData = await this.resolveStudentData(studentId, fallbackEmail);
-
-          // Auto-sync/create profile from verified token/body details
-          if (!userData && fallbackEmail) {
-            const email = fallbackEmail;
-            const displayName = req.user?.name || req.body.studentName;
-            
-            if (!displayName) {
-              logger.error(`[CERTIFICATE CONTROLLER] ❌ Cannot auto-create profile: name claim/body name is missing for UID ${studentId}.`);
-            } else {
-              const newProfile = {
-                uid: studentId,
-                fullName: displayName,
-                name: displayName,
-                email: email,
-                role: 'student',
-                status: 'Active',
-                isActive: true,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-              };
-              await db.collection('users').doc(studentId).set(newProfile).catch(() => null);
-              await db.collection('students').doc(studentId).set(newProfile).catch(() => null);
-              logger.info(`[CERTIFICATE CONTROLLER] Automatically created student profile in database for ${studentId} (${email}) using verified claims.`);
-              
-              userData = await this.resolveStudentData(studentId, fallbackEmail);
-            }
-          }
-
           if (userData) {
             studentName = userData.fullName || userData.name || studentName || '';
             studentEmail = userData.email || studentEmail || '';
@@ -180,28 +147,16 @@ export class CertificateController {
         }
       }
 
-      // Fallback to body/token details if database lookup/resolution fails (e.g. due to Firestore quota exhaustion)
       if (!studentName && req.body.studentName) {
         studentName = req.body.studentName;
-        logger.info(`[CERTIFICATE CONTROLLER] Profile name resolved from request body fallback: ${studentName}`);
       }
       if (!studentEmail && req.body.studentEmail) {
         studentEmail = req.body.studentEmail;
-        logger.info(`[CERTIFICATE CONTROLLER] Profile email resolved from request body fallback: ${studentEmail}`);
       }
       if (!studentEmail && req.user?.email) {
         studentEmail = req.user.email;
-        logger.info(`[CERTIFICATE CONTROLLER] Profile email resolved from token fallback: ${studentEmail}`);
       }
 
-      // If no valid student profile is resolved, STOP issuance and return "Student profile not found."
-      if (!studentName || !studentEmail) {
-        return res.status(404).json({
-          success: false,
-          error: 'Student profile not found.',
-        });
-      }
-      // Make sure we have a fallback studentName & studentEmail if not resolved above
       if (!studentName) {
         studentName = req.user?.name || req.user?.email?.split('@')[0] || 'Student';
       }
@@ -209,43 +164,77 @@ export class CertificateController {
         studentEmail = req.user?.email || 'student@shaivika.com';
       }
 
-      const requestId = `certificate-request-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
-      const payload = {
+      const queueResult = await certificateQueueService.enqueueCertificateJob({
         studentId: resolvedStudentId,
+        studentUid: studentId,
         studentName,
         studentEmail,
         courseId,
         courseTitle,
-        completionPercentage: Number(completionPercentage ?? 100),
-        instructorName,
-        courseDuration,
-        modulesCount: Number(modulesCount || 8),
-        forceRegenerate: forceRegenerate === true || forceRegenerate === 'true',
-        requestId,
-      };
+        courseDuration: courseDuration || '25 Hours',
+        modulesCount: modulesCount || 'All Modules',
+        achievement: achievement || '100% Completed',
+        instructorName: instructorName || 'Kaizen Q Team',
+        force: forceRegenerate === true || forceRegenerate === 'true',
+      });
 
-      const result = await certificateDeliveryService.handleCourseCompletionAndDeliver(payload);
-
-      if (result.success) {
-        return res.status(200).json(result);
-      } else {
-        if (result.error && result.error.toLowerCase().includes('quota')) {
-          return res.status(429).json(result);
-        }
-        return res.status(500).json(result);
-      }
+      return res.status(200).json(queueResult);
     } catch (err: any) {
-      logger.error(`[CERTIFICATE CONTROLLER] ❌ Exception: ${err?.message || err}`);
-      if (err?.message?.toLowerCase().includes('quota')) {
-        return res.status(429).json({
-          success: false,
-          error: err.message,
-        });
-      }
+      logger.error(`[CERTIFICATE CONTROLLER] ❌ Exception in certificate request: ${err?.message || err}`);
       return res.status(500).json({
         success: false,
         error: err?.message || String(err),
       });
+    }
+  }
+
+  /**
+   * GET /api/certificates/jobs/:jobId
+   * Retrieves real-time queue position, estimated wait, and status for a specific job
+   */
+  public async getJobStatus(req: AuthenticatedRequest, res: Response): Promise<Response> {
+    try {
+      const jobId = String(req.params.jobId || '');
+      if (!jobId) {
+        return res.status(400).json({ success: false, error: 'jobId parameter is required' });
+      }
+
+      const job = await certificateQueueService.getJobStatus(jobId);
+      if (!job) {
+        return res.status(404).json({ success: false, error: 'Certificate job not found' });
+      }
+
+      return res.status(200).json({ success: true, job });
+    } catch (err: any) {
+      logger.error(`[CERTIFICATE CONTROLLER] ❌ Error fetching job status: ${err?.message || err}`);
+      return res.status(500).json({ success: false, error: err?.message || String(err) });
+    }
+  }
+
+  /**
+   * GET /api/certificates/job/status
+   * Helper to query job status by studentId and courseId
+   */
+  public async getJobByParams(req: AuthenticatedRequest, res: Response): Promise<Response> {
+    try {
+      const studentId = String(req.query.studentId || req.user?.uid || '');
+      const courseId = String(req.query.courseId || '');
+
+      if (!studentId || !courseId) {
+        return res.status(400).json({ success: false, error: 'studentId and courseId are required' });
+      }
+
+      const jobId = certificateQueueService.buildJobId(studentId, courseId);
+      const job = await certificateQueueService.getJobStatus(jobId);
+
+      if (!job) {
+        return res.status(404).json({ success: false, error: 'No active job found for this course' });
+      }
+
+      return res.status(200).json({ success: true, job });
+    } catch (err: any) {
+      logger.error(`[CERTIFICATE CONTROLLER] ❌ Error fetching job by params: ${err?.message || err}`);
+      return res.status(500).json({ success: false, error: err?.message || String(err) });
     }
   }
 

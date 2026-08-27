@@ -182,6 +182,16 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Certificate Jobs Queue (Managed strictly via Backend Admin SDK)
+    match /certificateJobs/{jobId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        resource.data.studentUid == request.auth.uid || 
+        resource.data.studentId == request.auth.uid
+      );
+      allow write: if isAdmin();
+    }
+
     // =========================================================================
     // 4. NOTIFICATIONS, SYSTEM LOGS & AUDIT
     // =========================================================================

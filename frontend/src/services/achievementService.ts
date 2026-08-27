@@ -931,4 +931,55 @@ export class LeaderboardService {
       clearInterval(interval);
     };
   }
+
+  /**
+   * Certificate Queue Helpers
+   */
+  async requestCertificateJob(
+    apiBase: string,
+    token: string,
+    payload: {
+      studentId: string;
+      studentName: string;
+      studentEmail: string;
+      courseId: string;
+      courseTitle: string;
+      courseDuration?: string;
+      modulesCount?: number;
+      achievement?: string;
+      forceRegenerate?: boolean;
+    }
+  ): Promise<{ success: boolean; alreadyCompleted?: boolean; job?: any; certificate?: any; error?: string }> {
+    try {
+      const res = await fetch(`${apiBase}/certificates/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err?.message || String(err) };
+    }
+  }
+
+  async getCertificateJobStatus(
+    apiBase: string,
+    token: string,
+    jobId: string
+  ): Promise<{ success: boolean; job?: any; error?: string }> {
+    try {
+      const res = await fetch(`${apiBase}/certificates/jobs/${encodeURIComponent(jobId)}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err?.message || String(err) };
+    }
+  }
 }
+

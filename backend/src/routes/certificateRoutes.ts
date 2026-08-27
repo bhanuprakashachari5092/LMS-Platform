@@ -4,8 +4,13 @@ import { verifyFirebaseToken } from '../middleware/auth.middleware';
 
 const router = Router();
 
-// Trigger automated certificate delivery upon 100% course completion
+// Canonical certificate generation route & queue triggering
+router.post('/generate', verifyFirebaseToken, (req, res) => certificateController.handleCompletionAndDeliver(req, res));
 router.post('/complete-and-deliver', verifyFirebaseToken, (req, res) => certificateController.handleCompletionAndDeliver(req, res));
+
+// Real-time queue status endpoints
+router.get('/jobs/:jobId', verifyFirebaseToken, (req, res) => certificateController.getJobStatus(req, res));
+router.get('/job/status', verifyFirebaseToken, (req, res) => certificateController.getJobByParams(req, res));
 
 // Test endpoint to trigger automated certificate delivery for diagnostic testing
 router.get('/test-delivery', (req, res) => certificateController.testDelivery(req, res));
