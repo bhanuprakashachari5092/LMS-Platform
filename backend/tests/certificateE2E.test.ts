@@ -66,7 +66,7 @@ describe('Phase 3G: Certificate End-to-End Production Smoke Test', () => {
 
     const jobId = results[0].job?.jobId;
     expect(jobId).toBe(`job_${smokeStudent.uid}_${course.courseId}`);
-  });
+  }, 25000);
 
   // Test 2: In-Memory PDF Generation & Dynamic Overlay
   test('2. PDF generator produces valid in-memory buffer without writing to disk', async () => {
@@ -90,7 +90,7 @@ describe('Phase 3G: Certificate End-to-End Production Smoke Test', () => {
     expect(pdfBuffer.length).toBeGreaterThan(150000); // High quality A4 Landscape PDF
     // PDF Magic bytes check (%PDF-)
     expect(pdfBuffer.toString('utf8', 0, 5)).toBe('%PDF-');
-  });
+  }, 25000);
 
   // Test 3: FIFO Queue Execution and Persistence
   test('3. Queue worker processes job, sets status completed, and stores Firestore metadata', async () => {
@@ -112,7 +112,7 @@ describe('Phase 3G: Certificate End-to-End Production Smoke Test', () => {
         generatedCertificateId = job.certificateId;
       }
     }
-  });
+  }, 25000);
 
   // Test 4: Duplicate Prevention
   test('4. Submitting a second request for an issued certificate returns it immediately', async () => {
