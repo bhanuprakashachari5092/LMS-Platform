@@ -18,6 +18,7 @@
     "migrate:course-content": "npx tsx scripts/migrate-course-content.ts",
     "backup:courses": "npx tsx scripts/backup-course-content.ts",
     "cleanup:legacy-course-data": "npx tsx scripts/cleanup-legacy-course-data.ts",
+    "audit:legacy-decommission": "npx tsx scripts/audit-legacy-decommission.ts",
     "oauth:gen": "npx ts-node scripts/generate-google-oauth-token.ts"
   },
   "dependencies": {

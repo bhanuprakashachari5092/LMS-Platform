@@ -88,6 +88,22 @@ describe('Firestore Helper Utilities', () => {
   });
 });
 
+describe('CourseContentService Canonical Reading & Telemetry', () => {
+  it('should query canonical subcollections and report zero fallback on valid canonical course', async () => {
+    const { courseContentService } = await import('../src/services/course/courseContent.service');
+    courseContentService.resetTelemetry();
+    courseContentService.invalidateCache();
+
+    // Query Linux course modules (which exists in canonical subcollection)
+    const modules = await courseContentService.getCourseModules('course_linux_101');
+    expect(Array.isArray(modules)).toBe(true);
+    expect(modules.length).toBeGreaterThan(0);
+
+    const telemetry = courseContentService.getTelemetry();
+    expect(telemetry.legacyModulesFallbackCount).toBe(0);
+  });
+});
+
 afterAll(async () => {
   await Promise.all(admin.apps.map((app) => app?.delete()));
 });

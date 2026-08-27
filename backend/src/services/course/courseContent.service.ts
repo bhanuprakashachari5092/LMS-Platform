@@ -12,6 +12,22 @@ export class CourseContentService {
   private cache = new Map<string, CacheEntry<any>>();
   private readonly DEFAULT_TTL_MS = 5 * 60 * 1000; // 5 minutes TTL
 
+  // Telemetry counters for Phase 4E decommission proof
+  private legacyModulesFallbackCount = 0;
+  private legacyLessonsFallbackCount = 0;
+
+  public getTelemetry(): { legacyModulesFallbackCount: number; legacyLessonsFallbackCount: number } {
+    return {
+      legacyModulesFallbackCount: this.legacyModulesFallbackCount,
+      legacyLessonsFallbackCount: this.legacyLessonsFallbackCount,
+    };
+  }
+
+  public resetTelemetry(): void {
+    this.legacyModulesFallbackCount = 0;
+    this.legacyLessonsFallbackCount = 0;
+  }
+
   private getFromCache<T>(key: string): T | null {
     const entry = this.cache.get(key);
     if (!entry) return null;
@@ -55,6 +71,7 @@ export class CourseContentService {
 
       if (!snapshot || snapshot.empty) {
         // 2. Fallback to top-level modules collection with courseId filter
+        this.legacyModulesFallbackCount++;
         snapshot = await modulesCollection().where('courseId', '==', courseId).get();
       }
 
@@ -129,6 +146,7 @@ export class CourseContentService {
 
       if (!snapshot || snapshot.empty) {
         // 2. Fallback to top-level lessons collection with moduleId filter
+        this.legacyLessonsFallbackCount++;
         snapshot = await lessonsCollection().where('moduleId', '==', moduleId).get();
       }
 
@@ -196,6 +214,7 @@ export class CourseContentService {
       }
 
       // 2. Fallback to top-level legacy lessons collection
+      this.legacyLessonsFallbackCount++;
       const docSnap = await lessonsCollection().doc(lessonId).get();
       if (docSnap.exists) {
         const raw = fromDocument<any>(docSnap);
