@@ -6,6 +6,7 @@ describe('CertificateQueueService & FIFO Queue Pipeline Tests', () => {
   beforeAll(() => {
     jest.spyOn(googleDriveService, 'uploadCertificate').mockResolvedValue({
       driveFileId: 'mock-drive-id-12345',
+      fileName: 'certificate.pdf',
       driveUrl: 'https://drive.google.com/file/d/mock-drive-id-12345/view',
       webContentLink: 'https://drive.google.com/file/d/mock-drive-id-12345/download',
     });

@@ -28,6 +28,7 @@ describe('Phase 3G: Certificate End-to-End Production Smoke Test', () => {
   beforeAll(async () => {
     jest.spyOn(googleDriveService, 'uploadCertificate').mockResolvedValue({
       driveFileId: 'mock-drive-id-smoke-12345',
+      fileName: 'certificate.pdf',
       driveUrl: 'https://drive.google.com/file/d/mock-drive-id-smoke-12345/view',
       webContentLink: 'https://drive.google.com/file/d/mock-drive-id-smoke-12345/download',
     });
