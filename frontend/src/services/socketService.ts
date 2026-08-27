@@ -258,3 +258,7 @@ class SocketService {
 }
 
 export const socketService = new SocketService();
+export const getLiveClassroomSocket = (token?: string, userInfo?: { uid?: string; name?: string; role?: string; email?: string }): Socket => {
+  return socketService.connect(token, userInfo);
+};
+export default socketService;

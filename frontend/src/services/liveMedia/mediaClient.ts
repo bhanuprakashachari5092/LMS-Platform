@@ -1,4 +1,4 @@
-import { getLiveClassroomSocket } from '@/services/socket';
+import { getLiveClassroomSocket } from '@/services/socketService';
 import type { Socket } from 'socket.io-client';
 import type { 
   MediaClientConfig, 

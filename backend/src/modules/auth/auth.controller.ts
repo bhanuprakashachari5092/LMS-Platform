@@ -477,4 +477,15 @@ export class AuthController {
     }
   }
 
+  /**
+   * Backward compatibility aliases
+   */
+  public async studentRegister(req: Request, res: Response, next?: NextFunction): Promise<void> {
+    return this.studentSignup(req, res);
+  }
+
+  public async lecturerRegister(req: Request, res: Response, next?: NextFunction): Promise<void> {
+    return this.lecturerSignup(req, res);
+  }
 }
+
