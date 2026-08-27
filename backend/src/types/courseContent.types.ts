@@ -10,7 +10,8 @@ export interface CourseLessonDoc {
   moduleId: string;
   title: string;
   description?: string;
-  order: number;
+  orderIndex: number;
+  order?: number;
   duration: string;
   type: LessonType;
   readingTime?: string;
@@ -35,7 +36,8 @@ export interface CourseModuleDoc {
   moduleNumber?: number;
   title: string;
   description?: string;
-  order: number;
+  orderIndex: number;
+  order?: number;
   duration?: string;
   published?: boolean;
   lessonsCount?: number;

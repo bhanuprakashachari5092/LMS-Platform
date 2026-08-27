@@ -51,7 +51,7 @@ export class CourseContentService {
 
     try {
       // 1. Try course subcollection: courses/{courseId}/modules
-      let snapshot = await db.collection('courses').doc(courseId).collection('modules').orderBy('order', 'asc').get().catch(() => null);
+      let snapshot = await db.collection('courses').doc(courseId).collection('modules').get().catch(() => null);
 
       if (!snapshot || snapshot.empty) {
         // 2. Fallback to top-level modules collection with courseId filter
@@ -64,16 +64,21 @@ export class CourseContentService {
         if (courseDoc.exists) {
           const cData = courseDoc.data();
           if (cData && Array.isArray(cData.modules) && cData.modules.length > 0) {
-            const modules: CourseModuleDoc[] = cData.modules.map((m: any, index: number) => ({
-              id: m.id || `${courseId}-mod-${index + 1}`,
-              courseId,
-              title: m.title || `Module ${index + 1}`,
-              description: m.description || '',
-              order: m.order || (index + 1),
-              duration: m.duration || '2 Hours',
-              topics: m.topics || [],
-              lessonsCount: Array.isArray(m.topics) ? m.topics.reduce((acc: number, t: any) => acc + (t.learningUnits?.length || 0), 0) : 1,
-            }));
+            const modules: CourseModuleDoc[] = cData.modules.map((m: any, index: number) => {
+              const idx = m.orderIndex ?? m.order ?? (index + 1);
+              return {
+                id: m.id || `${courseId}-mod-${index + 1}`,
+                courseId,
+                title: m.title || `Module ${index + 1}`,
+                description: m.description || '',
+                orderIndex: idx,
+                order: idx,
+                duration: m.duration || '2 Hours',
+                topics: m.topics || [],
+                lessonsCount: Array.isArray(m.topics) ? m.topics.reduce((acc: number, t: any) => acc + (t.learningUnits?.length || 0), 0) : 1,
+              };
+            });
+            modules.sort((a, b) => (a.orderIndex ?? a.order ?? 0) - (b.orderIndex ?? b.order ?? 0));
             this.setCache(cacheKey, modules);
             return modules;
           }
@@ -83,10 +88,16 @@ export class CourseContentService {
 
       const modules: CourseModuleDoc[] = [];
       snapshot.forEach((doc) => {
-        modules.push(fromDocument<CourseModuleDoc>(doc));
+        const raw = fromDocument<any>(doc);
+        const idx = raw.orderIndex ?? raw.order ?? 1;
+        modules.push({
+          ...raw,
+          orderIndex: idx,
+          order: idx,
+        });
       });
 
-      modules.sort((a, b) => (a.order || 0) - (b.order || 0));
+      modules.sort((a, b) => (a.orderIndex ?? a.order ?? 0) - (b.orderIndex ?? b.order ?? 0));
       this.setCache(cacheKey, modules);
       return modules;
     } catch (error) {
@@ -113,7 +124,6 @@ export class CourseContentService {
         .collection('modules')
         .doc(moduleId)
         .collection('lessons')
-        .orderBy('order', 'asc')
         .get()
         .catch(() => null);
 
@@ -128,17 +138,23 @@ export class CourseContentService {
 
       const lessons: CourseLessonDoc[] = [];
       snapshot.forEach((doc) => {
-        const lesson = fromDocument<CourseLessonDoc>(doc);
+        const raw = fromDocument<any>(doc);
+        const idx = raw.orderIndex ?? raw.order ?? 1;
+        const normalized: CourseLessonDoc = {
+          ...raw,
+          orderIndex: idx,
+          order: idx,
+        };
         if (!includeContent) {
           // Remove heavy content payload for lightweight summary
-          const { content, ...summary } = lesson;
+          const { content, ...summary } = normalized;
           lessons.push(summary as CourseLessonDoc);
         } else {
-          lessons.push(lesson);
+          lessons.push(normalized);
         }
       });
 
-      lessons.sort((a, b) => (a.order || 0) - (b.order || 0));
+      lessons.sort((a, b) => (a.orderIndex ?? a.order ?? 0) - (b.orderIndex ?? b.order ?? 0));
       this.setCache(cacheKey, lessons);
       return lessons;
     } catch (error) {
@@ -159,7 +175,13 @@ export class CourseContentService {
       // 1. Check top-level lessons collection
       const docSnap = await lessonsCollection().doc(lessonId).get();
       if (docSnap.exists) {
-        const lesson = fromDocument<CourseLessonDoc>(docSnap);
+        const raw = fromDocument<any>(docSnap);
+        const idx = raw.orderIndex ?? raw.order ?? 1;
+        const lesson: CourseLessonDoc = {
+          ...raw,
+          orderIndex: idx,
+          order: idx,
+        };
         this.setCache(cacheKey, lesson);
         return lesson;
       }
@@ -175,7 +197,13 @@ export class CourseContentService {
           .doc(lessonId)
           .get();
         if (subDoc.exists) {
-          const lesson = fromDocument<CourseLessonDoc>(subDoc);
+          const raw = fromDocument<any>(subDoc);
+          const idx = raw.orderIndex ?? raw.order ?? 1;
+          const lesson: CourseLessonDoc = {
+            ...raw,
+            orderIndex: idx,
+            order: idx,
+          };
           this.setCache(cacheKey, lesson);
           return lesson;
         }
@@ -193,7 +221,12 @@ export class CourseContentService {
    */
   async saveModule(courseId: string, moduleDoc: CourseModuleDoc): Promise<void> {
     const batch = db.batch();
-    const cleanDoc = toDocument(moduleDoc);
+    const orderIndex = moduleDoc.orderIndex ?? moduleDoc.order ?? 1;
+    const cleanDoc = toDocument({
+      ...moduleDoc,
+      orderIndex,
+      order: orderIndex,
+    });
 
     // 1. Top-level modules collection
     const topRef = modulesCollection().doc(moduleDoc.id);
@@ -212,7 +245,12 @@ export class CourseContentService {
    */
   async saveLesson(courseId: string, moduleId: string, lessonDoc: CourseLessonDoc): Promise<void> {
     const batch = db.batch();
-    const cleanDoc = toDocument(lessonDoc);
+    const orderIndex = lessonDoc.orderIndex ?? lessonDoc.order ?? 1;
+    const cleanDoc = toDocument({
+      ...lessonDoc,
+      orderIndex,
+      order: orderIndex,
+    });
 
     // 1. Top-level lessons collection
     const topRef = lessonsCollection().doc(lessonDoc.id);

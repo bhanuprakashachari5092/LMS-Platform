@@ -164,12 +164,12 @@ export class CourseService {
       if (db) {
         const batch = db.batch();
 
-        // 1. Modules
-        const modulesSnap = await db.collection('course_modules').where('courseId', '==', id).get();
+        // 1. Modules (top-level and subcollections)
+        const modulesSnap = await db.collection('modules').where('courseId', '==', id).get();
         modulesSnap.forEach((doc) => batch.delete(doc.ref));
 
-        // 2. Lessons
-        const lessonsSnap = await db.collection('course_lessons').where('courseId', '==', id).get();
+        // 2. Lessons (top-level and subcollections)
+        const lessonsSnap = await db.collection('lessons').where('courseId', '==', id).get();
         lessonsSnap.forEach((doc) => batch.delete(doc.ref));
 
         // 3. Assignments

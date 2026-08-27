@@ -215,14 +215,6 @@ export class GoogleSlidesService {
 
   public async generateCertificateFromTemplate(data: CertificateData): Promise<Buffer> {
     const requestId = data.requestId || `certificate-request-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
-    const cacheDir = path.resolve(process.cwd(), 'data/certificates');
-    const cachePath = path.join(cacheDir, `${data.certificateId}.pdf`);
-
-    // Cache precheck
-    if (!data.forceRegenerate && fs.existsSync(cachePath)) {
-      logger.info(`[CERT] [${requestId}] Reusing cached PDF.`);
-      return fs.readFileSync(cachePath);
-    }
 
     // Concurrency Lock
     let promise = GoogleSlidesService.activeGenerations.get(data.certificateId);
@@ -238,14 +230,6 @@ export class GoogleSlidesService {
         attempt++;
         try {
           const pdfBuffer = await this.generateCertificateFromTemplateInternal(data, requestId);
-          try {
-            if (!fs.existsSync(cacheDir)) {
-              fs.mkdirSync(cacheDir, { recursive: true });
-            }
-            fs.writeFileSync(cachePath, pdfBuffer);
-          } catch (wErr: any) {
-            logger.error(`[CERT] [${requestId}] Cache write failed: ${wErr?.message}`);
-          }
           return pdfBuffer;
         } catch (err: any) {
           const isQuota = this.isQuotaError(err);

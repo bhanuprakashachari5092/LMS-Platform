@@ -1,13 +1,11 @@
-import fs from 'fs';
 import path from 'path';
 import logger from '../../config/logger';
 import { env } from '../../config/env';
 import { emailService } from '../email/EmailService';
-import { googleDriveService } from '../googleDrive.service';
 import { googleSlidesService } from './GoogleSlidesService';
 import { qrCodeService } from './QRCodeService';
 import { googleSheetsService } from './GoogleSheetsService';
-import { db } from '../../firebase';
+import { db, storage } from '../../firebase';
 import { CourseService } from '../course/CourseService';
 import { QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import {
@@ -42,6 +40,7 @@ export interface AutomatedDeliveryResult {
   completionDate: string;
   googleDriveLink?: string;
   googleDriveFileId?: string;
+  storagePath?: string;
   emailMessageId?: string;
   error?: string;
   timeline: Array<{ step: string; status: 'SUCCESS' | 'FAILED'; timestamp: string; details?: string }>;
@@ -87,63 +86,23 @@ export class CertificateDeliveryService {
   private async generateGloballyUniqueId(courseId: string): Promise<string> {
     const year = new Date().getFullYear();
     const courseCode = courseId.toUpperCase().includes('LINUX') ? 'LINUX' : (courseId.toUpperCase().includes('GIT') ? 'GIT' : 'COURSE');
+    const randomSuffix = Math.floor(100000 + Math.random() * 900000);
+    let certificateId = `KQ-${courseCode}-${year}-${randomSuffix}`;
     
-    let seq = 1;
-    const filePath = this.getLocalRegistryPath();
-    if (fs.existsSync(filePath)) {
+    if (db) {
       try {
-        const records = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-        seq = records.length + 1;
+        let docSnap = await db.collection('certificates').doc(certificateId).get();
+        let attempts = 0;
+        while (docSnap.exists && attempts < 5) {
+          const nextSuffix = Math.floor(100000 + Math.random() * 900000);
+          certificateId = `KQ-${courseCode}-${year}-${nextSuffix}`;
+          docSnap = await db.collection('certificates').doc(certificateId).get();
+          attempts++;
+        }
       } catch {}
     }
-
-    let certificateId = `KQ-${courseCode}-${year}-${String(seq).padStart(6, '0')}`;
-    
-    try {
-      let isDuplicate = await googleSheetsService.getCertificateById(certificateId);
-      let attempts = 0;
-      while (isDuplicate && attempts < 10) {
-        seq++;
-        certificateId = `KQ-${courseCode}-${year}-${String(seq).padStart(6, '0')}`;
-        isDuplicate = await googleSheetsService.getCertificateById(certificateId);
-        attempts++;
-      }
-    } catch {}
 
     return certificateId;
-  }
-
-  private getLocalRegistryPath(): string {
-    return path.resolve(process.cwd(), 'data/issued-certificates.json');
-  }
-
-  private isAlreadyIssued(studentEmail: string, courseId: string): any | null {
-    const filePath = this.getLocalRegistryPath();
-    if (!fs.existsSync(filePath)) return null;
-    try {
-      const content = fs.readFileSync(filePath, 'utf8');
-      const records = JSON.parse(content);
-      return records.find((r: any) => r.studentEmail === studentEmail && r.courseId === courseId) || null;
-    } catch (err) {
-      logger.error('[AUTOMATED CERTIFICATE SYSTEM] Error reading local registry:', err);
-      return null;
-    }
-  }
-
-  private logLocalRegistry(record: any): void {
-    const filePath = this.getLocalRegistryPath();
-    const dirPath = path.dirname(filePath);
-    if (!fs.existsSync(dirPath)) {
-      fs.mkdirSync(dirPath, { recursive: true });
-    }
-    let records: any[] = [];
-    if (fs.existsSync(filePath)) {
-      try {
-        records = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-      } catch {}
-    }
-    records.push(record);
-    fs.writeFileSync(filePath, JSON.stringify(records, null, 2), 'utf8');
   }
 
   /**
@@ -418,26 +377,19 @@ export class CertificateDeliveryService {
           };
         }
 
-        // If certificate exists but email failed/needs retry, we reuse the existing certificate ID
+        // If certificate exists, we reuse the existing certificate ID
         let certificateId = '';
         if (existingCert) {
           certificateId = existingCert.certificateId;
         } else {
-          // Fallback checks to local/sheets if not in Firestore yet
-          const localExisting = this.isAlreadyIssued(payload.studentEmail, payload.courseId) ||
-                                this.isAlreadyIssued(payload.studentEmail, courseDocId);
-          if (localExisting) {
-            certificateId = localExisting.certificateId;
-          } else {
-            try {
-              const sheetExisting = await googleSheetsService.checkCertificateExists(payload.studentEmail, payload.courseId) ||
-                                    await googleSheetsService.checkCertificateExists(payload.studentEmail, courseDocId);
-              if (sheetExisting) {
-                certificateId = sheetExisting.certificateId;
-              }
-            } catch (sheetCheckErr: any) {
-              logger.warn(`[AUTOMATED CERTIFICATE SYSTEM] Sheet precheck search failed/skipped: dots`);
+          try {
+            const sheetExisting = await googleSheetsService.checkCertificateExists(payload.studentEmail, payload.courseId) ||
+                                  await googleSheetsService.checkCertificateExists(payload.studentEmail, courseDocId);
+            if (sheetExisting) {
+              certificateId = sheetExisting.certificateId;
             }
+          } catch (sheetCheckErr: any) {
+            logger.warn(`[AUTOMATED CERTIFICATE SYSTEM] Sheet precheck search failed/skipped: ${sheetCheckErr?.message || sheetCheckErr}`);
           }
         }
 
@@ -594,8 +546,29 @@ export class CertificateDeliveryService {
           };
         }
 
-        // Direct download and verification URL preparation
-        const downloadUrl = `${env.BACKEND_URL || 'http://localhost:5000'}/api/certificates/download?certificateId=${certificateId}&studentId=${payload.studentId}&studentName=${encodeURIComponent(payload.studentName)}&courseTitle=${encodeURIComponent(payload.courseTitle)}&completionDate=${encodeURIComponent(completionDate)}`;
+        // Firebase Storage destination & download URL preparation
+        const certYear = new Date().getFullYear();
+        const storagePath = `certificates/${certYear}/${certificateId}.pdf`;
+        let downloadUrl = `${env.BACKEND_URL || 'http://localhost:5000'}/api/certificates/download?certificateId=${certificateId}&studentId=${payload.studentId}&studentName=${encodeURIComponent(payload.studentName)}&courseTitle=${encodeURIComponent(payload.courseTitle)}&completionDate=${encodeURIComponent(completionDate)}`;
+
+        if (storage && typeof (storage as any).bucket === 'function') {
+          try {
+            const bucket = (storage as any).bucket();
+            const fileRef = bucket.file(storagePath);
+            await fileRef.save(pdfBuffer, {
+              contentType: 'application/pdf',
+              metadata: {
+                certificateId,
+                studentId: displayStudentId,
+                courseId: payload.courseId,
+              },
+            });
+            logger.info(`[AUTOMATED CERTIFICATE SYSTEM] ✅ Certificate uploaded to Firebase Storage: ${storagePath}`);
+          } catch (storageErr: any) {
+            logger.warn(`[AUTOMATED CERTIFICATE SYSTEM] Firebase Storage upload notice: ${storageErr?.message || storageErr}`);
+          }
+        }
+
         const primaryFrontend = (env.FRONTEND_URL || 'https://www.kaizenq.in').split(',')[0].trim();
         const verifyUrl = `${primaryFrontend}/verify-certificate/${certificateId}?studentId=${payload.studentId}`;
 
@@ -650,11 +623,11 @@ export class CertificateDeliveryService {
             generatedTimestamp: new Date().toISOString(),
           });
         } catch (sheetLogErr: any) {
-          logger.warn(`[AUTOMATED CERTIFICATE SYSTEM] Sheet logging failed: dots`);
+          logger.warn(`[AUTOMATED CERTIFICATE SYSTEM] Sheet logging failed: ${sheetLogErr?.message || sheetLogErr}`);
         }
 
         // 6. FIRESTORE SAVE STAGE
-        logger.info(`[CERT] [dots] [FIRESTORE SAVE START]`);
+        logger.info(`[CERT] [${requestId}] [FIRESTORE SAVE START]`);
         const saveStart = Date.now();
         if (db) {
           try {
@@ -671,6 +644,7 @@ export class CertificateDeliveryService {
               instructorName: payload.instructorName || 'SHAIVIKA LMS Team',
               issueDate: completionDate,
               completionDate: completionDate,
+              storagePath,
               pdfUrl: downloadUrl,
               status: 'Issued',
               emailStatus,
@@ -685,7 +659,7 @@ export class CertificateDeliveryService {
             await db.collection('certificates').doc(certificateId).set(certRecord, { merge: true });
             firestoreUpdated = true;
           } catch (certDocErr: any) {
-            logger.warn(`[AUTOMATED CERTIFICATE SYSTEM] Firestore cert write failed: dots`);
+            logger.warn(`[AUTOMATED CERTIFICATE SYSTEM] Firestore cert write failed: ${certDocErr?.message || certDocErr}`);
           }
         }
         saveDuration = Date.now() - saveStart;
@@ -704,7 +678,8 @@ export class CertificateDeliveryService {
           courseTitle: payload.courseTitle,
           completionDate,
           googleDriveLink: downloadUrl,
-          googleDriveFileId: 'local-server',
+          googleDriveFileId: 'firebase-storage',
+          storagePath,
           emailMessageId: mailResult.messageId,
           timeline,
         };
