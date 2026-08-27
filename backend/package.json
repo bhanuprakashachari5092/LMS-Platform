@@ -12,7 +12,7 @@
     "clean": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\"",
     "build": "node scripts/copy-shared.js && node -e \"fs.rmSync('dist', { recursive: true, force: true })\" && tsc && node scripts/copy-assets.js",
     "start": "cross-env NODE_OPTIONS=--openssl-legacy-provider node dist/server.js",
-    "test": "jest",
+    "test": "jest --runInBand --forceExit",
     "seed:react": "npx ts-node src/scripts/seed-react-course.ts",
     "migrate:courses": "npx ts-node src/scripts/migrateCourseContentToFirestore.ts",
     "oauth:gen": "npx ts-node scripts/generate-google-oauth-token.ts"
