@@ -15,6 +15,7 @@
     "test": "jest --runInBand --forceExit --testTimeout=30000",
     "seed:react": "npx ts-node src/scripts/seed-react-course.ts",
     "migrate:courses": "npx ts-node src/scripts/migrateCourseContentToFirestore.ts",
+    "migrate:course-content": "npx tsx scripts/migrate-course-content.ts",
     "oauth:gen": "npx ts-node scripts/generate-google-oauth-token.ts"
   },
   "dependencies": {

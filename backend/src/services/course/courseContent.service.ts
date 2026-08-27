@@ -172,21 +172,7 @@ export class CourseContentService {
     if (cached) return cached;
 
     try {
-      // 1. Check top-level lessons collection
-      const docSnap = await lessonsCollection().doc(lessonId).get();
-      if (docSnap.exists) {
-        const raw = fromDocument<any>(docSnap);
-        const idx = raw.orderIndex ?? raw.order ?? 1;
-        const lesson: CourseLessonDoc = {
-          ...raw,
-          orderIndex: idx,
-          order: idx,
-        };
-        this.setCache(cacheKey, lesson);
-        return lesson;
-      }
-
-      // 2. Check course/module subcollection if IDs provided
+      // 1. Check canonical nested subcollection first if courseId & moduleId are provided
       if (courseId && moduleId) {
         const subDoc = await db
           .collection('courses')
@@ -207,6 +193,20 @@ export class CourseContentService {
           this.setCache(cacheKey, lesson);
           return lesson;
         }
+      }
+
+      // 2. Fallback to top-level legacy lessons collection
+      const docSnap = await lessonsCollection().doc(lessonId).get();
+      if (docSnap.exists) {
+        const raw = fromDocument<any>(docSnap);
+        const idx = raw.orderIndex ?? raw.order ?? 1;
+        const lesson: CourseLessonDoc = {
+          ...raw,
+          orderIndex: idx,
+          order: idx,
+        };
+        this.setCache(cacheKey, lesson);
+        return lesson;
       }
 
       return null;
