@@ -1,6 +1,24 @@
 import { certificateQueueService } from '../src/services/certificate/CertificateQueueService';
+import { googleDriveService } from '../src/services/googleDrive.service';
+import { emailService } from '../src/services/email/EmailService';
 
 describe('CertificateQueueService & FIFO Queue Pipeline Tests', () => {
+  beforeAll(() => {
+    jest.spyOn(googleDriveService, 'uploadCertificate').mockResolvedValue({
+      driveFileId: 'mock-drive-id-12345',
+      driveUrl: 'https://drive.google.com/file/d/mock-drive-id-12345/view',
+      webContentLink: 'https://drive.google.com/file/d/mock-drive-id-12345/download',
+    });
+    jest.spyOn(emailService, 'sendEmailWithAttachments').mockResolvedValue({
+      success: true,
+      messageId: 'mock-email-id-12345',
+    });
+  });
+
+  afterAll(() => {
+    jest.restoreAllMocks();
+  });
+
   test('builds deterministic, idempotent jobId from studentId and courseId', () => {
     const id1 = certificateQueueService.buildJobId('student_123', 'course_linux_101');
     const id2 = certificateQueueService.buildJobId('student_123', 'course_linux_101');

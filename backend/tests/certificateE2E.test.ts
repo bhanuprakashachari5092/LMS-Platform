@@ -4,6 +4,8 @@ import { db } from '../src/firebase';
 import { certificateQueueService } from '../src/services/certificate/CertificateQueueService';
 import { pdfCertificateGenerator } from '../src/services/certificate/PDFCertificateGenerator';
 import { qrCodeService } from '../src/services/certificate/QRCodeService';
+import { googleDriveService } from '../src/services/googleDrive.service';
+import { emailService } from '../src/services/email/EmailService';
 import { certificatesCollection, certificateJobsCollection } from '../src/firebase/collections';
 
 describe('Phase 3G: Certificate End-to-End Production Smoke Test', () => {
@@ -24,10 +26,21 @@ describe('Phase 3G: Certificate End-to-End Production Smoke Test', () => {
   let generatedCertificateId = '';
 
   beforeAll(async () => {
+    jest.spyOn(googleDriveService, 'uploadCertificate').mockResolvedValue({
+      driveFileId: 'mock-drive-id-smoke-12345',
+      driveUrl: 'https://drive.google.com/file/d/mock-drive-id-smoke-12345/view',
+      webContentLink: 'https://drive.google.com/file/d/mock-drive-id-smoke-12345/download',
+    });
+    jest.spyOn(emailService, 'sendEmailWithAttachments').mockResolvedValue({
+      success: true,
+      messageId: 'mock-email-id-smoke-12345',
+    });
+
     // Clear any previous smoke test jobs or certificates
     if (db) {
       const jobId = certificateQueueService.buildJobId(smokeStudent.uid, course.courseId);
       await certificateJobsCollection().doc(jobId).delete().catch(() => {});
+
       
       const existingCerts = await certificatesCollection()
         .where('studentUid', '==', smokeStudent.uid)
@@ -179,5 +192,9 @@ describe('Phase 3G: Certificate End-to-End Production Smoke Test', () => {
   test('6. Download endpoint rejects unauthenticated access with 401/403', async () => {
     const res = await request(app).get('/api/certificates/download?certificateId=KQ-SMOKE-2026-TEST-VERIFY');
     expect([401, 403]).toContain(res.status);
+  });
+
+  afterAll(() => {
+    jest.restoreAllMocks();
   });
 });
