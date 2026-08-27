@@ -165,61 +165,36 @@ export class CourseRepository {
       return { courses: [], total: 0, page: 1, limit: 10, totalPages: 0 };
     }
 
-    const snapshot = await this.collection.get();
-    let courses: ICourse[] = snapshot.docs.map((doc: QueryDocumentSnapshot) =>
-      this.sanitizeForCatalog({
-        ...doc.data(),
-        id: doc.id,
-      })
-    );
+    const page = Math.max(1, Number(options.page) || 1);
+    const limit = Math.max(1, Math.min(100, Number(options.limit) || 10));
 
-    // 1. Filter by status (case-insensitive)
-    if (options.status && options.status !== 'all') {
-      const selectedStatus = options.status.toLowerCase();
-      courses = courses.filter((c) => {
-        if (!c.status) return false;
-        const s = c.status.toLowerCase();
-        return s === selectedStatus || 
-               (selectedStatus === 'published' && s === 'published') ||
-               (selectedStatus === 'draft' && s === 'draft');
-      });
-    }
-
-    // 2. Filter by category (case-insensitive, substring/smart matching)
-    if (options.category && options.category !== 'All') {
-      const selectedCat = options.category.toLowerCase();
-      courses = courses.filter((c) => {
-        if (!c.category) return false;
-        const courseCat = c.category.toLowerCase();
-        return courseCat === selectedCat ||
-               (selectedCat.includes('development') && courseCat.includes('development')) ||
-               (selectedCat.includes('linux') && courseCat.includes('linux')) ||
-               (selectedCat.includes('sys') && courseCat.includes('sys'));
-      });
-    }
-
-    // 3. Filter by level (case-insensitive, smart matching)
-    if (options.level && options.level !== 'all') {
-      const selectedLevel = options.level.toLowerCase();
-      courses = courses.filter((c) => {
-        if (!c.level) return false;
-        const l = c.level.toLowerCase();
-        if (selectedLevel === 'all_levels' || l === 'all_levels') return true;
-        if (selectedLevel.includes('begin') && l.includes('begin')) return true;
-        if (selectedLevel.includes('inter') && l.includes('inter')) return true;
-        if (selectedLevel.includes('adv') && l.includes('adv')) return true;
-        return l === selectedLevel;
-      });
-    }
-
-    // 4. Filter by featured
-    if (options.featured) {
-      courses = courses.filter((c) => c.featured === true);
-    }
-
-    // 5. In-memory filter for search terms (keyword in title, description, skills, category)
+    // If search term is present, perform bounded fetch with in-memory substring matching
     if (options.search) {
-      const term = options.search.toLowerCase();
+      const term = options.search.toLowerCase().trim();
+      const snapshot = await this.collection.limit(100).get();
+      let courses: ICourse[] = snapshot.docs.map((doc: QueryDocumentSnapshot) =>
+        this.sanitizeForCatalog({
+          ...doc.data(),
+          id: doc.id,
+        })
+      );
+
+      if (options.status && options.status !== 'all') {
+        const sStatus = options.status.toLowerCase();
+        courses = courses.filter((c) => c.status && c.status.toLowerCase() === sStatus);
+      }
+      if (options.category && options.category !== 'All') {
+        const sCat = options.category.toLowerCase();
+        courses = courses.filter((c) => c.category && c.category.toLowerCase().includes(sCat));
+      }
+      if (options.level && options.level !== 'all') {
+        const sLvl = options.level.toLowerCase();
+        courses = courses.filter((c) => c.level && (c.level.toLowerCase() === 'all_levels' || c.level.toLowerCase() === sLvl));
+      }
+      if (options.featured) {
+        courses = courses.filter((c) => c.featured === true);
+      }
+
       courses = courses.filter(
         (c) =>
           c.title.toLowerCase().includes(term) ||
@@ -228,27 +203,54 @@ export class CourseRepository {
           c.category.toLowerCase().includes(term) ||
           (c.skills && c.skills.some((s) => s.toLowerCase().includes(term)))
       );
+
+      const total = courses.length;
+      const totalPages = Math.ceil(total / limit);
+      const paginatedCourses = courses.slice((page - 1) * limit, page * limit);
+
+      const result: CoursePaginationResult = {
+        courses: paginatedCourses,
+        total,
+        page,
+        limit,
+        totalPages,
+      };
+
+      this.setInCache(this.catalogCache, cacheKey, result);
+      return result;
     }
 
-    // In-memory sorting
-    const sortBy = options.sortBy || 'createdAt';
-    const sortOrder = options.sortOrder || 'desc';
-    courses.sort((a, b) => {
-      let valA = (a as any)[sortBy] ?? '';
-      let valB = (b as any)[sortBy] ?? '';
-      if (typeof valA === 'string') valA = valA.toLowerCase();
-      if (typeof valB === 'string') valB = valB.toLowerCase();
+    // Direct Firestore Query with limit() and offset() pagination
+    let baseQuery: any = this.collection;
 
-      if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
-      if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
-      return 0;
-    });
+    if (options.status && options.status !== 'all') {
+      baseQuery = baseQuery.where('status', '==', options.status.toLowerCase());
+    }
 
-    const page = options.page || 1;
-    const limit = options.limit || 10;
-    const total = courses.length;
+    if (options.featured) {
+      baseQuery = baseQuery.where('featured', '==', true);
+    }
+
+    // Determine total count
+    let total = 0;
+    try {
+      const countSnap = await baseQuery.count().get();
+      total = countSnap.data().count;
+    } catch (e) {
+      const allSnap = await baseQuery.get();
+      total = allSnap.size;
+    }
+
     const totalPages = Math.ceil(total / limit);
-    const paginatedCourses = courses.slice((page - 1) * limit, page * limit);
+    const offset = (page - 1) * limit;
+
+    const pagedSnap = await baseQuery.limit(limit).offset(offset).get();
+    const paginatedCourses: ICourse[] = pagedSnap.docs.map((doc: QueryDocumentSnapshot) =>
+      this.sanitizeForCatalog({
+        ...doc.data(),
+        id: doc.id,
+      })
+    );
 
     const result: CoursePaginationResult = {
       courses: paginatedCourses,

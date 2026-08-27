@@ -437,8 +437,8 @@ const DEFAULT_COURSES: ICourse[] = [
     slug: 'c-programming',
     shortDescription: 'Complete C Programming course covering fundamentals, programming concepts, advanced C, data structures, practical programs, interview preparation, and final revision.',
     description: 'Complete C Programming course covering fundamentals, programming concepts, advanced C, data structures, practical programs, interview preparation, and final revision.',
-    thumbnail: '/assets/images/c_course_thumbnail.png',
-    banner: '/assets/images/c_course_thumbnail.png',
+    thumbnail: '/assets/images/c_course_thumbnail.webp',
+    banner: '/assets/images/c_course_thumbnail.webp',
     category: 'Programming',
     level: 'all_levels',
     duration: '35 Hours',
@@ -492,8 +492,8 @@ const DEFAULT_COURSES: ICourse[] = [
     slug: 'python-through-oops',
     shortDescription: 'Complete Python Through OOPs course covering Python fundamentals, control flow, functions, intermediate concepts, and object-oriented programming.',
     description: 'Complete Python Through OOPs course covering Python fundamentals, control flow, functions, intermediate concepts, object-oriented programming, and practical application.',
-    thumbnail: '/assets/images/python_course_thumbnail.png',
-    banner: '/assets/images/python_course_thumbnail.png',
+    thumbnail: '/assets/images/python_course_thumbnail.webp',
+    banner: '/assets/images/python_course_thumbnail.webp',
     category: 'Programming',
     level: 'all_levels',
     duration: '35 Hours',
@@ -547,8 +547,8 @@ const DEFAULT_COURSES: ICourse[] = [
     slug: 'java-through-oops',
     shortDescription: 'Complete Java Through OOPs course covering Java fundamentals, core Java, OOPs main section, intermediate Java, and practice & interview preparation.',
     description: 'Complete Java Through OOPs course covering Java fundamentals, core Java, OOPs main section, intermediate Java, and practice & interview preparation.',
-    thumbnail: '/assets/images/java_course_thumbnail.png',
-    banner: '/assets/images/java_course_thumbnail.png',
+    thumbnail: '/assets/images/java_course_thumbnail.webp',
+    banner: '/assets/images/java_course_thumbnail.webp',
     category: 'Programming',
     level: 'all_levels',
     duration: '35 Hours',
@@ -725,14 +725,14 @@ function normalizeCourseToICourse(c: any): ICourse {
   const getSmartThumbnail = (title?: string, category?: string) => {
     const t = (title || '').toLowerCase();
     const cat = (category || '').toLowerCase();
-    if (t.includes('c programming') || t.includes('c language') || t === 'c') return '/assets/images/c_course_thumbnail.png';
+    if (t.includes('c programming') || t.includes('c language') || t === 'c') return '/assets/images/c_course_thumbnail.webp';
     if (t.includes('linux') || cat.includes('linux')) return '/assets/images/linux_course_thumbnail.webp';
     if (t.includes('git') || cat.includes('git') || t.includes('github')) return '/assets/images/github_course_banner.webp';
     if (t.includes('ai') || cat.includes('ai') || t.includes('machine learning') || t.includes('llm')) return 'https://images.unsplash.com/photo-1677442136019-21780efad99a?auto=format&fit=crop&w=800&q=80';
     if (t.includes('devops') || cat.includes('devops') || t.includes('cloud') || t.includes('docker')) return 'https://images.unsplash.com/photo-1667372393119-3d4c48d07fc9?auto=format&fit=crop&w=800&q=80';
     if (t.includes('react') || t.includes('web') || t.includes('javascript') || t.includes('frontend')) return 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?auto=format&fit=crop&w=800&q=80';
-    if (t.includes('java-through-oops') || t.includes('java') || t.includes('oop')) return '/assets/images/java_course_thumbnail.png';
-    if (t.includes('python')) return '/assets/images/python_course_thumbnail.png';
+    if (t.includes('java-through-oops') || t.includes('java') || t.includes('oop')) return '/assets/images/java_course_thumbnail.webp';
+    if (t.includes('python')) return '/assets/images/python_course_thumbnail.webp';
     return 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=800&q=80';
   };
 
@@ -745,15 +745,15 @@ function normalizeCourseToICourse(c: any): ICourse {
     : getSmartThumbnail(courseTitle, courseCategory);
 
   if (String(c.id) === 'c-programming-course-id' || courseTitle.toLowerCase().includes('c programming')) {
-    courseThumbnail = '/assets/images/c_course_thumbnail.png';
+    courseThumbnail = '/assets/images/c_course_thumbnail.webp';
   }
 
   if (String(c.id) === 'python-through-oops-course-id' || courseTitle.toLowerCase().includes('python')) {
-    courseThumbnail = '/assets/images/python_course_thumbnail.png';
+    courseThumbnail = '/assets/images/python_course_thumbnail.webp';
   }
 
   if (String(c.id) === 'java-through-oops-course-id' || courseTitle.toLowerCase().includes('java')) {
-    courseThumbnail = '/assets/images/java_course_thumbnail.png';
+    courseThumbnail = '/assets/images/java_course_thumbnail.webp';
   }
 
   const slug = c.slug || c.title?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `course-${c.id}`;
