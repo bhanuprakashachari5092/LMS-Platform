@@ -16,6 +16,8 @@
     "seed:react": "npx ts-node src/scripts/seed-react-course.ts",
     "migrate:courses": "npx ts-node src/scripts/migrateCourseContentToFirestore.ts",
     "migrate:course-content": "npx tsx scripts/migrate-course-content.ts",
+    "backup:courses": "npx tsx scripts/backup-course-content.ts",
+    "cleanup:legacy-course-data": "npx tsx scripts/cleanup-legacy-course-data.ts",
     "oauth:gen": "npx ts-node scripts/generate-google-oauth-token.ts"
   },
   "dependencies": {
