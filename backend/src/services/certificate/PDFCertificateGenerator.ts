@@ -1,6 +1,8 @@
+import fs from 'fs';
+import path from 'path';
 import PDFDocument from 'pdfkit';
 import logger from '../../config/logger';
-import { googleSlidesService } from './GoogleSlidesService';
+import { qrCodeService } from './QRCodeService';
 
 export interface CertificateData {
   certificateId: string;
@@ -10,41 +12,117 @@ export interface CertificateData {
   instructorName?: string;
   completionDate: string;
   courseDuration?: string;
-  modulesCount?: number;
-  qrCodeBuffer: Buffer;
+  modulesCount?: number | string;
+  achievement?: string;
+  qrCodeBuffer?: Buffer;
 }
+
+/**
+ * Robust date formatter to standard "DD Month YYYY" (e.g. 27 August 2026)
+ */
+export const formatCompletionDate = (rawDate?: string | Date): string => {
+  if (!rawDate) {
+    return new Date().toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    });
+  }
+
+  if (typeof rawDate === 'string' && /^\d{1,2}\s+[A-Za-z]+\s+\d{4}$/.test(rawDate.trim())) {
+    return rawDate.trim();
+  }
+
+  try {
+    const parsed = new Date(rawDate);
+    if (isNaN(parsed.getTime())) {
+      return String(rawDate).trim();
+    }
+    return parsed.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    });
+  } catch {
+    return String(rawDate).trim();
+  }
+};
 
 export class PDFCertificateGenerator {
   /**
-   * Generates a high-quality PDF Certificate using the Google Slides presentation template
+   * Resolves the verified production certificate template image asset.
    */
-  public async generateCertificateBuffer(data: CertificateData): Promise<Buffer> {
-    try {
-      return await googleSlidesService.generateCertificateFromTemplate(data);
-    } catch (err: any) {
-      logger.warn(`[PDF GENERATOR] Template export notice (${err?.message || err}). Falling back to vector layout.`);
-      return this.generateVectorFallback(data);
+  private resolveTemplatePath(): string {
+    const candidatePaths = [
+      path.resolve(__dirname, '../../assets/templates/certificate_template.png'),
+      path.resolve(process.cwd(), 'src/assets/templates/certificate_template.png'),
+      path.resolve(process.cwd(), 'backend/src/assets/templates/certificate_template.png'),
+      path.resolve(process.cwd(), 'dist/assets/templates/certificate_template.png'),
+    ];
+
+    for (const candidate of candidatePaths) {
+      if (fs.existsSync(candidate)) {
+        return candidate;
+      }
+    }
+
+    return candidatePaths[0];
+  }
+
+  /**
+   * Validates certificate data before rendering to avoid corrupted or blank values.
+   */
+  public validateCertificateData(data: CertificateData): void {
+    const isInvalid = (val?: string | number) =>
+      val === undefined ||
+      val === null ||
+      String(val).trim() === '' ||
+      String(val) === 'undefined' ||
+      String(val) === 'null' ||
+      String(val) === 'NaN' ||
+      String(val) === '[object Object]';
+
+    if (isInvalid(data.studentName)) {
+      throw new Error('Validation Error: Valid studentName is required for certificate generation');
+    }
+    if (isInvalid(data.courseTitle)) {
+      throw new Error('Validation Error: Valid courseTitle is required for certificate generation');
+    }
+    if (isInvalid(data.certificateId)) {
+      throw new Error('Validation Error: Valid certificateId is required for certificate generation');
     }
   }
 
-  public async generateVectorFallback(data: CertificateData): Promise<Buffer> {
-    const rawUid = data.studentId || 'default_student';
-    let displayStudentId = rawUid;
-    if (!rawUid.includes('@')) {
-      displayStudentId = rawUid.startsWith('STU-') ? rawUid : `STU-${rawUid.substring(0, 6).toUpperCase()}`;
+  /**
+   * Generates a pristine A4 Landscape PDF certificate buffer with the production template overlay.
+   */
+  public async generateCertificateBuffer(data: CertificateData): Promise<Buffer> {
+    this.validateCertificateData(data);
+
+    // Ensure QR Code buffer is generated if not provided
+    let qrBuffer = data.qrCodeBuffer;
+    if (!qrBuffer) {
+      try {
+        qrBuffer = await qrCodeService.generateVerificationQRCodeBuffer(
+          data.certificateId,
+          data.studentId || 'STUDENT'
+        );
+      } catch (qrErr: any) {
+        logger.warn(`[PDF CERTIFICATE GENERATOR] QR Generation Notice: ${qrErr?.message || qrErr}`);
+      }
     }
 
     return new Promise((resolve, reject) => {
       try {
-        // Landscape A4 Page Dimensions in PDF points: 841.89 x 595.28
+        // Landscape A4 Page Dimensions in PDF points: 841.89 x 595.28 pt
         const doc = new PDFDocument({
           size: 'A4',
           layout: 'landscape',
           margin: 0,
           info: {
             Title: `Certificate of Completion - ${data.courseTitle}`,
-            Author: 'KaizenQ AI LMS',
-            Subject: `Official Credential for ${data.studentName}`,
+            Author: 'Kaizen Q AI-Powered LMS',
+            Subject: `Official Certificate for ${data.studentName}`,
             Keywords: `KaizenQ, LMS, Certificate, ${data.certificateId}`,
           },
         });
@@ -53,379 +131,120 @@ export class PDFCertificateGenerator {
         doc.on('data', (chunk) => buffers.push(chunk));
         doc.on('end', () => {
           const pdfBuffer = Buffer.concat(buffers);
-          logger.info(`[PDF GENERATOR] ✅ Generated Certificate PDF Buffer (${pdfBuffer.length} bytes) for ${data.studentName}`);
+          logger.info(`[PDF CERTIFICATE GENERATOR] ✅ Generated PDF Buffer (${pdfBuffer.length} bytes) for ${data.studentName}`);
           resolve(pdfBuffer);
         });
         doc.on('error', (err) => {
-          logger.error(`[PDF GENERATOR] ❌ Error generating PDF: ${err.message}`);
+          logger.error(`[PDF CERTIFICATE GENERATOR] ❌ Error generating PDF: ${err.message}`);
           reject(err);
         });
 
-        const width = 841.89;
-        const height = 595.28;
-
-        // Background
-        doc.rect(0, 0, width, height).fill('#ffffff');
-
-        // Top Left corner - Curved Blue Swirl
-        doc.save()
-          .moveTo(0, 0)
-          .lineTo(150, 0)
-          .bezierCurveTo(95, 45, 45, 95, 0, 150)
-          .closePath()
-          .fill('#0a2540');
-
-        // Top Left corner - Curved Gold Wave Border
-        doc.save()
-          .moveTo(0, 0)
-          .lineTo(160, 0)
-          .bezierCurveTo(105, 52, 52, 105, 0, 160)
-          .closePath()
-          .lineWidth(2)
-          .stroke('#d4af37');
-
-        // Bottom Right corner - Curved Blue Swirl
-        doc.save()
-          .moveTo(width, height)
-          .lineTo(width - 150, height)
-          .bezierCurveTo(width - 95, height - 45, width - 45, height - 95, width, height - 150)
-          .closePath()
-          .fill('#0a2540');
-
-        // Bottom Right corner - Curved Gold Wave Border
-        doc.save()
-          .moveTo(width, height)
-          .lineTo(width - 160, height)
-          .bezierCurveTo(width - 105, height - 52, width - 52, height - 105, width, height - 160)
-          .closePath()
-          .lineWidth(2)
-          .stroke('#d4af37');
-
-        // Double Gold & Slate Borders
-        doc
-          .rect(18, 18, width - 36, height - 36)
-          .lineWidth(1.75)
-          .stroke('#d4af37');
-
-        doc
-          .rect(23, 23, width - 46, height - 46)
-          .lineWidth(0.75)
-          .stroke('#cbd5e1');
-
-        // Top Left Gold Seal Badge Ribbon tails
-        doc.save()
-          .moveTo(38, 50)
-          .lineTo(38, 92)
-          .lineTo(45, 85)
-          .lineTo(52, 92)
-          .lineTo(52, 50)
-          .closePath()
-          .fill('#c59b27');
-        doc.save()
-          .moveTo(47, 50)
-          .lineTo(47, 92)
-          .lineTo(54, 85)
-          .lineTo(61, 92)
-          .lineTo(61, 50)
-          .closePath()
-          .fill('#d4af37');
-
-        // Top Left Gold Seal Badge Circles
-        doc.save()
-          .circle(48, 48, 26)
-          .fill('#d4af37');
-        doc
-          .circle(48, 48, 23)
-          .fill('#0a2540');
-        doc
-          .circle(48, 48, 21)
-          .lineWidth(1)
-          .stroke('#ffffff');
-
-        // Gold Seal Badge Text
-        doc
-          .fillColor('#d4af37')
-          .fontSize(4.5)
-          .font('Helvetica-Bold')
-          .text('KAIZEN Q', 22, 38, { width: 52, align: 'center' })
-          .text('AI-POWERED', 22, 45, { width: 52, align: 'center' })
-          .text('LMS', 22, 52, { width: 52, align: 'center' });
-
-        // Kaizen Q Logo (Top Center) - Circle Q
-        doc.save()
-          .circle(width / 2 - 62, 42, 11)
-          .lineWidth(2.5)
-          .stroke('#0066cc');
-        doc.save()
-          .moveTo(width / 2 - 66, 46)
-          .lineTo(width / 2 - 58, 38)
-          .lineWidth(2)
-          .stroke('#0066cc');
-        doc.save()
-          .moveTo(width / 2 - 61, 38)
-          .lineTo(width / 2 - 58, 38)
-          .lineTo(width / 2 - 58, 41)
-          .lineWidth(2)
-          .stroke('#0066cc');
-
-        // Branding Text
-        doc
-          .fillColor('#0a2540')
-          .fontSize(19)
-          .font('Helvetica-Bold')
-          .text('Kaizen Q', width / 2 - 44, 31);
-
-        doc
-          .fillColor('#0066cc')
-          .fontSize(7.5)
-          .font('Helvetica-Bold')
-          .text('AI-POWERED LMS', width / 2 - 44, 51);
-
-        // Certificate ID (Top Right)
-        doc
-          .fillColor('#64748b')
-          .fontSize(7)
-          .font('Helvetica-Bold')
-          .text('CERTIFICATE ID', width - 190, 31, { width: 130, align: 'right' });
-        doc
-          .fillColor('#0044cc')
-          .fontSize(9)
-          .font('Helvetica-Bold')
-          .text(data.certificateId, width - 190, 41, { width: 130, align: 'right' });
-
-        // Certificate Main Title
-        doc
-          .fillColor('#0a2540')
-          .fontSize(30)
-          .font('Helvetica-Bold')
-          .text('CERTIFICATE', 0, 72, { width, align: 'center' });
-
-        doc
-          .fillColor('#c59b27')
-          .fontSize(10.5)
-          .font('Helvetica-Bold')
-          .text('O F   C O M P L E T I O N', 0, 104, { width, align: 'center' });
-
-        // Title Gold Accent Divider
-        doc
-          .moveTo(width / 2 - 60, 120)
-          .lineTo(width / 2 + 60, 120)
-          .lineWidth(1.25)
-          .stroke('#d4af37');
-
-        // Subtitle
-        doc
-          .fillColor('#475569')
-          .fontSize(9.5)
-          .font('Helvetica')
-          .text('This is to certify that', 0, 133, { width, align: 'center' });
-
-        // Student Name
-        doc
-          .fillColor('#0a2540')
-          .fontSize(25)
-          .font('Times-Bold')
-          .text(data.studentName, 0, 149, { width, align: 'center' });
-
-        // Student Name Underline Accent
-        doc
-          .moveTo(width / 2 - 120, 178)
-          .lineTo(width / 2 + 120, 178)
-          .lineWidth(0.75)
-          .stroke('#e2e8f0');
-        doc
-          .moveTo(width / 2 - 60, 180)
-          .lineTo(width / 2 + 60, 180)
-          .lineWidth(1.25)
-          .stroke('#d4af37');
-
-        // Course completion text
-        doc
-          .fillColor('#475569')
-          .fontSize(9.5)
-          .font('Helvetica')
-          .text('has successfully completed the course', 0, 192, { width, align: 'center' });
-
-        // Course Title
-        doc
-          .fillColor('#0033aa')
-          .fontSize(16)
-          .font('Helvetica-Bold')
-          .text(data.courseTitle, 60, 208, { width: width - 120, align: 'center' });
-
-        // Academy attribution
-        doc
-          .fillColor('#1e293b')
-          .fontSize(8.5)
-          .font('Helvetica-Bold')
-          .text('offered by Kaizen Q – AI-Powered LMS.', 0, 230, { width, align: 'center' });
-
-        // Description Paragraph
-        doc
-          .fillColor('#64748b')
-          .fontSize(8.5)
-          .font('Helvetica')
-          .text(
-            'The student has demonstrated outstanding dedication, completed all modules, passed all assessments, and has acquired strong knowledge and skills in the subject.',
-            130,
-            246,
-            { width: width - 260, align: 'center', lineGap: 2 }
-          );
-
-        // QR Code Box (Middle Right)
-        const qrBoxX = width - 160;
-        const qrBoxY = 130;
-
-        doc
-          .rect(qrBoxX, qrBoxY, 105, 120)
-          .lineWidth(1.25)
-          .stroke('#d4af37');
-
-        doc
-          .fillColor('#0a2540')
-          .fontSize(6.5)
-          .font('Helvetica-Bold')
-          .text('SCAN TO VERIFY', qrBoxX, qrBoxY + 8, { width: 105, align: 'center' });
-
-        // Embed QR Code PNG Buffer
-        try {
-          doc.image(data.qrCodeBuffer, qrBoxX + 16.5, qrBoxY + 20, { width: 72, height: 72 });
-        } catch (imgErr: any) {
-          logger.warn(`[PDF GENERATOR] Failed to embed QR code image: ${imgErr?.message}`);
+        // 1. Draw Production Template as Full-Page Background
+        const templatePath = this.resolveTemplatePath();
+        if (fs.existsSync(templatePath)) {
+          doc.image(templatePath, 0, 0, {
+            width: 841.89,
+            height: 595.28,
+          });
+        } else {
+          logger.warn(`[PDF CERTIFICATE GENERATOR] Template not found at ${templatePath}. Rendering fallback background.`);
+          doc.rect(0, 0, 841.89, 595.28).fill('#ffffff');
         }
 
-        doc
-          .fillColor('#64748b')
-          .fontSize(5.5)
-          .font('Helvetica')
-          .text('Verify authenticity of this certificate via QR code.', qrBoxX + 4, qrBoxY + 97, { width: 97, align: 'center' });
+        // 2. Certificate ID (Top Right)
+        doc.font('Helvetica-Bold')
+          .fontSize(10)
+          .fillColor('#0A2540')
+          .text(data.certificateId.trim(), 650, 74, {
+            width: 120,
+            align: 'center',
+          });
 
-        // 4 Metric Pillars
-        const pillarY = 298;
-        const pillarWidth = 130;
-        const startX = (width - pillarWidth * 4) / 2;
+        // 3. Student Name (Center, Title Case / Calligraphic with Auto-Fitting)
+        const cleanStudentName = data.studentName.trim();
+        let nameFontSize = 26;
+        doc.font('Times-BoldItalic').fontSize(nameFontSize);
+        while (doc.widthOfString(cleanStudentName) > 580 && nameFontSize > 16) {
+          nameFontSize -= 1;
+          doc.fontSize(nameFontSize);
+        }
+        const yOffsetName = (26 - nameFontSize) * 0.35;
+        doc.fillColor('#0A2540')
+          .text(cleanStudentName, 100, 244 + yOffsetName, {
+            width: 641.89,
+            align: 'center',
+          });
 
-        const pillars = [
-          { label: 'COURSE DURATION', val: data.courseDuration || '24 Hours', icon: 'clock' },
-          { label: 'MODULES COMPLETED', val: `${data.modulesCount || 8} / ${data.modulesCount || 8} Modules`, icon: 'book' },
-          { label: 'ACHIEVEMENT', val: '100% Score • Mastery', icon: 'trophy' },
-          { label: 'COMPLETED ON', val: data.completionDate, icon: 'calendar' },
-        ];
+        // 4. Course Title (Center, Bold Uppercase with Auto-Fitting)
+        const cleanCourseTitle = data.courseTitle.trim().toUpperCase();
+        let courseFontSize = 15;
+        doc.font('Helvetica-Bold').fontSize(courseFontSize);
+        while (doc.widthOfString(cleanCourseTitle) > 600 && courseFontSize > 9.5) {
+          courseFontSize -= 0.5;
+          doc.fontSize(courseFontSize);
+        }
+        const yOffsetCourse = (15 - courseFontSize) * 0.35;
+        doc.fillColor('#0A2540')
+          .text(cleanCourseTitle, 100, 322 + yOffsetCourse, {
+            width: 641.89,
+            align: 'center',
+          });
 
-        pillars.forEach((p, idx) => {
-          const pX = startX + idx * pillarWidth;
+        // 5. Dynamic Metrics Badges (Course Duration, Modules Completed, Achievement, Completed On)
+        const durationText = data.courseDuration ? String(data.courseDuration).trim() : '25 Hours';
+        const modulesText = data.modulesCount
+          ? (typeof data.modulesCount === 'number' ? `${data.modulesCount} Modules` : String(data.modulesCount).trim())
+          : 'All Modules';
+        const achievementText = data.achievement ? String(data.achievement).trim() : '100% Completed';
+        const formattedDate = formatCompletionDate(data.completionDate);
 
-          // Render Vector Icon
-          doc.save();
-          if (p.icon === 'clock') {
-            doc.circle(pX + 65, pillarY + 8, 5.5).lineWidth(0.85).stroke('#0033aa');
-            doc.moveTo(pX + 65, pillarY + 8).lineTo(pX + 65, pillarY + 4.5).lineTo(pX + 67.5, pillarY + 8).lineWidth(0.85).stroke('#0033aa');
-          } else if (p.icon === 'book') {
-            doc.moveTo(pX + 58, pillarY + 5.5)
-              .quadraticCurveTo(pX + 61.5, pillarY + 3.5, pX + 65, pillarY + 5.5)
-              .quadraticCurveTo(pX + 68.5, pillarY + 3.5, pX + 72, pillarY + 5.5)
-              .lineTo(pX + 72, pillarY + 11)
-              .quadraticCurveTo(pX + 68.5, pillarY + 9, pX + 65, pillarY + 11)
-              .quadraticCurveTo(pX + 58, pillarY + 9, pX + 58, pillarY + 11)
-              .closePath().lineWidth(0.85).stroke('#0033aa');
-          } else if (p.icon === 'trophy') {
-            doc.moveTo(pX + 60, pillarY + 4).lineTo(pX + 70, pillarY + 4).lineTo(pX + 68, pillarY + 9.5).lineTo(pX + 62, pillarY + 9.5).closePath();
-            doc.moveTo(pX + 65, pillarY + 9.5).lineTo(pX + 65, pillarY + 12);
-            doc.moveTo(pX + 62, pillarY + 12).lineTo(pX + 68, pillarY + 12);
-            doc.lineWidth(0.85).stroke('#0033aa');
-          } else if (p.icon === 'calendar') {
-            doc.rect(pX + 59.5, pillarY + 4, 11, 9).lineWidth(0.85).stroke('#0033aa');
-            doc.moveTo(pX + 59.5, pillarY + 6.5).lineTo(pX + 70.5, pillarY + 6.5).stroke('#0033aa');
-          }
-          doc.restore();
+        // Badge 1: Course Duration
+        doc.font('Helvetica-Bold')
+          .fontSize(9.5)
+          .fillColor('#0A2540')
+          .text(durationText, 140, 472, {
+            width: 95,
+            align: 'center',
+          });
 
-          doc
-            .fillColor('#64748b')
-            .fontSize(6.5)
-            .font('Helvetica-Bold')
-            .text(p.label, pX, pillarY + 18, { width: pillarWidth, align: 'center' });
+        // Badge 2: Modules Completed
+        doc.font('Helvetica-Bold')
+          .fontSize(9.5)
+          .fillColor('#0A2540')
+          .text(modulesText, 308, 472, {
+            width: 95,
+            align: 'center',
+          });
 
-          doc
-            .fillColor('#0a2540')
-            .fontSize(8.5)
-            .font('Helvetica-Bold')
-            .text(p.val, pX, pillarY + 28, { width: pillarWidth, align: 'center' });
+        // Badge 3: Achievement
+        doc.font('Helvetica-Bold')
+          .fontSize(9.5)
+          .fillColor('#0A2540')
+          .text(achievementText, 475, 472, {
+            width: 95,
+            align: 'center',
+          });
 
-          if (idx < 3) {
-            doc
-              .moveTo(pX + pillarWidth, pillarY + 8)
-              .lineTo(pX + pillarWidth, pillarY + 34)
-              .lineWidth(0.5)
-              .stroke('#cbd5e1');
-          }
-        });
+        // Badge 4: Completed On
+        doc.font('Helvetica-Bold')
+          .fontSize(9.5)
+          .fillColor('#0A2540')
+          .text(formattedDate, 635, 472, {
+            width: 95,
+            align: 'center',
+          });
 
-        // Horizontal Footer Separator
-        doc
-          .moveTo(80, 355)
-          .lineTo(width - 80, 355)
-          .lineWidth(0.5)
-          .stroke('#e2e8f0');
-
-        // Signatures Row
-        const sigY = 372;
-
-        // Left Signature
-        doc
-          .fillColor('#64748b')
-          .fontSize(7)
-          .font('Helvetica-Bold')
-          .text('CERTIFIED BY', 80, sigY, { width: 160, align: 'center' });
-        doc
-          .moveTo(80, sigY + 14)
-          .lineTo(240, sigY + 14)
-          .lineWidth(0.5)
-          .stroke('#94a3b8');
-        doc
-          .fillColor('#0a2540')
-          .fontSize(9)
-          .font('Times-Bold')
-          .text('SHAIVIKA GROUPS', 80, sigY + 18, { width: 160, align: 'center' });
-
-        // Center Company Logo (S logo symbol)
-        doc.save()
-          .moveTo(width / 2 - 7, sigY - 12)
-          .bezierCurveTo(width / 2 - 14, sigY - 8, width / 2 - 14, sigY - 3, width / 2 - 7, sigY)
-          .bezierCurveTo(width / 2, sigY + 3, width / 2, sigY + 8, width / 2 - 7, sigY + 12)
-          .lineWidth(2.5)
-          .stroke('#0066cc');
-
-        doc
-          .fillColor('#0a2540')
-          .fontSize(11)
-          .font('Helvetica-Bold')
-          .text('SHAIVIKA GROUP', 0, sigY + 4, { width, align: 'center' });
-        doc
-          .fillColor('#b8860b')
-          .fontSize(5.5)
-          .font('Helvetica-Bold')
-          .text('LEARN  •  GROW  •  SUCCEED', 0, sigY + 16, { width, align: 'center' });
-
-        // Right Signature
-        doc
-          .fillColor('#64748b')
-          .fontSize(7)
-          .font('Helvetica-Bold')
-          .text('FOUNDER & CEO', width - 240, sigY, { width: 160, align: 'center' });
-        doc
-          .moveTo(width - 240, sigY + 14)
-          .lineTo(width - 80, sigY + 14)
-          .lineWidth(0.5)
-          .stroke('#94a3b8');
-        doc
-          .fillColor('#0a2540')
-          .fontSize(9)
-          .font('Times-Bold')
-          .text('SHAIVIKA GROUPS', width - 240, sigY + 18, { width: 160, align: 'center' });
+        // 6. QR Code (Framed in Dashed Box on Right)
+        if (qrBuffer) {
+          doc.image(qrBuffer, 720, 365, {
+            width: 58,
+            height: 58,
+          });
+        }
 
         doc.end();
       } catch (err: any) {
-        logger.error(`[PDF GENERATOR] ❌ Exception in PDF generation: ${err?.message || err}`);
+        logger.error(`[PDF CERTIFICATE GENERATOR] ❌ Unexpected Error: ${err?.message || err}`);
         reject(err);
       }
     });

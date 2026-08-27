@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "node scripts/copy-shared.js && cross-env NODE_OPTIONS=--openssl-legacy-provider nodemon",
     "clean": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\"",
-    "build": "node scripts/copy-shared.js && node -e \"fs.rmSync('dist', { recursive: true, force: true })\" && tsc",
+    "build": "node scripts/copy-shared.js && node -e \"fs.rmSync('dist', { recursive: true, force: true })\" && tsc && node scripts/copy-assets.js",
     "start": "cross-env NODE_OPTIONS=--openssl-legacy-provider node dist/server.js",
     "test": "jest",
     "seed:react": "npx ts-node src/scripts/seed-react-course.ts",

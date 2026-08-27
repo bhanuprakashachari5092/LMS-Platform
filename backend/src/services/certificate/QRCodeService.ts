@@ -17,11 +17,11 @@ export class QRCodeService {
 
       const qrBuffer = await QRCode.toBuffer(verificationUrl, {
         type: 'png',
-        errorCorrectionLevel: 'H',
-        margin: 1,
+        errorCorrectionLevel: 'M',
+        margin: 0,
         width: 300,
         color: {
-          dark: '#0b1a30',
+          dark: '#0A2540',
           light: '#ffffff',
         },
       });
