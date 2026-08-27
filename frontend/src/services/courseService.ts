@@ -1176,7 +1176,7 @@ class CourseService {
     };
 
     const result = await fetchAndCache();
-    this.getCoursesCache.set(cacheKey, { data: result, expiry: Date.now() + 15000 }); // cache for 15 seconds
+    this.getCoursesCache.set(cacheKey, { data: result, expiry: Date.now() + 300000 }); // 5 minutes bounded client cache
     return result;
   }
 
@@ -1191,7 +1191,7 @@ class CourseService {
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {
-          this.courseDetailsCache.set(idOrSlug, { data: json.data, expiry: Date.now() + 15000 }); // cache 15s
+          this.courseDetailsCache.set(idOrSlug, { data: json.data, expiry: Date.now() + 300000 }); // 5 minutes cache
           return json.data;
         }
       }
@@ -1200,7 +1200,7 @@ class CourseService {
     const list = this.getStoredCourses();
     const found = list.find((c) => c.id === idOrSlug || c.slug === idOrSlug) || null;
     if (found) {
-      this.courseDetailsCache.set(idOrSlug, { data: found, expiry: Date.now() + 15000 });
+      this.courseDetailsCache.set(idOrSlug, { data: found, expiry: Date.now() + 300000 });
     }
     return found;
   }

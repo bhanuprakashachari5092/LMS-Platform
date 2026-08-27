@@ -218,55 +218,49 @@ export class CourseContentService {
 
   /**
    * Creates or updates a module document in Firestore.
+   * Canonical write target: courses/{courseId}/modules/{moduleId}
    */
   async saveModule(courseId: string, moduleDoc: CourseModuleDoc): Promise<void> {
-    const batch = db.batch();
     const orderIndex = moduleDoc.orderIndex ?? moduleDoc.order ?? 1;
     const cleanDoc = toDocument({
       ...moduleDoc,
+      courseId,
       orderIndex,
       order: orderIndex,
+      updatedAt: new Date(),
     });
 
-    // 1. Top-level modules collection
-    const topRef = modulesCollection().doc(moduleDoc.id);
-    batch.set(topRef, cleanDoc, { merge: true });
+    // Primary Canonical Subcollection: courses/{courseId}/modules/{moduleId}
+    await db.collection('courses').doc(courseId).collection('modules').doc(moduleDoc.id).set(cleanDoc, { merge: true });
 
-    // 2. Subcollection courses/{courseId}/modules/{moduleId}
-    const subRef = db.collection('courses').doc(courseId).collection('modules').doc(moduleDoc.id);
-    batch.set(subRef, cleanDoc, { merge: true });
-
-    await batch.commit();
     this.invalidateCache(`modules:${courseId}`);
   }
 
   /**
    * Creates or updates a lesson document in Firestore.
+   * Canonical write target: courses/{courseId}/modules/{moduleId}/lessons/{lessonId}
    */
   async saveLesson(courseId: string, moduleId: string, lessonDoc: CourseLessonDoc): Promise<void> {
-    const batch = db.batch();
     const orderIndex = lessonDoc.orderIndex ?? lessonDoc.order ?? 1;
     const cleanDoc = toDocument({
       ...lessonDoc,
+      courseId,
+      moduleId,
       orderIndex,
       order: orderIndex,
+      updatedAt: new Date(),
     });
 
-    // 1. Top-level lessons collection
-    const topRef = lessonsCollection().doc(lessonDoc.id);
-    batch.set(topRef, cleanDoc, { merge: true });
-
-    // 2. Subcollection courses/{courseId}/modules/{moduleId}/lessons/{lessonId}
-    const subRef = db
+    // Primary Canonical Subcollection: courses/{courseId}/modules/{moduleId}/lessons/{lessonId}
+    await db
       .collection('courses')
       .doc(courseId)
       .collection('modules')
       .doc(moduleId)
       .collection('lessons')
-      .doc(lessonDoc.id);
-    batch.set(subRef, cleanDoc, { merge: true });
+      .doc(lessonDoc.id)
+      .set(cleanDoc, { merge: true });
 
-    await batch.commit();
     this.invalidateCache(`lessons:${courseId}:${moduleId}`);
     this.invalidateCache(`lesson:${lessonDoc.id}`);
   }
