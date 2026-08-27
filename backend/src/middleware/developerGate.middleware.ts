@@ -26,7 +26,7 @@ export const developerGateMiddleware = (req: Request, res: Response, next: NextF
 
   const currentPath = req.path.toLowerCase();
   const isWhitelisted = publicPaths.some(
-    (pub) => currentPath === pub || currentPath.startsWith('/api/developer-access')
+    (pub) => currentPath === pub || currentPath.startsWith(`${pub}/`) || currentPath.startsWith('/api/developer-access')
   );
 
   if (isWhitelisted) {
