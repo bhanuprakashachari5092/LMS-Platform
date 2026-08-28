@@ -3,12 +3,6 @@ import { doc, setDoc, updateDoc, deleteDoc, collection, getDocs, getDoc } from '
 import type { ICourse, CreateCourseDTO, UpdateCourseDTO, CourseFilterOptions, CoursePaginationResult, CourseLevel, CourseStatus, IVideoProgress } from '../../../shared/types/course';
 import { normalizeCourseData, auditCourseData } from './courseNormalizer';
 export type { ICourse };
-import { gitCourseModules } from '@/data/gitCourseFullData';
-import { kubernetesCourseModules } from '@/data/kubernetesCourseFullData';
-import { reactCourseModules } from '@/data/reactCourseFullData';
-import { cCourseModules } from '@/data/cCourseFullData';
-import { pythonCourseModules } from '@/data/pythonCourseFullData';
-import { javaCourseModules } from '@/data/javaCourseFullData';
 import { API_BASE_URL } from '@/config/api';
 
 const DEFAULT_COURSES: ICourse[] = [
@@ -131,7 +125,7 @@ const DEFAULT_COURSES: ICourse[] = [
       { id: 'git-mod-14', title: 'Module 14: Git & GitHub Projects', description: 'Git & GitHub Projects', duration: '1 Hour', lessonsCount: 1 },
       { id: 'git-mod-15', title: 'Module 15: Git & GitHub Interview Preparation', description: 'Git & GitHub Interview Preparation', duration: '1 Hour', lessonsCount: 1 }
     ],
-    modules: gitCourseModules,
+    modules: [],
     createdAt: new Date('2026-01-20').toISOString(),
     updatedAt: new Date('2026-02-15').toISOString(),
   },
@@ -177,152 +171,7 @@ const DEFAULT_COURSES: ICourse[] = [
       { id: 'dbms-mod-5', title: 'Module 5 - Database Design', description: 'Functional dependencies, normalization, transactions, concurrency, and security.', duration: '5 Hours', lessonsCount: 8 },
       { id: 'dbms-mod-6', title: 'Module 6 - Real World Database Project', description: 'Creating production databases for real-world scenarios and final assessment.', duration: '4 Hours', lessonsCount: 6 }
     ],
-    modules: [
-      {
-        id: 'dbms-mod-1',
-        title: 'Module 1 - Database Fundamentals',
-        description: 'Fundamentals of databases, DBMS vs File System, advantages, and database types.',
-        duration: '4 Hours',
-        topics: [
-          {
-            id: 'dbms-topic-1-1',
-            title: 'Database Fundamentals',
-            description: 'Introduction to data, databases, and DBMS.',
-            estimatedDuration: '120 mins',
-            learningUnits: [
-              { id: 'dbms-unit-1-1-1', title: 'What is Data?', description: 'Concept of data, information, and metadata.', duration: '15 mins', type: 'Reading' },
-              { id: 'dbms-unit-1-1-2', title: 'What is Database?', description: 'Structure and purpose of a database.', duration: '20 mins', type: 'Video' },
-              { id: 'dbms-unit-1-1-3', title: 'DBMS Introduction', description: 'What is a Database Management System?', duration: '25 mins', type: 'Reading' },
-              { id: 'dbms-unit-1-1-4', title: 'Database vs File System', description: 'Comparing traditional file storage vs DBMS.', duration: '20 mins', type: 'Video' },
-              { id: 'dbms-unit-1-1-5', title: 'Advantages of DBMS', description: 'Data integrity, security, and redundancy management.', duration: '15 mins', type: 'Reading' },
-              { id: 'dbms-unit-1-1-6', title: 'Types of Databases', description: 'Relational, NoSQL, NewSQL, Graph, and Document DBs.', duration: '15 mins', type: 'Quiz' },
-              { id: 'dbms-unit-1-1-7', title: 'Practice Terminal (For Practice Only)', description: 'Simulated environment for basic DB connection exercises.', duration: '10 mins', type: 'Assignment' },
-              { id: 'dbms-unit-1-1-8', title: 'Module Notes', description: 'Comprehensive reading notes for Module 1.', duration: '20 mins', type: 'Reading' }
-            ]
-          }
-        ]
-      },
-      {
-        id: 'dbms-mod-2',
-        title: 'Module 2 - Relational Database Concepts',
-        description: 'Tables, keys, constraints, ER model and diagram.',
-        duration: '4 Hours',
-        topics: [
-          {
-            id: 'dbms-topic-2-1',
-            title: 'Relational Model & Design',
-            description: 'Keys, constraints, and entity-relationship modelling.',
-            estimatedDuration: '120 mins',
-            learningUnits: [
-              { id: 'dbms-unit-2-1-1', title: 'Tables, Rows & Columns', description: 'Introduction to relational schemas.', duration: '15 mins', type: 'Reading' },
-              { id: 'dbms-unit-2-1-2', title: 'Keys', description: 'Primary keys, candidate keys, foreign keys, super keys.', duration: '25 mins', type: 'Video' },
-              { id: 'dbms-unit-2-1-3', title: 'Constraints', description: 'Domain, entity integrity, and referential integrity constraints.', duration: '20 mins', type: 'Reading' },
-              { id: 'dbms-unit-2-1-4', title: 'ER Model', description: 'Entity, Attribute, Relationship sets.', duration: '20 mins', type: 'Video' },
-              { id: 'dbms-unit-2-1-5', title: 'ER Diagram', description: 'Drawing entity-relationship diagrams.', duration: '20 mins', type: 'Reading' },
-              { id: 'dbms-unit-2-1-6', title: 'Practice Terminal (For Practice Only)', description: 'Draw ER schema diagrams or model schemas.', duration: '15 mins', type: 'Assignment' },
-              { id: 'dbms-unit-2-1-7', title: 'Module Notes', description: 'Comprehensive reading notes for Module 2.', duration: '20 mins', type: 'Reading' }
-            ]
-          }
-        ]
-      },
-      {
-        id: 'dbms-mod-3',
-        title: 'Module 3 - SQL Fundamentals',
-        description: 'DDL, DML, and core query syntax.',
-        duration: '4 Hours',
-        topics: [
-          {
-            id: 'dbms-topic-3-1',
-            title: 'Structured Query Language (SQL)',
-            description: 'Fundamental SQL queries and modifications.',
-            estimatedDuration: '120 mins',
-            learningUnits: [
-              { id: 'dbms-unit-3-1-1', title: 'SQL Introduction', description: 'Introduction to SQL syntax.', duration: '15 mins', type: 'Reading' },
-              { id: 'dbms-unit-3-1-2', title: 'CREATE', description: 'Creating tables and databases.', duration: '20 mins', type: 'Video' },
-              { id: 'dbms-unit-3-1-3', title: 'INSERT', description: 'Adding records to tables.', duration: '15 mins', type: 'Video' },
-              { id: 'dbms-unit-3-1-4', title: 'SELECT', description: 'Retrieving data from tables.', duration: '25 mins', type: 'Video' },
-              { id: 'dbms-unit-3-1-5', title: 'UPDATE', description: 'Modifying existing records.', duration: '15 mins', type: 'Video' },
-              { id: 'dbms-unit-3-1-6', title: 'DELETE', description: 'Deleting records from tables.', duration: '15 mins', type: 'Video' },
-              { id: 'dbms-unit-3-1-7', title: 'WHERE', description: 'Filtering records using conditional statements.', duration: '15 mins', type: 'Video' },
-              { id: 'dbms-unit-3-1-8', title: 'ORDER BY', description: 'Sorting query results.', duration: '15 mins', type: 'Video' },
-              { id: 'dbms-unit-3-1-9', title: 'Practice Terminal (For Practice Only)', description: 'Simulated SQL execution terminal exercises.', duration: '20 mins', type: 'Assignment' },
-              { id: 'dbms-unit-3-1-10', title: 'Module Notes', description: 'Comprehensive reading notes for Module 3.', duration: '20 mins', type: 'Reading' }
-            ]
-          }
-        ]
-      },
-      {
-        id: 'dbms-mod-4',
-        title: 'Module 4 - Advanced SQL',
-        description: 'Joins, aggregations, subqueries, views, and indexes.',
-        duration: '4 Hours',
-        topics: [
-          {
-            id: 'dbms-topic-4-1',
-            title: 'Advanced SQL Querying',
-            description: 'Complex queries, joining tables, and database efficiency.',
-            estimatedDuration: '120 mins',
-            learningUnits: [
-              { id: 'dbms-unit-4-1-1', title: 'GROUP BY', description: 'Aggregating rows.', duration: '15 mins', type: 'Video' },
-              { id: 'dbms-unit-4-1-2', title: 'HAVING', description: 'Filtering aggregated rows.', duration: '15 mins', type: 'Video' },
-              { id: 'dbms-unit-4-1-3', title: 'JOINS', description: 'Inner join, outer joins, cross join.', duration: '30 mins', type: 'Video' },
-              { id: 'dbms-unit-4-1-4', title: 'UNION', description: 'Combining query result sets.', duration: '15 mins', type: 'Video' },
-              { id: 'dbms-unit-4-1-5', title: 'Subqueries', description: 'Nested and correlated subqueries.', duration: '20 mins', type: 'Video' },
-              { id: 'dbms-unit-4-1-6', title: 'Views', description: 'Creating virtual tables.', duration: '15 mins', type: 'Video' },
-              { id: 'dbms-unit-4-1-7', title: 'Indexes', description: 'Improving database search speed.', duration: '20 mins', type: 'Video' },
-              { id: 'dbms-unit-4-1-8', title: 'Practice Terminal (For Practice Only)', description: 'Execute complex multi-table joins.', duration: '20 mins', type: 'Assignment' },
-              { id: 'dbms-unit-4-1-9', title: 'Module Notes', description: 'Comprehensive reading notes for Module 4.', duration: '20 mins', type: 'Reading' }
-            ]
-          }
-        ]
-      },
-      {
-        id: 'dbms-mod-5',
-        title: 'Module 5 - Database Design',
-        description: 'Functional dependencies, normalization, transactions, concurrency, and security.',
-        duration: '5 Hours',
-        topics: [
-          {
-            id: 'dbms-topic-5-1',
-            title: 'Normalization & Transactions',
-            description: 'Designing anomalies out of databases and transactional safety.',
-            estimatedDuration: '150 mins',
-            learningUnits: [
-              { id: 'dbms-unit-5-1-1', title: 'Functional Dependency', description: 'A determines B dependency concepts.', duration: '20 mins', type: 'Reading' },
-              { id: 'dbms-unit-5-1-2', title: 'Normalization', description: '1NF, 2NF, 3NF, BCNF.', duration: '30 mins', type: 'Video' },
-              { id: 'dbms-unit-5-1-3', title: 'Transactions', description: 'Introduction to database transactions.', duration: '15 mins', type: 'Video' },
-              { id: 'dbms-unit-5-1-4', title: 'ACID Properties', description: 'Atomicity, Consistency, Isolation, Durability.', duration: '20 mins', type: 'Reading' },
-              { id: 'dbms-unit-5-1-5', title: 'Concurrency Control', description: 'Locks, serializability, and deadlocks.', duration: '25 mins', type: 'Reading' },
-              { id: 'dbms-unit-5-1-6', title: 'Database Security', description: 'Privileges, SQL injection protection, and backup policies.', duration: '20 mins', type: 'Reading' },
-              { id: 'dbms-unit-5-1-7', title: 'Practice Terminal (For Practice Only)', description: 'Transaction isolation level tests.', duration: '20 mins', type: 'Assignment' },
-              { id: 'dbms-unit-5-1-8', title: 'Module Notes', description: 'Comprehensive reading notes for Module 5.', duration: '20 mins', type: 'Reading' }
-            ]
-          }
-        ]
-      },
-      {
-        id: 'dbms-mod-6',
-        title: 'Module 6 - Real World Database Project',
-        description: 'Creating production databases for real-world scenarios and final assessment.',
-        duration: '4 Hours',
-        topics: [
-          {
-            id: 'dbms-topic-6-1',
-            title: 'Database Capstones',
-            description: 'Hands-on projects and final evaluations.',
-            estimatedDuration: '120 mins',
-            learningUnits: [
-              { id: 'dbms-unit-6-1-1', title: 'Student Management System', description: 'Designing student registration schema.', duration: '20 mins', type: 'Reading' },
-              { id: 'dbms-unit-6-1-2', title: 'Library Management System', description: 'Modeling book inventory and borrowing schemas.', duration: '20 mins', type: 'Reading' },
-              { id: 'dbms-unit-6-1-3', title: 'E-Commerce Database', description: 'Creating orders, products, and user schemas.', duration: '30 mins', type: 'Reading' },
-              { id: 'dbms-unit-6-1-4', title: 'SQL Mini Project', description: 'Implementation of the capstone schemas.', duration: '40 mins', type: 'Assignment' },
-              { id: 'dbms-unit-6-1-5', title: 'Final Assessment', description: 'DBMS course comprehensive examination.', duration: '30 mins', type: 'Quiz' },
-              { id: 'dbms-unit-6-1-6', title: 'Course Completion', description: 'Verify completion status and unlock certificate.', duration: '10 mins', type: 'Reading' }
-            ]
-          }
-        ]
-      }
-    ],
+    modules: [],
     createdAt: new Date('2026-03-01').toISOString(),
     updatedAt: new Date('2026-03-05').toISOString(),
   },
@@ -370,7 +219,7 @@ const DEFAULT_COURSES: ICourse[] = [
       { id: 'k8s-mod-5', title: 'Module 5 — Security & Administration', description: 'Master ServiceAccounts, Role-Based Access Control (RBAC), security contexts, scheduling nodes (Selector, Taints, Tolerations, Affinity), and troubleshooting failed deployments.', duration: '6 Hours', lessonsCount: 8 },
       { id: 'k8s-mod-6', title: 'Module 6 — Production & DevOps', description: 'Learn production guidelines, Horizontal Pod Autoscaler (HPA), Helm package management, CI/CD pipelines, managed cloud engines, and deploy a full-stack project.', duration: '6 Hours', lessonsCount: 8 }
     ],
-    modules: kubernetesCourseModules,
+    modules: [],
     createdAt: new Date('2026-08-08').toISOString(),
     updatedAt: new Date('2026-08-08').toISOString(),
   },
@@ -427,7 +276,7 @@ const DEFAULT_COURSES: ICourse[] = [
       { id: 'react-mod-14', title: 'Module 14: Real-Time Projects', description: 'Building Todo App, Weather App, Notes App, Student Management, and E-commerce UI.', duration: '4 Hours', lessonsCount: 16 },
       { id: 'react-mod-15', title: 'Module 15: Interview Preparation', description: 'Interview Q&A, cheat sheets, common errors, capstone ideas, roadmap.', duration: '4 Hours', lessonsCount: 13 },
     ],
-    modules: reactCourseModules,
+    modules: [],
     createdAt: new Date('2026-08-08').toISOString(),
     updatedAt: new Date('2026-08-08').toISOString(),
   },
@@ -482,7 +331,7 @@ const DEFAULT_COURSES: ICourse[] = [
       { id: 'c-mod-14', title: 'Module 14: Data Structures & C Projects', description: 'Linked Lists, Stacks, Queues, Searching, Sorting, Real-world C projects.', duration: '3 Hours', lessonsCount: 1 },
       { id: 'c-mod-15', title: 'Module 15: Advanced C Concepts & Final Revision', description: 'Important interview questions, Coding problems, Output-based questions, Debugging, Common mistakes.', duration: '3 Hours', lessonsCount: 1 }
     ],
-    modules: cCourseModules,
+    modules: [],
     createdAt: new Date('2026-08-10').toISOString(),
     updatedAt: new Date('2026-08-10').toISOString(),
   },
@@ -537,7 +386,7 @@ const DEFAULT_COURSES: ICourse[] = [
       { id: 'python-mod-14', title: 'Module 14: Advanced OOP in Python', description: 'Inheritance types, MRO search order algorithm, Diamond problem, class methods, static methods, and operator overloading.', duration: '3 Hours', lessonsCount: 1 },
       { id: 'python-mod-15', title: 'Module 15: Intermediate Python & OOP Project', description: 'Iterators, generators, decorators, map/filter/reduce lambdas, zip/enumerate, type hints, and student management project.', duration: '3 Hours', lessonsCount: 1 }
     ],
-    modules: pythonCourseModules,
+    modules: [],
     createdAt: new Date('2026-08-11').toISOString(),
     updatedAt: new Date('2026-08-11').toISOString(),
   },
@@ -601,7 +450,7 @@ const DEFAULT_COURSES: ICourse[] = [
       { id: 'java-mod-23', title: 'Module 23 — OOP Mini Project', description: 'Polymorphic transaction application. Creating Payment interface and UPI/Card implementations.', duration: '3 Hours', lessonsCount: 1 },
       { id: 'java-mod-24', title: 'Module 24 — Java & OOP Interview Questions', description: 'Interview preps. Essential questions on structural differences, static methods limitations, and checked exceptions.', duration: '3 Hours', lessonsCount: 1 }
     ],
-    modules: javaCourseModules,
+    modules: [],
     createdAt: new Date('2026-08-11').toISOString(),
     updatedAt: new Date('2026-08-11').toISOString(),
   }

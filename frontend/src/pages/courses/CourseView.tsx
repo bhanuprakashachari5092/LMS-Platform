@@ -1,15 +1,39 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { useParams, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { useCourses } from '@/contexts/CourseContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { courseService } from '@/services/courseService';
 import { toast } from 'sonner';
 import { CourseDetailsPage } from '@/components/learning/CourseDetailsPage';
-import { InCourseLearningView } from '@/components/learning/InCourseLearningView';
-import { PaymentCheckoutModal } from '@/components/payment/PaymentCheckoutModal';
 import { GamifiedCourseEntry } from '@/components/courses/GamifiedCourseEntry';
 import { SEOHead } from '@/components/seo/SEOHead';
 import { CourseSchema as StructuredCourseSchema } from '@/components/seo/StructuredData';
+
+// Lazy loader helper
+const lazyComponent = <T extends Record<string, any>, K extends keyof T>(
+  importFn: () => Promise<T>,
+  name: K
+) => {
+  const LazyComp = lazy(async () => {
+    const mod = await importFn();
+    return { default: mod[name] };
+  });
+  const ComponentWithSuspense = (props: any) => (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[400px] w-full">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-600"></div>
+        </div>
+      }
+    >
+      <LazyComp {...props} />
+    </Suspense>
+  );
+  return ComponentWithSuspense;
+};
+
+const InCourseLearningView = lazyComponent(() => import('@/components/learning/InCourseLearningView'), 'InCourseLearningView');
+const PaymentCheckoutModal = lazyComponent(() => import('@/components/payment/PaymentCheckoutModal'), 'PaymentCheckoutModal');
 
 const mapCourseModulesToPlayerModules = (modules?: any[]): any[] => {
   if (!modules) return [];

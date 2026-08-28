@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import {
   BookOpen,
@@ -26,13 +26,8 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCourses } from '@/contexts/CourseContext';
 import { API_BASE_URL } from '@/config/api';
-import { CoursePlayerModal } from '../../components/courses/CoursePlayerModal';
-import { AssignmentPortal } from '@/components/courses/AssignmentPortal';
-import { AIAssistantPanel } from '@/components/ai/AIAssistantPanel';
 import { CertificateService, BadgeService, AchievementService, STATIC_BADGES, LeaderboardService } from '@/services/achievementService';
 import type { Certificate } from '@/services/achievementService';
-import { CertificatePreviewModal } from '../../components/courses/CertificatePreviewModal';
-import { AchievementsDashboard } from '../../components/courses/AchievementsDashboard';
 import { courseService } from '@/services/courseService';
 import type { XPClaimRecord } from '@/services/courseService';
 import type { ICourse } from '../../../../shared/types/course';
@@ -40,17 +35,45 @@ import { courseTimeService } from '@/services/courseTimeService';
 import { useCourseTimeTracker } from '@/hooks/useCourseTimeTracker';
 import { studentService, type StudentUser } from '@/services/studentService';
 import { soundService } from '@/services/soundService';
-
-import { AnalyticsDashboard } from '../../components/courses/AnalyticsDashboard';
-import { LeaderboardView } from '../../components/courses/LeaderboardView';
-import { ResumeBuilder } from '../../components/courses/ResumeBuilder';
-import { PortfolioBuilder } from '../../components/portfolio/PortfolioBuilder';
-import { CareerRoadmap } from '../../components/courses/CareerRoadmap';
-import { PracticeHub } from '../../components/courses/PracticeHub';
-import { InterviewPrep } from '../../components/courses/InterviewPrep';
-import { StudentLiveClassroomSection } from '../../components/liveClassroom/StudentLiveClassroomSection';
-import { SubscriptionSettings } from '../../components/settings/SubscriptionSettings';
 import { liveClassService, normalizeLiveClassStatus, type LiveClass } from '@/services/liveClassService';
+
+// Lazy loader helper for heavy tab modules
+const lazyComponent = <T extends Record<string, any>, K extends keyof T>(
+  importFn: () => Promise<T>,
+  name: K
+) => {
+  const LazyComp = lazy(async () => {
+    const mod = await importFn();
+    return { default: mod[name] };
+  });
+  const ComponentWithSuspense = (props: any) => (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[300px] w-full">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-600"></div>
+        </div>
+      }
+    >
+      <LazyComp {...props} />
+    </Suspense>
+  );
+  return ComponentWithSuspense;
+};
+
+const CoursePlayerModal = lazyComponent(() => import('../../components/courses/CoursePlayerModal'), 'CoursePlayerModal');
+const AssignmentPortal = lazyComponent(() => import('@/components/courses/AssignmentPortal'), 'AssignmentPortal');
+const AIAssistantPanel = lazyComponent(() => import('@/components/ai/AIAssistantPanel'), 'AIAssistantPanel');
+const CertificatePreviewModal = lazyComponent(() => import('../../components/courses/CertificatePreviewModal'), 'CertificatePreviewModal');
+const AchievementsDashboard = lazyComponent(() => import('../../components/courses/AchievementsDashboard'), 'AchievementsDashboard');
+const AnalyticsDashboard = lazyComponent(() => import('../../components/courses/AnalyticsDashboard'), 'AnalyticsDashboard');
+const LeaderboardView = lazyComponent(() => import('../../components/courses/LeaderboardView'), 'LeaderboardView');
+const ResumeBuilder = lazyComponent(() => import('../../components/courses/ResumeBuilder'), 'ResumeBuilder');
+const PortfolioBuilder = lazyComponent(() => import('../../components/portfolio/PortfolioBuilder'), 'PortfolioBuilder');
+const CareerRoadmap = lazyComponent(() => import('../../components/courses/CareerRoadmap'), 'CareerRoadmap');
+const PracticeHub = lazyComponent(() => import('../../components/courses/PracticeHub'), 'PracticeHub');
+const InterviewPrep = lazyComponent(() => import('../../components/courses/InterviewPrep'), 'InterviewPrep');
+const StudentLiveClassroomSection = lazyComponent(() => import('../../components/liveClassroom/StudentLiveClassroomSection'), 'StudentLiveClassroomSection');
+const SubscriptionSettings = lazyComponent(() => import('../../components/settings/SubscriptionSettings'), 'SubscriptionSettings');
 
 export const Dashboard: React.FC = () => {
   const { user, userProfile } = useAuth();

@@ -1,12 +1,42 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { gitCourseModules } from '@/data/gitCourseFullData';
-import { kubernetesCourseModules } from '@/data/kubernetesCourseFullData';
-import { reactCourseModules } from '@/data/reactCourseFullData';
-import { cCourseModules } from '@/data/cCourseFullData';
-import { pythonCourseModules } from '@/data/pythonCourseFullData';
-import { javaCourseModules } from '@/data/javaCourseFullData';
-import { linuxCourseModules } from '@/data/linuxCourseFullData';
 import { courseService } from '@/services/courseService';
+
+/**
+ * On-demand dynamic loader for static fallback course datasets.
+ * Prevents loading megabytes of static curriculum into the root entry bundle.
+ */
+export const loadStaticCourseModules = async (courseIdOrSlug: string | number): Promise<ModuleItem[]> => {
+  const target = String(courseIdOrSlug).toLowerCase().trim();
+  if (target === 'course_linux_101' || target === '1' || target.includes('linux')) {
+    const mod = await import('@/data/linuxCourseFullData');
+    return mod.linuxCourseModules;
+  }
+  if (target.includes('git')) {
+    const mod = await import('@/data/gitCourseFullData');
+    return mod.gitCourseModules;
+  }
+  if (target.includes('k8s') || target.includes('kubernetes')) {
+    const mod = await import('@/data/kubernetesCourseFullData');
+    return mod.kubernetesCourseModules;
+  }
+  if (target.includes('react')) {
+    const mod = await import('@/data/reactCourseFullData');
+    return mod.reactCourseModules;
+  }
+  if (target.includes('c-prog') || target === 'c-programming') {
+    const mod = await import('@/data/cCourseFullData');
+    return mod.cCourseModules;
+  }
+  if (target.includes('python')) {
+    const mod = await import('@/data/pythonCourseFullData');
+    return mod.pythonCourseModules;
+  }
+  if (target.includes('java')) {
+    const mod = await import('@/data/javaCourseFullData');
+    return mod.javaCourseModules;
+  }
+  return [];
+};
 
 export type LearningUnitType = 'Video' | 'Reading' | 'Quiz' | 'Assignment';
 
@@ -226,7 +256,7 @@ const initialDefaultCoursesRaw: CourseItem[] = [
       "Module 15 – Linux Interview Preparation & Projects"
     ],
     createdAt: new Date('2026-07-01').toISOString(),
-    modules: linuxCourseModules
+    modules: []
   },
   {
     id: 'git-github-mastery',
@@ -263,7 +293,7 @@ const initialDefaultCoursesRaw: CourseItem[] = [
       'Module 14: Git & GitHub Projects',
       'Module 15: Git & GitHub Interview Preparation'
     ],
-    modules: gitCourseModules
+    modules: []
   },
   {
     id: 'database-management-system',
@@ -291,152 +321,7 @@ const initialDefaultCoursesRaw: CourseItem[] = [
       'Module 5: Database Design',
       'Module 6: Real World Database Project',
     ],
-    modules: [
-      {
-        id: 'dbms-mod-1',
-        title: 'Module 1 - Database Fundamentals',
-        description: 'Fundamentals of databases, DBMS vs File System, advantages, and database types.',
-        duration: '4 Hours',
-        topics: [
-          {
-            id: 'dbms-topic-1-1',
-            title: 'Database Fundamentals',
-            description: 'Introduction to data, databases, and DBMS.',
-            estimatedDuration: '120 mins',
-            learningUnits: [
-              { id: 'dbms-unit-1-1-1', title: 'What is Data?', description: 'Concept of data, information, and metadata.', duration: '15 mins', type: 'Reading' },
-              { id: 'dbms-unit-1-1-2', title: 'What is Database?', description: 'Structure and purpose of a database.', duration: '20 mins', type: 'Video' },
-              { id: 'dbms-unit-1-1-3', title: 'DBMS Introduction', description: 'What is a Database Management System?', duration: '25 mins', type: 'Reading' },
-              { id: 'dbms-unit-1-1-4', title: 'Database vs File System', description: 'Comparing traditional file storage vs DBMS.', duration: '20 mins', type: 'Video' },
-              { id: 'dbms-unit-1-1-5', title: 'Advantages of DBMS', description: 'Data integrity, security, and redundancy management.', duration: '15 mins', type: 'Reading' },
-              { id: 'dbms-unit-1-1-6', title: 'Types of Databases', description: 'Relational, NoSQL, NewSQL, Graph, and Document DBs.', duration: '15 mins', type: 'Quiz' },
-              { id: 'dbms-unit-1-1-7', title: 'Practice Terminal (For Practice Only)', description: 'Simulated environment for basic DB connection exercises.', duration: '10 mins', type: 'Assignment' },
-              { id: 'dbms-unit-1-1-8', title: 'Module Notes', description: 'Comprehensive reading notes for Module 1.', duration: '20 mins', type: 'Reading' }
-            ]
-          }
-        ]
-      },
-      {
-        id: 'dbms-mod-2',
-        title: 'Module 2 - Relational Database Concepts',
-        description: 'Tables, keys, constraints, ER model and diagram.',
-        duration: '4 Hours',
-        topics: [
-          {
-            id: 'dbms-topic-2-1',
-            title: 'Relational Model & Design',
-            description: 'Keys, constraints, and entity-relationship modelling.',
-            estimatedDuration: '120 mins',
-            learningUnits: [
-              { id: 'dbms-unit-2-1-1', title: 'Tables, Rows & Columns', description: 'Introduction to relational schemas.', duration: '15 mins', type: 'Reading' },
-              { id: 'dbms-unit-2-1-2', title: 'Keys', description: 'Primary keys, candidate keys, foreign keys, super keys.', duration: '25 mins', type: 'Video' },
-              { id: 'dbms-unit-2-1-3', title: 'Constraints', description: 'Domain, entity integrity, and referential integrity constraints.', duration: '20 mins', type: 'Reading' },
-              { id: 'dbms-unit-2-1-4', title: 'ER Model', description: 'Entity, Attribute, Relationship sets.', duration: '20 mins', type: 'Video' },
-              { id: 'dbms-unit-2-1-5', title: 'ER Diagram', description: 'Drawing entity-relationship diagrams.', duration: '20 mins', type: 'Reading' },
-              { id: 'dbms-unit-2-1-6', title: 'Practice Terminal (For Practice Only)', description: 'Draw ER schema diagrams or model schemas.', duration: '15 mins', type: 'Assignment' },
-              { id: 'dbms-unit-2-1-7', title: 'Module Notes', description: 'Comprehensive reading notes for Module 2.', duration: '20 mins', type: 'Reading' }
-            ]
-          }
-        ]
-      },
-      {
-        id: 'dbms-mod-3',
-        title: 'Module 3 - SQL Fundamentals',
-        description: 'DDL, DML, and core query syntax.',
-        duration: '4 Hours',
-        topics: [
-          {
-            id: 'dbms-topic-3-1',
-            title: 'Structured Query Language (SQL)',
-            description: 'Fundamental SQL queries and modifications.',
-            estimatedDuration: '120 mins',
-            learningUnits: [
-              { id: 'dbms-unit-3-1-1', title: 'SQL Introduction', description: 'Introduction to SQL syntax.', duration: '15 mins', type: 'Reading' },
-              { id: 'dbms-unit-3-1-2', title: 'CREATE', description: 'Creating tables and databases.', duration: '20 mins', type: 'Video' },
-              { id: 'dbms-unit-3-1-3', title: 'INSERT', description: 'Adding records to tables.', duration: '15 mins', type: 'Video' },
-              { id: 'dbms-unit-3-1-4', title: 'SELECT', description: 'Retrieving data from tables.', duration: '25 mins', type: 'Video' },
-              { id: 'dbms-unit-3-1-5', title: 'UPDATE', description: 'Modifying existing records.', duration: '15 mins', type: 'Video' },
-              { id: 'dbms-unit-3-1-6', title: 'DELETE', description: 'Deleting records from tables.', duration: '15 mins', type: 'Video' },
-              { id: 'dbms-unit-3-1-7', title: 'WHERE', description: 'Filtering records using conditional statements.', duration: '15 mins', type: 'Video' },
-              { id: 'dbms-unit-3-1-8', title: 'ORDER BY', description: 'Sorting query results.', duration: '15 mins', type: 'Video' },
-              { id: 'dbms-unit-3-1-9', title: 'Practice Terminal (For Practice Only)', description: 'Simulated SQL execution terminal exercises.', duration: '20 mins', type: 'Assignment' },
-              { id: 'dbms-unit-3-1-10', title: 'Module Notes', description: 'Comprehensive reading notes for Module 3.', duration: '20 mins', type: 'Reading' }
-            ]
-          }
-        ]
-      },
-      {
-        id: 'dbms-mod-4',
-        title: 'Module 4 - Advanced SQL',
-        description: 'Joins, aggregations, subqueries, views, and indexes.',
-        duration: '4 Hours',
-        topics: [
-          {
-            id: 'dbms-topic-4-1',
-            title: 'Advanced SQL Querying',
-            description: 'Complex queries, joining tables, and database efficiency.',
-            estimatedDuration: '120 mins',
-            learningUnits: [
-              { id: 'dbms-unit-4-1-1', title: 'GROUP BY', description: 'Aggregating rows.', duration: '15 mins', type: 'Video' },
-              { id: 'dbms-unit-4-1-2', title: 'HAVING', description: 'Filtering aggregated rows.', duration: '15 mins', type: 'Video' },
-              { id: 'dbms-unit-4-1-3', title: 'JOINS', description: 'Inner join, outer joins, cross join.', duration: '30 mins', type: 'Video' },
-              { id: 'dbms-unit-4-1-4', title: 'UNION', description: 'Combining query result sets.', duration: '15 mins', type: 'Video' },
-              { id: 'dbms-unit-4-1-5', title: 'Subqueries', description: 'Nested and correlated subqueries.', duration: '20 mins', type: 'Video' },
-              { id: 'dbms-unit-4-1-6', title: 'Views', description: 'Creating virtual tables.', duration: '15 mins', type: 'Video' },
-              { id: 'dbms-unit-4-1-7', title: 'Indexes', description: 'Improving database search speed.', duration: '20 mins', type: 'Video' },
-              { id: 'dbms-unit-4-1-8', title: 'Practice Terminal (For Practice Only)', description: 'Execute complex multi-table joins.', duration: '20 mins', type: 'Assignment' },
-              { id: 'dbms-unit-4-1-9', title: 'Module Notes', description: 'Comprehensive reading notes for Module 4.', duration: '20 mins', type: 'Reading' }
-            ]
-          }
-        ]
-      },
-      {
-        id: 'dbms-mod-5',
-        title: 'Module 5 - Database Design',
-        description: 'Functional dependencies, normalization, transactions, concurrency, and security.',
-        duration: '5 Hours',
-        topics: [
-          {
-            id: 'dbms-topic-5-1',
-            title: 'Normalization & Transactions',
-            description: 'Designing anomalies out of databases and transactional safety.',
-            estimatedDuration: '150 mins',
-            learningUnits: [
-              { id: 'dbms-unit-5-1-1', title: 'Functional Dependency', description: 'A determines B dependency concepts.', duration: '20 mins', type: 'Reading' },
-              { id: 'dbms-unit-5-1-2', title: 'Normalization', description: '1NF, 2NF, 3NF, BCNF.', duration: '30 mins', type: 'Video' },
-              { id: 'dbms-unit-5-1-3', title: 'Transactions', description: 'Introduction to database transactions.', duration: '15 mins', type: 'Video' },
-              { id: 'dbms-unit-5-1-4', title: 'ACID Properties', description: 'Atomicity, Consistency, Isolation, Durability.', duration: '20 mins', type: 'Reading' },
-              { id: 'dbms-unit-5-1-5', title: 'Concurrency Control', description: 'Locks, serializability, and deadlocks.', duration: '25 mins', type: 'Reading' },
-              { id: 'dbms-unit-5-1-6', title: 'Database Security', description: 'Privileges, SQL injection protection, and backup policies.', duration: '20 mins', type: 'Reading' },
-              { id: 'dbms-unit-5-1-7', title: 'Practice Terminal (For Practice Only)', description: 'Transaction isolation level tests.', duration: '20 mins', type: 'Assignment' },
-              { id: 'dbms-unit-5-1-8', title: 'Module Notes', description: 'Comprehensive reading notes for Module 5.', duration: '20 mins', type: 'Reading' }
-            ]
-          }
-        ]
-      },
-      {
-        id: 'dbms-mod-6',
-        title: 'Module 6 - Real World Database Project',
-        description: 'Creating production databases for real-world scenarios and final assessment.',
-        duration: '4 Hours',
-        topics: [
-          {
-            id: 'dbms-topic-6-1',
-            title: 'Database Capstones',
-            description: 'Hands-on projects and final evaluations.',
-            estimatedDuration: '120 mins',
-            learningUnits: [
-              { id: 'dbms-unit-6-1-1', title: 'Student Management System', description: 'Designing student registration schema.', duration: '20 mins', type: 'Reading' },
-              { id: 'dbms-unit-6-1-2', title: 'Library Management System', description: 'Modeling book inventory and borrowing schemas.', duration: '20 mins', type: 'Reading' },
-              { id: 'dbms-unit-6-1-3', title: 'E-Commerce Database', description: 'Creating orders, products, and user schemas.', duration: '30 mins', type: 'Reading' },
-              { id: 'dbms-unit-6-1-4', title: 'SQL Mini Project', description: 'Implementation of the capstone schemas.', duration: '40 mins', type: 'Assignment' },
-              { id: 'dbms-unit-6-1-5', title: 'Final Assessment', description: 'DBMS course comprehensive examination.', duration: '30 mins', type: 'Quiz' },
-              { id: 'dbms-unit-6-1-6', title: 'Course Completion', description: 'Verify completion status and unlock certificate.', duration: '10 mins', type: 'Reading' }
-            ]
-          }
-        ]
-      }
-    ]
+    modules: []
   },
   {
     id: 'kubernetes-complete-course-beginner-to-advanced',
@@ -474,7 +359,7 @@ const initialDefaultCoursesRaw: CourseItem[] = [
       'Module 15: Interview Preparation & Cheat Sheet'
     ],
     createdAt: new Date('2026-08-08').toISOString(),
-    modules: kubernetesCourseModules
+    modules: []
   },
   {
     id: 'react-js-complete-course',
@@ -512,7 +397,7 @@ const initialDefaultCoursesRaw: CourseItem[] = [
       'Module 15: Interview Preparation',
     ],
     createdAt: new Date('2026-08-08').toISOString(),
-    modules: reactCourseModules
+    modules: []
   },
   {
     id: 'c-programming-course-id',
@@ -550,7 +435,7 @@ const initialDefaultCoursesRaw: CourseItem[] = [
       'Module 15: Advanced C Concepts & Final Revision',
     ],
     createdAt: new Date('2026-08-10').toISOString(),
-    modules: cCourseModules
+    modules: []
   },
   {
     id: 'python-through-oops-course-id',
@@ -588,7 +473,7 @@ const initialDefaultCoursesRaw: CourseItem[] = [
       'Module 15: Intermediate Python & OOP Project',
     ],
     createdAt: new Date('2026-08-11').toISOString(),
-    modules: pythonCourseModules
+    modules: []
   },
   {
     id: 'java-through-oops-course-id',
@@ -635,7 +520,7 @@ const initialDefaultCoursesRaw: CourseItem[] = [
       'Module 24 — Java & OOP Interview Questions'
     ],
     createdAt: new Date('2026-08-11').toISOString(),
-    modules: javaCourseModules
+    modules: []
   }
 ];
 
@@ -684,7 +569,7 @@ const sanitizeCourseList = (list: CourseItem[]): CourseItem[] => {
         title: 'Git & GitHub Mastery',
         subtitle: '⚡ Git & GitHub Mastery',
         thumbnail: '/assets/images/github_course_banner.webp',
-        modules: mergeCourseModules(defaultGitCourse.modules || gitCourseModules, c.modules),
+        modules: mergeCourseModules(defaultGitCourse.modules, c.modules),
       };
       map.set(key, updatedItem);
     } else if (

@@ -38,12 +38,9 @@ const firebaseConfig = {
   measurementId: cleanEnv(import.meta.env.VITE_FIREBASE_MEASUREMENT_ID) || 'G-621GCQ0W26',
 };
 
-import { getStorage, type FirebaseStorage } from 'firebase/storage';
-
 let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
-let storage: FirebaseStorage;
 
 try {
   app =
@@ -52,7 +49,6 @@ try {
 
   auth = getAuth(app);
   db = getFirestore(app);
-  storage = getStorage(app);
 
   if (typeof window !== 'undefined') {
     console.log('[KAIZENQ BUILD AUDIT]', {
@@ -72,7 +68,6 @@ export {
   app,
   auth,
   db,
-  storage,
   firebaseConfig,
 };
 

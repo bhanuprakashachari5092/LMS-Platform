@@ -28,13 +28,13 @@ import { toast } from 'sonner';
 import { AssignmentPortal } from '@/components/courses/AssignmentPortal';
 import {
   useCourses,
+  loadStaticCourseModules,
   type ModuleItem,
   type TopicItem,
   type LearningUnitItem,
   type LearningUnitType,
   type QuizQuestion
 } from '@/contexts/CourseContext';
-import { gitCourseModules } from '@/data/gitCourseFullData';
 import { sanitizeAdminInput, sanitizeMarkdownContent } from '@/utils/adminDataSanitizer';
 
 export const AdminCourseDetails: React.FC = () => {
@@ -159,17 +159,18 @@ export const AdminCourseDetails: React.FC = () => {
 
   // Sync state with Course Context
   useEffect(() => {
-    const isGit = course && (
-      String(course.id) === 'git-github-mastery' ||
-      String(course.id) === 'git-github-mastery-course-id' ||
-      (course.title || '').toLowerCase().includes('git')
-    );
     if (course?.modules && course.modules.length > 0) {
       setModules(course.modules);
-    } else if (isGit) {
-      setModules(gitCourseModules);
+    } else if (course?.id) {
+      loadStaticCourseModules(course.id).then((mods) => {
+        if (mods && mods.length > 0) {
+          setModules(mods);
+        } else {
+          setModules([]);
+        }
+      }).catch(() => setModules([]));
     } else {
-      setModules(course?.modules || []);
+      setModules([]);
     }
   }, [course]);
 
