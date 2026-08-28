@@ -188,20 +188,6 @@ class InstructorService {
         console.warn('[INSTRUCTOR SERVICE] instructors collection query notice:', e);
       }
 
-      // Fallback Query 3: if still empty, scan all users client-side
-      if (map.size === 0) {
-        console.log(`[INSTRUCTOR SERVICE] Zero results from queries — scanning all users...`);
-        const allSnap = await getDocs(collection(db, 'users'));
-        allSnap.forEach((docSnap) => {
-          const data = docSnap.data();
-          const roleRaw = (data.role || '').toLowerCase();
-          if (roleRaw === 'instructor') {
-            const mapped = this.mapDocToInstructor(docSnap);
-            if (mapped) map.set(mapped.id, mapped);
-          }
-        });
-      }
-
       const results = Array.from(map.values());
       console.log(`[INSTRUCTOR SERVICE] Direct Firestore read result: ${results.length} instructors`);
       return results;
@@ -262,7 +248,7 @@ class InstructorService {
    * 1. Immediately emit localStorage cache (avoids blank flash)
    * 2. Fire a one-shot getDocs (immediate Firestore read, no token expiry issue)
    * 3. REST API call with fresh token via auth.currentUser.getIdToken()
-   * 4. Two live onSnapshot listeners for real-time updates
+   * 4. Server-filtered onSnapshot listeners for real-time updates (role==instructor & instructors collection)
    */
   subscribeToInstructors(callback: (instructors: InstructorUser[]) => void): () => void {
     // Step 1: Emit localStorage cache immediately
@@ -289,13 +275,11 @@ class InstructorService {
     }
 
     let filteredResult: InstructorUser[] = [];
-    let allUsersResult: InstructorUser[] = [];
     let instructorsColResult: InstructorUser[] = [];
 
     const emit = () => {
       const combined = new Map<string, InstructorUser>();
       filteredResult.forEach(i => combined.set(i.id, i));
-      allUsersResult.forEach(i => combined.set(i.id, i));
       instructorsColResult.forEach(i => combined.set(i.id, i));
       const result = Array.from(combined.values());
       console.log(`[INSTRUCTOR SERVICE] onSnapshot merged — total: ${result.length}`);
@@ -306,7 +290,7 @@ class InstructorService {
     const unsubscribers: (() => void)[] = [];
 
     try {
-      // Strategy 1: Filtered onSnapshot on users collection (where role==instructor)
+      // Strategy 1: Server-filtered onSnapshot on users collection (where role==instructor)
       const filteredQuery = query(collection(db, 'users'), where('role', '==', 'instructor'));
       const unsubFiltered = onSnapshot(
         filteredQuery,
@@ -327,32 +311,7 @@ class InstructorService {
     }
 
     try {
-      // Strategy 2: All-users onSnapshot with client-side filter
-      const allUsersQuery = query(collection(db, 'users'));
-      const unsubAll = onSnapshot(
-        allUsersQuery,
-        (snapshot) => {
-          console.log(`[INSTRUCTOR SERVICE] onSnapshot(all-users): ${snapshot.size} total docs`);
-          allUsersResult = [];
-          snapshot.forEach((docSnap) => {
-            const data = docSnap.data();
-            const roleRaw = (data.role || '').toLowerCase();
-            if (roleRaw === 'instructor') {
-              const mapped = this.mapDocToInstructor(docSnap);
-              if (mapped) allUsersResult.push(mapped);
-            }
-          });
-          emit();
-        },
-        (err) => console.warn('[INSTRUCTOR SERVICE] All-users onSnapshot error:', err)
-      );
-      unsubscribers.push(unsubAll);
-    } catch (e) {
-      console.warn('[INSTRUCTOR SERVICE] All-users subscription error:', e);
-    }
-
-    try {
-      // Strategy 3: Real-time onSnapshot on instructors collection
+      // Strategy 2: Real-time onSnapshot on instructors collection
       const instQuery = collection(db, 'instructors');
       const unsubInst = onSnapshot(
         instQuery,

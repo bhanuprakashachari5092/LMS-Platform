@@ -9,6 +9,8 @@ import {
   onSnapshot,
   query,
   where,
+  orderBy,
+  limit,
 } from 'firebase/firestore';
 
 export interface NotificationItem {
@@ -185,9 +187,10 @@ class NotificationService {
         };
 
         if (isAdminUser || !userId) {
-          // Admin can listen to everything
+          // Admin listens to newest 50 notifications
+          const qAdmin = query(notifRef, orderBy('createdAt', 'desc'), limit(50));
           const unsub = onSnapshot(
-            notifRef,
+            qAdmin,
             (snap) => handleSnapshot(snap, 'admin_all_notifications'),
             (error) => {
               console.error(`[Firestore Permission Audit] Collection: notifications | Authenticated UID: ${userId} | Error: ${error.message}`);
@@ -196,10 +199,10 @@ class NotificationService {
           );
           unsubscribers.push(unsub);
         } else {
-          // Constrained role-based queries matching Firestore rules
-          const qUser = query(notifRef, where('recipientId', '==', userId));
-          const qAll = query(notifRef, where('recipientRole', '==', 'all'));
-          const qStudent = query(notifRef, where('recipientRole', '==', 'student'));
+          // Constrained role-based queries bounded to latest 50 docs per channel
+          const qUser = query(notifRef, where('recipientId', '==', userId), limit(50));
+          const qAll = query(notifRef, where('recipientRole', '==', 'all'), limit(50));
+          const qStudent = query(notifRef, where('recipientRole', '==', 'student'), limit(50));
 
           const unsubUser = onSnapshot(
             qUser,
@@ -315,7 +318,7 @@ class NotificationService {
 
     try {
       const notifRef = collection(db, 'notifications');
-      const snapshot = await getDocs(notifRef);
+      const snapshot = await getDocs(query(notifRef, limit(100)));
       snapshot.forEach(async (docSnap) => {
         if (db) {
           await updateDoc(doc(db, 'notifications', docSnap.id), { read: true }).catch(() => null);
@@ -339,7 +342,7 @@ class NotificationService {
 
     try {
       const notifRef = collection(db, 'notifications');
-      const snapshot = await getDocs(notifRef);
+      const snapshot = await getDocs(query(notifRef, limit(100)));
       snapshot.forEach(async (docSnap) => {
         if (db) {
           await deleteDoc(doc(db, 'notifications', docSnap.id)).catch(() => null);
