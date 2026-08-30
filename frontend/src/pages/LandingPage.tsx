@@ -23,6 +23,7 @@ import { OrganizationSchema } from '@/components/seo/StructuredData';
 
 import { AnimatedHeroBackground } from '@/components/landing/AnimatedHeroBackground';
 import { RotatingSplitText } from '@/components/landing/RotatingSplitText';
+import { FloatingLogo } from '@/components/landing/FloatingLogo';
 
 // Minimal Course Card Skeleton
 const CourseSkeleton: React.FC = () => (
@@ -488,83 +489,15 @@ export const LandingPage: React.FC = () => {
 
           </div>
 
-          {/* RIGHT — GLASSMORPHIC BRAND IDENTITY CARD */}
-          <div className="lg:col-span-5 flex justify-center">
-            <div
-              className="
-                w-full max-w-sm rounded-3xl p-8 sm:p-10
-                flex flex-col items-center text-center space-y-6
-                relative overflow-hidden
-                transition-all duration-350 ease-out
-                hover:-translate-y-1 hover:shadow-[0_16px_48px_rgba(99,102,241,0.18)] dark:hover:shadow-[0_16px_48px_rgba(99,102,241,0.22)]
-                group
-              "
-              style={{
-                background: 'rgba(255,255,255,0.55)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255,255,255,0.6)',
-                boxShadow: '0 4px 24px rgba(148,163,184,0.12), inset 0 1px 0 rgba(255,255,255,0.8)',
-              }}
-            >
-              {/* Dark mode overrides via a sibling layer — Tailwind dark: classes */}
-              <div className="absolute inset-0 rounded-3xl dark:bg-[#111827]/55 dark:border dark:border-white/[0.07] pointer-events-none transition-all duration-300 group-hover:dark:border-[#6366f1]/25" />
 
-              {/* Subtle ambient gradient blob behind the logo */}
-              <div
-                className="absolute top-4 left-1/2 -translate-x-1/2 w-36 h-36 rounded-full pointer-events-none opacity-30 dark:opacity-20"
-                style={{
-                  background: 'radial-gradient(circle, #6366F1 0%, #2563EB 40%, transparent 70%)',
-                  filter: 'blur(28px)',
-                  animation: 'floatSlow3 18s ease-in-out infinite',
-                }}
-              />
-
-              {/* Logo — soft glow surround instead of hard box */}
-              <div className="relative z-10 w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center">
-                {/* Glow ring behind logo */}
-                <div
-                  className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-400"
-                  style={{
-                    background: 'radial-gradient(circle, rgba(99,102,241,0.22) 0%, transparent 70%)',
-                    filter: 'blur(8px)',
-                  }}
-                />
-                <div className="relative w-full h-full rounded-2xl bg-white/80 dark:bg-[#0b0f19]/80 border border-slate-100/80 dark:border-slate-800/60 p-4 flex items-center justify-center shadow-sm group-hover:scale-[1.04] transition-transform duration-300">
-                  <img
-                    src="/brand/kaizenq-logo.webp"
-                    alt="KaizenQ Logo"
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-              </div>
-
-              {/* Brand Text */}
-              <div className="relative z-10 space-y-1">
-                <h3 className="text-xl sm:text-2xl font-extrabold text-[#0f172a] dark:text-[#ffffff] tracking-tight">
-                  KAIZEN Q
-                </h3>
-                <p className="text-xs text-[#475569] dark:text-[#a1a5b7] font-medium">
-                  Modern Learning Platform
-                </p>
-              </div>
-
-              {/* Gradient divider — fades at both ends */}
-              <div className="relative z-10 w-full h-px" style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(99,102,241,0.4) 30%, rgba(236,72,153,0.35) 70%, transparent 100%)' }} />
-
-              {/* LEARN · BUILD · EVOLVE — glowing gradient dots */}
-              <div className="relative z-10 flex items-center justify-center gap-2 text-xs font-bold text-[#0f172a] dark:text-[#ffffff] tracking-wider uppercase">
-                <span>Learn</span>
-                {/* Gradient dot 1 */}
-                <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#3b82f6', boxShadow: '0 0 5px rgba(59,130,246,0.8)' }} />
-                <span>Build</span>
-                {/* Gradient dot 2 */}
-                <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#8b5cf6', boxShadow: '0 0 5px rgba(139,92,246,0.8)' }} />
-                <span>Evolve</span>
-              </div>
-
+          {/* RIGHT — FLOATING LOGO (no card, no border) */}
+          <div className="lg:col-span-5 flex items-center justify-center py-12 lg:py-0">
+            {/* Extra vertical space so FloatingLogo (including the label offset) fits */}
+            <div className="relative h-72 sm:h-80 w-full flex items-center justify-center">
+              <FloatingLogo />
             </div>
           </div>
+
 
         </div>
       </section>

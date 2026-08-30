@@ -13,6 +13,23 @@
 }
 @variant dark (&:where(.dark, .dark *));
 
+/* ─── Smooth theme transition (300ms) across ALL elements ─────────────────── */
+/* Applied only when not prefers-reduced-motion */
+@media (prefers-reduced-motion: no-preference) {
+  *,
+  *::before,
+  *::after {
+    transition-property: background-color, color, border-color, box-shadow, opacity;
+    transition-duration: 300ms;
+    transition-timing-function: ease;
+  }
+  /* Exclude elements that have their own animation — avoid fighting with Framer Motion */
+  [data-framer-motion],
+  [style*="animation"] {
+    transition: none !important;
+  }
+}
+
 @layer base {
   :root {
     /* Premium Light Theme Palette - Sleek Enterprise SaaS */
