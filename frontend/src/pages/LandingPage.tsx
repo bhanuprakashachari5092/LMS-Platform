@@ -437,19 +437,50 @@ export const LandingPage: React.FC = () => {
               A smarter way to learn. A better way to grow.
             </p>
 
-            {/* Action Buttons with subtle hover lift and glow */}
+            {/* Action Buttons */}
             <div className="pt-2 flex flex-col sm:flex-row items-center gap-3.5 w-full sm:w-auto">
+              {/* Primary: animated gradient Get Started */}
               <Link
                 to="/auth/register"
-                className="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-bold text-sm shadow-xs hover:shadow-lg hover:shadow-blue-500/25 hover:scale-102 transition-all flex items-center justify-center gap-2 active:scale-98 cursor-pointer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl text-white font-bold text-sm transition-all duration-200 hover:scale-[1.03] active:scale-[0.98] group"
+                style={{
+                  background: 'linear-gradient(110deg, #2563EB 0%, #6366F1 50%, #8B5CF6 100%)',
+                  backgroundSize: '200% auto',
+                  boxShadow: '0 2px 8px rgba(37,99,235,0.3)',
+                  transition: 'background-position 0.4s ease, box-shadow 0.2s ease, transform 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  const el = e.currentTarget as HTMLAnchorElement;
+                  el.style.backgroundPosition = '100% center';
+                  el.style.boxShadow = '0 6px 24px rgba(99,102,241,0.45)';
+                }}
+                onMouseLeave={(e) => {
+                  const el = e.currentTarget as HTMLAnchorElement;
+                  el.style.backgroundPosition = '0% center';
+                  el.style.boxShadow = '0 2px 8px rgba(37,99,235,0.3)';
+                }}
               >
                 <span>Get Started</span>
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
               </Link>
 
+              {/* Secondary: ghost with gradient border on hover */}
               <a
                 href="#courses"
-                className="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-white/80 dark:bg-[#111827]/80 hover:bg-white dark:hover:bg-[#1e293b] text-[#0f172a] dark:text-[#ffffff] border border-[#e2e8f0] dark:border-[#1f2937] hover:border-[#cbd5e1] dark:hover:border-slate-700 font-semibold text-sm backdrop-blur-md shadow-2xs hover:shadow-md hover:scale-102 transition-all flex items-center justify-center gap-2 active:scale-98 cursor-pointer"
+                className="
+                  w-full sm:w-auto inline-flex items-center justify-center gap-2
+                  px-7 py-3.5 rounded-xl
+                  text-[#0f172a] dark:text-[#ffffff] font-semibold text-sm
+                  bg-white/80 dark:bg-[#111827]/70
+                  border border-[#e2e8f0] dark:border-[#1f2937]
+                  backdrop-blur-md
+                  transition-all duration-200
+                  hover:bg-white dark:hover:bg-[#1e293b]
+                  hover:border-[#6366F1]/50 dark:hover:border-[#6366F1]/40
+                  hover:shadow-[0_0_0_1px_rgba(99,102,241,0.2),0_4px_16px_rgba(99,102,241,0.12)]
+                  hover:scale-[1.02] active:scale-[0.98]
+                  cursor-pointer
+                "
               >
                 <span>Explore Courses</span>
               </a>
@@ -459,19 +490,57 @@ export const LandingPage: React.FC = () => {
 
           {/* RIGHT — GLASSMORPHIC BRAND IDENTITY CARD */}
           <div className="lg:col-span-5 flex justify-center">
-            <div className="w-full max-w-sm rounded-3xl bg-white/60 dark:bg-[#111827]/60 backdrop-blur-xl border border-white/80 dark:border-white/10 p-8 sm:p-10 flex flex-col items-center text-center space-y-6 shadow-xl shadow-slate-200/50 dark:shadow-black/40 hover:scale-102 hover:shadow-2xl hover:shadow-blue-500/10 hover:border-blue-400/40 dark:hover:border-blue-400/30 transition-all duration-300 group">
-              
-              {/* Clean emblem inside minimal shape */}
-              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-white/90 dark:bg-[#0b0f19]/90 border border-slate-200/70 dark:border-slate-800/80 p-4 flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform duration-300">
-                <img
-                  src="/brand/kaizenq-logo.webp"
-                  alt="KaizenQ Logo"
-                  className="w-full h-full object-contain"
+            <div
+              className="
+                w-full max-w-sm rounded-3xl p-8 sm:p-10
+                flex flex-col items-center text-center space-y-6
+                relative overflow-hidden
+                transition-all duration-350 ease-out
+                hover:-translate-y-1 hover:shadow-[0_16px_48px_rgba(99,102,241,0.18)] dark:hover:shadow-[0_16px_48px_rgba(99,102,241,0.22)]
+                group
+              "
+              style={{
+                background: 'rgba(255,255,255,0.55)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255,255,255,0.6)',
+                boxShadow: '0 4px 24px rgba(148,163,184,0.12), inset 0 1px 0 rgba(255,255,255,0.8)',
+              }}
+            >
+              {/* Dark mode overrides via a sibling layer — Tailwind dark: classes */}
+              <div className="absolute inset-0 rounded-3xl dark:bg-[#111827]/55 dark:border dark:border-white/[0.07] pointer-events-none transition-all duration-300 group-hover:dark:border-[#6366f1]/25" />
+
+              {/* Subtle ambient gradient blob behind the logo */}
+              <div
+                className="absolute top-4 left-1/2 -translate-x-1/2 w-36 h-36 rounded-full pointer-events-none opacity-30 dark:opacity-20"
+                style={{
+                  background: 'radial-gradient(circle, #6366F1 0%, #2563EB 40%, transparent 70%)',
+                  filter: 'blur(28px)',
+                  animation: 'floatSlow3 18s ease-in-out infinite',
+                }}
+              />
+
+              {/* Logo — soft glow surround instead of hard box */}
+              <div className="relative z-10 w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center">
+                {/* Glow ring behind logo */}
+                <div
+                  className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-400"
+                  style={{
+                    background: 'radial-gradient(circle, rgba(99,102,241,0.22) 0%, transparent 70%)',
+                    filter: 'blur(8px)',
+                  }}
                 />
+                <div className="relative w-full h-full rounded-2xl bg-white/80 dark:bg-[#0b0f19]/80 border border-slate-100/80 dark:border-slate-800/60 p-4 flex items-center justify-center shadow-sm group-hover:scale-[1.04] transition-transform duration-300">
+                  <img
+                    src="/brand/kaizenq-logo.webp"
+                    alt="KaizenQ Logo"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
               </div>
 
               {/* Brand Text */}
-              <div className="space-y-1">
+              <div className="relative z-10 space-y-1">
                 <h3 className="text-xl sm:text-2xl font-extrabold text-[#0f172a] dark:text-[#ffffff] tracking-tight">
                   KAIZEN Q
                 </h3>
@@ -480,15 +549,18 @@ export const LandingPage: React.FC = () => {
                 </p>
               </div>
 
-              {/* Minimalist 3-Pillar Divider */}
-              <div className="w-full pt-4 border-t border-slate-200/60 dark:border-slate-800/80">
-                <div className="flex items-center justify-center gap-2 text-xs font-bold text-[#0f172a] dark:text-[#ffffff] tracking-wider uppercase">
-                  <span>Learn</span>
-                  <span className="text-[#3b82f6]">•</span>
-                  <span>Build</span>
-                  <span className="text-[#8b5cf6]">•</span>
-                  <span>Evolve</span>
-                </div>
+              {/* Gradient divider — fades at both ends */}
+              <div className="relative z-10 w-full h-px" style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(99,102,241,0.4) 30%, rgba(236,72,153,0.35) 70%, transparent 100%)' }} />
+
+              {/* LEARN · BUILD · EVOLVE — glowing gradient dots */}
+              <div className="relative z-10 flex items-center justify-center gap-2 text-xs font-bold text-[#0f172a] dark:text-[#ffffff] tracking-wider uppercase">
+                <span>Learn</span>
+                {/* Gradient dot 1 */}
+                <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#3b82f6', boxShadow: '0 0 5px rgba(59,130,246,0.8)' }} />
+                <span>Build</span>
+                {/* Gradient dot 2 */}
+                <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#8b5cf6', boxShadow: '0 0 5px rgba(139,92,246,0.8)' }} />
+                <span>Evolve</span>
               </div>
 
             </div>

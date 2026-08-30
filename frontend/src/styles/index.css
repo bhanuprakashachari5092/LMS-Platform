@@ -532,6 +532,196 @@ html.dark :where(.border-slate-200, .border-slate-100, .border-sky-100):not([cla
 .btn-premium-blue::before {
   content: '';
   position: absolute;
+}
+
+
+/* Background Grids & Dots - Stripe & Vercel Inspired */
+.bg-grid-pattern {
+  background-image: 
+    linear-gradient(to right, rgba(37, 99, 235, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(37, 99, 235, 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+html.dark .bg-grid-pattern {
+  background-image: 
+    linear-gradient(to right, rgba(96, 165, 250, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(96, 165, 250, 0.04) 1px, transparent 1px);
+}
+
+.bg-dot-pattern {
+  background-image: radial-gradient(rgba(37, 99, 235, 0.05) 1.2px, transparent 1.2px);
+  background-size: 24px 24px;
+}
+
+html.dark .bg-dot-pattern {
+  background-image: radial-gradient(rgba(96, 165, 250, 0.08) 1.2px, transparent 1.2px);
+}
+
+/* Glassmorphism & Card Utilities */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--kq-border);
+}
+
+html.dark .glass-panel {
+  background: rgba(14, 19, 37, 0.72);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.glass-card {
+  background: var(--kq-surface-elevated);
+  border: 1px solid var(--kq-border);
+  border-radius: 22px;
+  box-shadow: 0 4px 20px -2px var(--kq-glow);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html.dark .glass-card {
+  background: rgba(14, 19, 37, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.4);
+}
+
+.glass-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 25px 50px -12px var(--kq-glow);
+  border-color: var(--color-primary);
+}
+
+html.dark .glass-card:hover {
+  transform: translateY(-6px);
+  border-color: var(--color-primary);
+  box-shadow: 0 25px 50px -12px var(--kq-glow);
+}
+
+/* Gradient Text Utilities */
+.text-gradient-primary {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 50%, var(--color-accent) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+html.dark .text-gradient-primary {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 50%, var(--color-accent) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Custom Soft Scrollbars */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4);
+  border-radius: 9999px;
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: rgba(63, 63, 70, 0.6);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
+}
+
+/* Global Dark Mode High-Contrast Rules (Fallback for elements without explicit dark: classes) */
+html.dark body {
+  color: #F8FAFC;
+}
+
+html.dark :where(h1, h2, h3, h4, h5, h6):not([class*="text-"]) {
+  color: #FFFFFF;
+}
+
+html.dark :where(.text-slate-900, .text-slate-800, .text-slate-700):not([class*="dark:text-"]) {
+  color: #F8FAFC;
+}
+
+html.dark :where(.text-slate-600, .text-slate-500):not([class*="dark:text-"]) {
+  color: #CBD5E1;
+}
+
+html.dark :where(.bg-white):not([class*="dark:bg-"]) {
+  background-color: #0E1325;
+}
+
+html.dark :where(.bg-slate-50):not([class*="dark:bg-"]) {
+  background-color: #090B16;
+}
+
+html.dark :where(.border-slate-200, .border-slate-100, .border-sky-100):not([class*="dark:border-"]) {
+  border-color: #1E294B;
+}
+
+/* Premium Buttons & Interactive Elements */
+.btn-premium-primary {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+  box-shadow: 0 10px 25px -5px var(--kq-glow);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.btn-premium-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 30px -5px var(--kq-glow);
+  background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-accent) 100%);
+}
+.btn-premium-primary:active {
+  transform: translateY(0);
+}
+
+.btn-premium-secondary {
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid var(--kq-border);
+  backdrop-filter: blur(8px);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.btn-premium-secondary:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.95);
+  border-color: var(--color-primary);
+  box-shadow: 0 8px 20px var(--kq-glow);
+}
+.btn-premium-secondary:active {
+  transform: translateY(0);
+}
+
+/* Premium Blue Buttons (Kaizen-Q Blue Identity) */
+.btn-premium-blue {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+  color: #FFFFFF !important;
+  border-radius: 9999px; /* Rounded */
+  height: 52px; /* Large height */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13.5px;
+  box-shadow: 0 8px 20px -4px var(--kq-glow);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  border: none;
+  width: 100%;
+}
+
+.btn-premium-blue::before {
+  content: '';
+  position: absolute;
   top: 0;
   left: -150%;
   width: 50%;
@@ -735,4 +925,19 @@ html.dark .premium-glass-card:hover {
   .animate-gradient-shimmer {
     animation: none !important;
   }
+}
+
+/* Sparkle particle glow pulse */
+@keyframes sparklePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.7); }
+}
+
+/* Gradient button background-position transition */
+.btn-gradient {
+  background-size: 200% auto;
+  transition: background-position 0.4s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+.btn-gradient:hover {
+  background-position: 100% center;
 }
