@@ -53,11 +53,8 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
     <Link to="/" className={`inline-flex items-center gap-3 ${responsive ? 'lg:gap-1.5 xl:gap-3' : ''} group select-none ${className}`}>
       {/* 1. OFFICIAL TECH EMBLEM SYMBOL (LEFT) */}
       <div className={`relative flex items-center justify-center shrink-0 ${symbolClass}`}>
-        {/* Glow backdrop */}
-        <div className="absolute inset-0 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 opacity-60 blur-md group-hover:blur-lg group-hover:opacity-90 transition-all duration-300" />
-
         {/* Emblem */}
-        <div className="relative w-full h-full rounded-2xl bg-white/90 dark:bg-slate-950 border border-blue-100 dark:border-white/15 p-1 flex items-center justify-center overflow-hidden shadow-lg shadow-blue-500/15 group-hover:scale-105 transition-transform duration-300">
+        <div className="w-full h-full rounded-xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-1 flex items-center justify-center overflow-hidden shadow-2xs">
           <img
             src="/brand/kaizenq-logo.webp"
             alt="KaizenQ Logo"
@@ -65,7 +62,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
             height="44"
             fetchPriority="high"
             decoding="async"
-            className="w-full h-full object-contain drop-shadow-md"
+            className="w-full h-full object-contain"
           />
         </div>
       </div>

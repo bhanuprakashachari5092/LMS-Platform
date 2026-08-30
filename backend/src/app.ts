@@ -51,36 +51,39 @@ app.use(
   })
 );
 
+const isProduction = env.NODE_ENV === 'production' || process.env.NODE_ENV === 'production';
+
+const defaultProductionOrigins = ['https://www.kaizenq.in', 'https://kaizenq.in'];
+const defaultDevOrigins = ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:4173', 'http://127.0.0.1:5173'];
+
+const configuredOrigins = [
+  ...env.CORS_ORIGIN.split(',').map((o) => o.trim()),
+  ...env.FRONTEND_URL.split(',').map((o) => o.trim()),
+].filter((o) => Boolean(o) && (isProduction ? !defaultDevOrigins.includes(o) : true));
+
+const allowedOrigins = Array.from(
+  new Set([
+    ...defaultProductionOrigins,
+    ...configuredOrigins,
+    ...(!isProduction ? defaultDevOrigins : []),
+  ])
+);
+
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
     // Allow requests with no origin (e.g. mobile apps, cURL, Postman)
     if (!origin) return callback(null, true);
 
-    if (env.CORS_ORIGIN === '*') {
-      return callback(null, true);
-    }
-
     const isKaizenQDomain = /^https?:\/\/(www\.)?kaizenq\.in(:\d+)?$/.test(origin);
-    if (isKaizenQDomain) {
+    if (isKaizenQDomain || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
 
-    const allowedOrigins = [
-      'https://www.kaizenq.in',
-      'https://kaizenq.in',
-      ...env.CORS_ORIGIN.split(',').map((o) => o.trim()),
-      ...env.FRONTEND_URL.split(',').map((o) => o.trim()),
-      'http://localhost:5173',
-      'http://localhost:3000',
-      'http://localhost:4173',
-      'http://127.0.0.1:5173',
-    ].filter(Boolean);
-
-    if (env.NODE_ENV === 'development' || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+    if (!isProduction && (defaultDevOrigins.includes(origin) || env.CORS_ORIGIN === '*')) {
       return callback(null, true);
     }
 
-    return callback(null, true);
+    return callback(new Error('CORS origin rejected by policy'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],

@@ -23,13 +23,23 @@ process.on('unhandledRejection', (reason) => {
 // Create HTTP server wrapper around Express App
 const server = http.createServer(app);
 
+const isProduction = process.env.NODE_ENV === 'production' || env.NODE_ENV === 'production';
+
 // Resolve allowed origins for Socket.IO and HTTP
-const configuredOrigins = process.env.FRONTEND_URL
-  ? process.env.FRONTEND_URL.split(',').map((url) => url.trim()).filter(Boolean)
-  : [];
 const defaultProductionOrigins = ['https://www.kaizenq.in', 'https://kaizenq.in'];
 const defaultDevOrigins = ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:4173', 'http://127.0.0.1:5173'];
-const allowedOrigins = Array.from(new Set([...configuredOrigins, ...defaultProductionOrigins, ...defaultDevOrigins]));
+
+const configuredOrigins = process.env.FRONTEND_URL
+  ? process.env.FRONTEND_URL.split(',').map((url) => url.trim()).filter((o) => Boolean(o) && (isProduction ? !defaultDevOrigins.includes(o) : true))
+  : [];
+
+const allowedOrigins = Array.from(
+  new Set([
+    ...defaultProductionOrigins,
+    ...configuredOrigins,
+    ...(!isProduction ? defaultDevOrigins : []),
+  ])
+);
 
 // Initialize Socket.IO Server
 const io = new SocketServer(server, {
@@ -38,7 +48,10 @@ const io = new SocketServer(server, {
       // Allow requests with no origin (e.g. mobile apps, server-to-server)
       if (!origin) return callback(null, true);
       const isKaizenQ = /^https?:\/\/(www\.)?kaizenq\.in(:\d+)?$/.test(origin);
-      if (isKaizenQ || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+      if (isKaizenQ || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      if (!isProduction && defaultDevOrigins.includes(origin)) {
         return callback(null, true);
       }
       return callback(new Error('CORS origin rejected by policy'));
