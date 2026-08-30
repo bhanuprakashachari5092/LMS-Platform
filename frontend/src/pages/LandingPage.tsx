@@ -412,8 +412,8 @@ export const LandingPage: React.FC = () => {
 
         <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-14 items-center">
           
-          {/* LEFT — TEXT CONTENT */}
-          <div className="lg:col-span-7 flex flex-col items-center lg:items-start text-center lg:text-left space-y-6">
+          {/* LEFT — TEXT CONTENT (desktop: left col; mobile: second below logo) */}
+          <div className="lg:col-span-7 order-last lg:order-first flex flex-col items-center lg:items-start text-center lg:text-left space-y-6">
             
             {/* Eyebrow: KAIZEN Q */}
             <span className="text-[11px] font-bold tracking-[0.25em] text-[#475569] dark:text-[#a1a5b7] uppercase">
@@ -490,10 +490,14 @@ export const LandingPage: React.FC = () => {
           </div>
 
 
-          {/* RIGHT — FLOATING LOGO (no card, no border) */}
-          <div className="lg:col-span-5 flex items-center justify-center py-12 lg:py-0">
-            {/* Extra vertical space so FloatingLogo (including the label offset) fits */}
-            <div className="relative h-72 sm:h-80 w-full flex items-center justify-center">
+          {/* RIGHT — FLOATING LOGO (mobile: first / top; desktop: right col) */}
+          <div className="lg:col-span-5 order-first lg:order-last flex items-center justify-center py-6 lg:py-0">
+            {/*
+              Mobile: h-64 — compact but clear visual anchor
+              sm+:   h-80 — comfortable display
+              Both centre the logo + leave room for the wordmark label offset (translate-y-14)
+            */}
+            <div className="relative h-64 sm:h-80 w-full flex items-center justify-center">
               <FloatingLogo />
             </div>
           </div>

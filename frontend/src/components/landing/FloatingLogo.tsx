@@ -10,27 +10,28 @@ interface FloatingLogoProps {
  * Premium floating KaizenQ logo with:
  * - Slow up/down float animation
  * - Soft pulsing radial glow aura (theme-aware via Tailwind dark: classes)
- * - 3 tiny orbiting accent dots
+ * - 3 orbiting accent dots (radii proportionally scaled to logo size)
  * - Hover: logo scale + intensified glow
+ * - "KAIZEN Q" wordmark label below — bold, letter-spaced, premium feel
  * - prefers-reduced-motion: all animations disabled, static logo
  */
 export const FloatingLogo: React.FC<FloatingLogoProps> = ({ className = '' }) => {
   const shouldReduceMotion = useReducedMotion();
 
-  // Orbiting accent dots config
+  // ─── Orbit dots — radii scaled up ~28% to match larger logo ───────────────
   const orbitDots = [
-    { color: '#2563EB', shadowColor: 'rgba(37,99,235,0.9)',   radius: 78,  speed: 9,  size: 5,   startAngle: 0   },
-    { color: '#8B5CF6', shadowColor: 'rgba(139,92,246,0.9)', radius: 92,  speed: 13, size: 4,   startAngle: 120 },
-    { color: '#EC4899', shadowColor: 'rgba(236,72,153,0.9)', radius: 70,  speed: 11, size: 3.5, startAngle: 240 },
+    { color: '#2563EB', shadowColor: 'rgba(37,99,235,0.9)',   radius: 100, speed: 9,  size: 5.5, startAngle: 0   },
+    { color: '#8B5CF6', shadowColor: 'rgba(139,92,246,0.9)', radius: 118, speed: 13, size: 4.5, startAngle: 120 },
+    { color: '#EC4899', shadowColor: 'rgba(236,72,153,0.9)', radius: 90,  speed: 11, size: 4,   startAngle: 240 },
   ];
 
   return (
     <div className={`relative flex items-center justify-center group ${className}`}>
 
-      {/* ── Pulsing radial glow aura ─────────────────────────────────────── */}
+      {/* ── Pulsing radial glow aura — scaled to 280px to match larger logo ── */}
       <motion.div
         className="absolute rounded-full pointer-events-none"
-        style={{ width: 220, height: 220 }}
+        style={{ width: 280, height: 280 }}
         animate={
           shouldReduceMotion
             ? {}
@@ -42,22 +43,22 @@ export const FloatingLogo: React.FC<FloatingLogoProps> = ({ className = '' }) =>
             : { duration: 4.5, ease: 'easeInOut', repeat: Infinity }
         }
       >
-        {/* Light mode glow — hidden in dark */}
+        {/* Light mode glow — soft pastel */}
         <div
           className="absolute inset-0 rounded-full dark:opacity-0 transition-opacity duration-300"
           style={{
             background:
               'radial-gradient(circle, rgba(99,102,241,0.22) 0%, rgba(37,99,235,0.14) 35%, rgba(236,72,153,0.08) 65%, transparent 80%)',
-            filter: 'blur(32px)',
+            filter: 'blur(40px)',
           }}
         />
-        {/* Dark mode glow — hidden in light */}
+        {/* Dark mode glow — vivid */}
         <div
           className="absolute inset-0 rounded-full opacity-0 dark:opacity-100 transition-opacity duration-300"
           style={{
             background:
-              'radial-gradient(circle, rgba(99,102,241,0.48) 0%, rgba(37,99,235,0.32) 35%, rgba(236,72,153,0.18) 65%, transparent 80%)',
-            filter: 'blur(36px)',
+              'radial-gradient(circle, rgba(99,102,241,0.50) 0%, rgba(37,99,235,0.34) 35%, rgba(236,72,153,0.20) 65%, transparent 80%)',
+            filter: 'blur(44px)',
           }}
         />
       </motion.div>
@@ -73,17 +74,16 @@ export const FloatingLogo: React.FC<FloatingLogoProps> = ({ className = '' }) =>
               height: dot.size,
               borderRadius: '50%',
               backgroundColor: dot.color,
-              boxShadow: `0 0 ${dot.size * 2.5}px ${dot.shadowColor}`,
+              boxShadow: `0 0 ${dot.size * 3}px ${dot.shadowColor}`,
             }}
             animate={{ rotate: [dot.startAngle, dot.startAngle + 360] }}
             transition={{ duration: dot.speed, ease: 'linear', repeat: Infinity }}
             transformTemplate={(_props, generated) => {
-              // Override transform to orbit in an ellipse around center
               const match = generated.match(/rotate\(([^)]+)\)/);
               const deg = match ? parseFloat(match[1]) : 0;
               const rad = (deg * Math.PI) / 180;
               const x = Math.cos(rad) * dot.radius;
-              const y = Math.sin(rad) * dot.radius * 0.35;
+              const y = Math.sin(rad) * dot.radius * 0.35; // flatten to ellipse
               return `translate(${x}px, ${y}px)`;
             }}
           />
@@ -91,7 +91,7 @@ export const FloatingLogo: React.FC<FloatingLogoProps> = ({ className = '' }) =>
 
       {/* ── Floating logo ─────────────────────────────────────────────────── */}
       <motion.div
-        animate={shouldReduceMotion ? {} : { y: [0, -10, 0] }}
+        animate={shouldReduceMotion ? {} : { y: [0, -12, 0] }}
         transition={
           shouldReduceMotion
             ? {}
@@ -100,33 +100,44 @@ export const FloatingLogo: React.FC<FloatingLogoProps> = ({ className = '' }) =>
         whileHover={shouldReduceMotion ? {} : { scale: 1.06 }}
         className="relative z-10 cursor-default"
       >
-        {/* Hover glow ring — appears on group hover */}
+        {/* Hover glow intensifier */}
         <div
           className="absolute inset-0 rounded-full pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-400"
           style={{
             transform: 'scale(1.5)',
             background:
-              'radial-gradient(circle, rgba(99,102,241,0.30) 0%, rgba(37,99,235,0.18) 50%, transparent 75%)',
-            filter: 'blur(18px)',
+              'radial-gradient(circle, rgba(99,102,241,0.32) 0%, rgba(37,99,235,0.18) 50%, transparent 75%)',
+            filter: 'blur(22px)',
           }}
         />
 
-        {/* Logo — no card, no border, just the image with a drop-shadow */}
+        {/* Logo image — ~28% larger: was w-36/sm:w-44, now w-44/sm:w-56 */}
         <img
           src="/brand/kaizenq-logo.webp"
           alt="KaizenQ"
           draggable={false}
-          className="w-36 h-36 sm:w-44 sm:h-44 object-contain select-none"
+          className="w-44 h-44 sm:w-56 sm:h-56 object-contain select-none"
           style={{
             filter:
-              'drop-shadow(0 6px 20px rgba(99,102,241,0.3)) drop-shadow(0 2px 6px rgba(0,0,0,0.10))',
+              'drop-shadow(0 8px 28px rgba(99,102,241,0.32)) drop-shadow(0 3px 8px rgba(0,0,0,0.12))',
           }}
         />
       </motion.div>
 
-      {/* ── "KAIZEN Q" label below ─────────────────────────────────────────── */}
-      <div className="absolute bottom-0 translate-y-12 text-center pointer-events-none select-none">
-        <span className="text-[11px] font-bold tracking-[0.3em] uppercase text-slate-400 dark:text-slate-500 transition-colors duration-300">
+      {/* ── "KAIZEN Q" wordmark label ─────────────────────────────────────── */}
+      {/*
+        Positioned below with translate-y to clear the float range (+12px).
+        Bolder: font-semibold, 14px base, wide letter-spacing, high contrast.
+      */}
+      <div className="absolute bottom-0 translate-y-14 text-center pointer-events-none select-none">
+        <span className="
+          text-[14px] sm:text-[15px]
+          font-semibold
+          tracking-[0.32em]
+          uppercase
+          text-slate-600 dark:text-slate-300
+          transition-colors duration-300
+        ">
           KAIZEN Q
         </span>
       </div>
