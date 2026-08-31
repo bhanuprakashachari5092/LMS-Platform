@@ -1142,6 +1142,11 @@ class CourseService {
     const updated: ICourse = {
       ...existing,
       ...updates,
+      instructor: {
+        ...existing.instructor,
+        ...(updates.instructor || {}),
+        name: updates.instructor?.name || existing.instructor?.name || 'KaizenQ Instructor',
+      },
       updatedAt: new Date().toISOString(),
     };
 
