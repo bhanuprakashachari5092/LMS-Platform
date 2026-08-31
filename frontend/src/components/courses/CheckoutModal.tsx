@@ -12,9 +12,8 @@ import {
   AlertCircle,
   Loader2,
   BookOpen,
-  ArrowRight,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { API_BASE_URL } from '@/config/api';
 import { courseService } from '@/services/courseService';
@@ -80,7 +79,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const primaryCourse = courses[0];
   const courseTitle = primaryCourse?.title || 'Selected Course Track';
-  const courseId = primaryCourse?.id || 'course_default';
 
   // Handle Coupon Application
   const handleApplyCoupon = () => {
