@@ -19,11 +19,13 @@ const ThemeButton: React.FC = () => {
       title={isNight ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
       aria-label={isNight ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
       className="
-        w-8 h-8 flex items-center justify-center rounded-lg
+        w-9 h-9 flex items-center justify-center rounded-full
         text-slate-500 dark:text-slate-400
         hover:text-slate-900 dark:hover:text-white
-        hover:bg-slate-100 dark:hover:bg-white/[0.07]
-        transition-colors duration-150 cursor-pointer
+        bg-slate-100 dark:bg-white/[0.06] hover:bg-slate-200 dark:hover:bg-white/[0.1]
+        border border-slate-200/50 dark:border-white/[0.06]
+        transition-all duration-150 cursor-pointer shadow-2xs
+        mr-2
       "
     >
       <AnimatePresence mode="wait" initial={false}>
@@ -33,6 +35,7 @@ const ThemeButton: React.FC = () => {
             animate={{ opacity: 1, rotate: 0, scale: 1 }}
             exit={{ opacity: 0, rotate: 60, scale: 0.6 }}
             transition={{ duration: 0.2 }}
+            className="flex items-center justify-center"
           >
             <Sun className="w-[15px] h-[15px]" />
           </motion.span>
@@ -42,6 +45,7 @@ const ThemeButton: React.FC = () => {
             animate={{ opacity: 1, rotate: 0, scale: 1 }}
             exit={{ opacity: 0, rotate: -60, scale: 0.6 }}
             transition={{ duration: 0.2 }}
+            className="flex items-center justify-center"
           >
             <Moon className="w-[15px] h-[15px]" />
           </motion.span>
@@ -51,7 +55,7 @@ const ThemeButton: React.FC = () => {
   );
 };
 
-/* ─── Exported GradientButton for hero CTA reuse ───────────────────────────── */
+/* ─── Exported GradientButton for hero/navbar CTA reuse ────────────────────── */
 export const GradientButton: React.FC<{
   to: string;
   onClick?: () => void;
@@ -62,19 +66,29 @@ export const GradientButton: React.FC<{
     to={to}
     onClick={onClick}
     className={`
-      inline-flex items-center gap-1.5
-      px-4 py-1.5 rounded-lg
-      bg-[#2563EB] hover:bg-[#1d4ed8]
+      inline-flex items-center gap-2
+      px-5 py-2 rounded-xl
       text-white font-semibold text-[13px]
-      shadow-sm hover:shadow-[0_4px_14px_rgba(37,99,235,0.4)]
       hover:scale-[1.02] active:scale-[0.98]
-      transition-all duration-150
+      transition-all duration-200
       group
       ${className}
     `}
+    style={{
+      background: 'linear-gradient(110deg, #2563EB 0%, #3B82F6 100%)',
+      boxShadow: '0 2px 8px rgba(37,99,235,0.22)',
+    }}
+    onMouseEnter={(e) => {
+      const el = e.currentTarget as HTMLAnchorElement;
+      el.style.boxShadow = '0 6px 20px rgba(37,99,235,0.45)';
+    }}
+    onMouseLeave={(e) => {
+      const el = e.currentTarget as HTMLAnchorElement;
+      el.style.boxShadow = '0 2px 8px rgba(37,99,235,0.22)';
+    }}
   >
-    {children}
-    <ArrowRight className="w-3.5 h-3.5 transition-transform duration-150 group-hover:translate-x-0.5" />
+    <span>{children}</span>
+    <ArrowRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
   </Link>
 );
 
@@ -236,18 +250,18 @@ export const Navbar: React.FC = () => {
   const headerClass = [
     'fixed top-0 left-0 right-0 z-50 w-full',
     "font-['Inter',sans-serif]",
-    'transition-all duration-200',
+    'transition-all duration-300',
     'border-b',
-    'backdrop-blur-xl',
+    'backdrop-blur-md',
     isScrolled
-      ? 'bg-white/95 dark:bg-[#0a0e1a]/95 border-slate-200/70 dark:border-white/[0.07] shadow-[0_1px_12px_rgba(0,0,0,0.04)] dark:shadow-[0_1px_12px_rgba(0,0,0,0.4)]'
-      : 'bg-white/80 dark:bg-[#0a0e1a]/80 border-slate-200/40 dark:border-white/[0.05]',
+      ? 'bg-white/90 dark:bg-[#060914]/85 border-slate-200/50 dark:border-white/[0.08] shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_30px_rgba(0,0,0,0.3)]'
+      : 'bg-white/70 dark:bg-[#060914]/70 border-slate-200/20 dark:border-white/[0.04]',
   ].join(' ');
 
   return (
     <>
       <header className={headerClass}>
-        <div className="w-full max-w-7xl mx-auto h-20 flex items-center justify-between px-6 md:px-12 lg:px-16">
+        <div className="w-full max-w-7xl mx-auto h-20 flex items-center justify-between px-5 sm:px-8 md:px-12 lg:px-16">
 
           {/* Brand Logo */}
           <BrandLogo size="md" showSubtitle={true} responsive={true} />
@@ -262,18 +276,18 @@ export const Navbar: React.FC = () => {
                   type="button"
                   onClick={(e) => handleNavClick(e, link.href)}
                   className={`
-                    relative px-3.5 py-1.5 text-[13px] rounded-md cursor-pointer
-                    transition-colors duration-150
+                    relative px-3.5 py-1.5 text-[13.5px] rounded-md cursor-pointer
+                    transition-colors duration-150 whitespace-nowrap
                     ${active
-                      ? 'text-slate-900 dark:text-white font-semibold'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 font-medium'
+                      ? 'text-slate-950 dark:text-white font-bold'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-medium'
                     }
                   `}
                 >
                   {link.name}
-                  {/* Thin animated underline */}
+                  {/* Thin animated underline with a small gap below the text */}
                   <span
-                    className="absolute bottom-0.5 left-3 right-3 h-[1.5px] rounded-full bg-slate-800 dark:bg-slate-200 transition-all duration-200"
+                    className="absolute bottom-0 left-3.5 right-3.5 h-[2px] rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 dark:from-blue-400 dark:to-indigo-450 transition-all duration-205"
                     style={{
                       transform: active ? 'scaleX(1)' : 'scaleX(0)',
                       transformOrigin: 'center',
@@ -343,7 +357,7 @@ export const Navbar: React.FC = () => {
               <>
                 <Link
                   to="/auth/login"
-                  className="px-3.5 py-1.5 text-[13px] font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                  className="px-3.5 py-1.5 text-[13.5px] font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors whitespace-nowrap"
                 >
                   Sign In
                 </Link>

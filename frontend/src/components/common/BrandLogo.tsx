@@ -80,7 +80,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
 
           {/* Tagline: LEARN • BUILD • EVOLVE */}
           {showSubtitle && (
-            <div className={`flex items-center gap-1.5 ${responsive ? 'lg:gap-1 xl:gap-1.5' : ''} ${taglineClass} font-extrabold uppercase mt-1 text-slate-700 dark:text-zinc-200`}>
+            <div className={`flex items-center gap-1.5 ${responsive ? 'lg:gap-1 xl:gap-1.5' : ''} ${taglineClass} font-semibold uppercase mt-0.5 text-slate-500/80 dark:text-slate-400/50`}>
               <span className={`h-[2px] w-3 ${responsive ? 'lg:w-2 xl:w-4' : 'sm:w-4'} bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full shrink-0`} />
               <span>LEARN</span>
               <span className="text-cyan-500 font-black">•</span>
