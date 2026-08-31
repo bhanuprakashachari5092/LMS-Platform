@@ -405,12 +405,12 @@ export const LandingPage: React.FC = () => {
       {/* ========================================================================= */}
       {/* 4. HERO SECTION                                                           */}
       {/* ========================================================================= */}
-      <section className="relative pt-32 pb-20 md:pt-44 md:pb-32 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 overflow-hidden lg:overflow-visible">
+      <section className="relative w-full pt-40 pb-20 md:pt-48 md:pb-32 overflow-hidden lg:overflow-visible border-b border-[#e2e8f0]/40 dark:border-white/[0.04]">
         
         {/* Animated Hero Background (Floating Orbs + Depth Grid) */}
         <AnimatedHeroBackground />
 
-        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-14 items-center">
+        <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-12 lg:px-16 grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-14 items-center">
           
           {/* LEFT — TEXT CONTENT (desktop: left col; mobile: second below logo) */}
           <div className="lg:col-span-7 order-last lg:order-first flex flex-col items-center lg:items-start text-center lg:text-left space-y-6">
@@ -530,18 +530,19 @@ export const LandingPage: React.FC = () => {
       {/* ========================================================================= */}
       {/* 8. SECTION — LEARN / BUILD / EVOLVE                                       */}
       {/* ========================================================================= */}
-      <section className="py-24 border-t border-[#e2e8f0] dark:border-[#1f2937] max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-14">
-        
-        <div className="text-center space-y-3">
-          <span className="text-[11px] font-bold tracking-[0.25em] text-[#475569] dark:text-[#a1a5b7] uppercase">
-            THE METHODOLOGY
-          </span>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0f172a] dark:text-[#ffffff] tracking-tight">
-            How You Grow With KaizenQ
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <section className="w-full py-24 border-t border-[#e2e8f0] dark:border-[#1f2937]">
+        <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-16 space-y-14">
+          
+          <div className="text-center space-y-3">
+            <span className="text-[11px] font-bold tracking-[0.25em] text-[#475569] dark:text-[#a1a5b7] uppercase">
+              THE METHODOLOGY
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0f172a] dark:text-[#ffffff] tracking-tight">
+              How You Grow With KaizenQ
+            </h2>
+          </div>
+  
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {pillars.map((pillar) => {
             const Icon = pillar.icon;
             return (
@@ -566,14 +567,15 @@ export const LandingPage: React.FC = () => {
             );
           })}
         </div>
+      </div>
 
-      </section>
+    </section>
 
       {/* ========================================================================= */}
       {/* 9. SECTION — FEATURES (USE EXISTING FEATURES ONLY)                        */}
       {/* ========================================================================= */}
       <section id="features" className="py-24 border-t border-[#e2e8f0] dark:border-[#1f2937] bg-[#f8fafc]/60 dark:bg-[#111827]/40">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-14">
+        <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-16 space-y-14">
           
           <div className="text-center space-y-3">
             <span className="text-[11px] font-bold tracking-[0.25em] text-[#2563eb] dark:text-[#3b82f6] uppercase">
@@ -612,17 +614,18 @@ export const LandingPage: React.FC = () => {
       {/* ========================================================================= */}
       {/* 10. SECTION — TOP COURSES                                                 */}
       {/* ========================================================================= */}
-      <section id="courses" className="py-24 border-t border-[#e2e8f0] dark:border-[#1f2937] max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
-        
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div className="space-y-3">
-            <span className="text-[11px] font-bold tracking-[0.25em] text-[#475569] dark:text-[#a1a5b7] uppercase">
-              COURSES
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0f172a] dark:text-[#ffffff] tracking-tight">
-              Explore What You Can Learn
-            </h2>
-          </div>
+      <section id="courses" className="w-full py-24 border-t border-[#e2e8f0] dark:border-[#1f2937]">
+        <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-16 space-y-12">
+          
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div className="space-y-3">
+              <span className="text-[11px] font-bold tracking-[0.25em] text-[#475569] dark:text-[#a1a5b7] uppercase">
+                COURSES
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0f172a] dark:text-[#ffffff] tracking-tight">
+                Explore What You Can Learn
+              </h2>
+            </div>
 
           <Link
             to="/courses"
@@ -716,14 +719,15 @@ export const LandingPage: React.FC = () => {
             ))}
           </div>
         )}
+      </div>
 
-      </section>
+    </section>
 
       {/* ========================================================================= */}
       {/* PRICING & TIERS                                                           */}
       {/* ========================================================================= */}
       <section id="pricing" className="py-24 border-t border-[#e2e8f0] dark:border-[#1f2937] bg-[#f8fafc]/60 dark:bg-[#111827]/40">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-14">
+        <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-16 space-y-14">
           
           <div className="text-center space-y-3">
             <span className="text-[11px] font-bold tracking-[0.25em] text-[#2563eb] dark:text-[#3b82f6] uppercase">
@@ -854,15 +858,16 @@ export const LandingPage: React.FC = () => {
       {/* ========================================================================= */}
       {/* LEARNER REVIEWS                                                           */}
       {/* ========================================================================= */}
-      <section className="py-24 border-t border-[#e2e8f0] dark:border-[#1f2937] max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-14">
-        <div className="text-center space-y-3">
-          <span className="text-[11px] font-bold tracking-[0.25em] text-[#475569] dark:text-[#a1a5b7] uppercase">
-            LEARNER REVIEWS
-          </span>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0f172a] dark:text-[#ffffff] tracking-tight">
-            Trusted by Developers & Students
-          </h2>
-        </div>
+      <section className="w-full py-24 border-t border-[#e2e8f0] dark:border-[#1f2937]">
+        <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-16 space-y-14">
+          <div className="text-center space-y-3">
+            <span className="text-[11px] font-bold tracking-[0.25em] text-[#475569] dark:text-[#a1a5b7] uppercase">
+              LEARNER REVIEWS
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0f172a] dark:text-[#ffffff] tracking-tight">
+              Trusted by Developers & Students
+            </h2>
+          </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {testimonials.map((item, idx) => (
@@ -899,13 +904,14 @@ export const LandingPage: React.FC = () => {
             </div>
           ))}
         </div>
-      </section>
+      </div>
+    </section>
 
       {/* ========================================================================= */}
       {/* FAQ ACCORDION                                                             */}
       {/* ========================================================================= */}
       <section id="about" className="py-24 border-t border-[#e2e8f0] dark:border-[#1f2937] bg-[#f8fafc]/60 dark:bg-[#111827]/40">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+        <div className="max-w-4xl mx-auto px-6 md:px-12 lg:px-16 space-y-12">
           <div className="text-center space-y-3">
             <span className="text-[11px] font-bold tracking-[0.25em] text-[#2563eb] dark:text-[#3b82f6] uppercase">
               FAQ
@@ -947,7 +953,7 @@ export const LandingPage: React.FC = () => {
       {/* INSTITUTIONAL INQUIRIES & CONTACT                                         */}
       {/* ========================================================================= */}
       <section id="contact" className="py-24 border-t border-[#e2e8f0] dark:border-[#1f2937]">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto px-6 md:px-12 lg:px-16">
           <div className="bg-[#f8fafc] dark:bg-[#111827] rounded-3xl p-8 sm:p-12 border border-[#e2e8f0] dark:border-[#1f2937] space-y-8 shadow-2xs">
             
             <div className="text-center space-y-2">
@@ -1015,7 +1021,7 @@ export const LandingPage: React.FC = () => {
       {/* 11. CTA SECTION                                                           */}
       {/* ========================================================================= */}
       <section className="py-24 md:py-28 text-center border-t border-[#e2e8f0] dark:border-[#1f2937] bg-[#f8fafc]/60 dark:bg-[#111827]/40">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+        <div className="max-w-3xl mx-auto px-6 md:px-12 lg:px-16 space-y-6">
           <h2 className="text-3xl sm:text-4xl font-extrabold text-[#0f172a] dark:text-[#ffffff] tracking-tight">
             Start Your Learning Journey
           </h2>

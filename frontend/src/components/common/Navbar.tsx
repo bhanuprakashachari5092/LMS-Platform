@@ -247,13 +247,13 @@ export const Navbar: React.FC = () => {
   return (
     <>
       <header className={headerClass}>
-        <div className="w-full max-w-7xl mx-auto h-[60px] flex items-center justify-between px-4 sm:px-6 lg:px-8">
+        <div className="w-full max-w-7xl mx-auto h-20 flex items-center justify-between px-6 md:px-12 lg:px-16">
 
           {/* Brand Logo */}
           <BrandLogo size="md" showSubtitle={true} responsive={true} />
 
           {/* Center nav links — desktop only */}
-          <nav className="hidden lg:flex items-center gap-1" aria-label="Main navigation">
+          <nav className="hidden lg:flex items-center gap-8" aria-label="Main navigation">
             {navLinks.map((link) => {
               const active = isLinkActive(link.href);
               return (
@@ -286,7 +286,7 @@ export const Navbar: React.FC = () => {
           </nav>
 
           {/* Right actions — desktop */}
-          <div className="hidden lg:flex items-center gap-2">
+          <div className="hidden lg:flex items-center gap-6">
             <ThemeButton />
 
             {user ? (
