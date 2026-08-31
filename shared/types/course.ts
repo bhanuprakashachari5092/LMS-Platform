@@ -209,7 +209,9 @@ export type CreateCourseDTO = Omit<
   slug?: string;
 };
 
-export type UpdateCourseDTO = Partial<CreateCourseDTO>;
+export type UpdateCourseDTO = Partial<Omit<CreateCourseDTO, 'instructor'>> & {
+  instructor?: Partial<ICourse['instructor']>;
+};
 
 export interface CourseFilterOptions {
   search?: string;

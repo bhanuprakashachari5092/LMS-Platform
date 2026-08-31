@@ -248,13 +248,14 @@ export const AdminCourseCreate: React.FC = () => {
     setIsSubmitting(true);
     try {
       const slug = data.slug || generateSlug(data.title);
-      const created = await courseService.createCourse({
-        ...(data as CreateCourseInput),
+      const payload: any = {
+        ...data,
         slug,
         skills: skillsInput,
         prerequisites: prereqInput,
         learningOutcomes: outcomesInput,
-      });
+      };
+      const created = await courseService.createCourse(payload);
 
       await refreshCourses();
       toast.success(`Course "${created.title}" created successfully!`);
@@ -716,7 +717,7 @@ export const AdminCourseCreate: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleAiGenerate}
-                    className="w-full py-4 bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-600 hover:to-indigo-500 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/10"
+                    className="w-full py-4 bg-linear-to-r from-amber-500 to-indigo-600 hover:from-amber-600 hover:to-indigo-500 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/10"
                   >
                     <Sparkles className="w-4 h-4 shrink-0 animate-pulse" />
                     <span>Generate Professional Syllabus Track</span>

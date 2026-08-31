@@ -150,14 +150,15 @@ export const AdminCourseEdit: React.FC = () => {
       }
 
       const generatedSlug = data.title ? generateSlug(data.title) : undefined;
-
-      await courseService.updateCourse(id, {
-        ...(data as UpdateCourseInput),
+      const updatePayload: any = {
+        ...data,
         slug: generatedSlug,
         skills: skillsInput,
         learningOutcomes: outcomesInput,
         thumbnail: newThumbnail,
-      });
+      };
+
+      await courseService.updateCourse(id, updatePayload);
 
       await refreshCourses();
 
