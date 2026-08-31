@@ -119,7 +119,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
 
         {/* Short description */}
         <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2 leading-relaxed flex-1">
-          {course.shortDescription}
+          {course.shortDescription || course.description || 'Comprehensive technical curriculum with practical exercises.'}
         </p>
 
         {/* Skills */}

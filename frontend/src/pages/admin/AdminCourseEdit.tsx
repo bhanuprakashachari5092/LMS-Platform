@@ -135,6 +135,17 @@ export const AdminCourseEdit: React.FC = () => {
   const onSubmit = async (data: FieldValues) => {
     if (!id) return;
 
+    if (!data.description || String(data.description).trim().length < 10) {
+      toast.error('Course description is required (at least 10 characters).');
+      return;
+    }
+
+    const newThumbnail = data.thumbnail || originalThumbnail;
+    if (!newThumbnail || String(newThumbnail).trim() === '') {
+      toast.error('Course thumbnail / image is required. Please upload or specify a thumbnail.');
+      return;
+    }
+
     if (outcomesInput.length < 2) {
       toast.error('Please provide at least 2 learning outcomes.');
       return;
@@ -142,8 +153,6 @@ export const AdminCourseEdit: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      const newThumbnail = data.thumbnail || originalThumbnail;
-
       // If thumbnail was replaced and previous was a Firebase Storage URL, clean up old file
       if (originalThumbnail && newThumbnail !== originalThumbnail) {
         await courseStorageService.deleteCourseThumbnail(originalThumbnail);

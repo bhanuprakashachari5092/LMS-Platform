@@ -587,10 +587,11 @@ function normalizeCourseToICourse(c: any): ICourse {
 
   const courseTitle = c.title || 'Untitled Technical Course';
   const courseCategory = c.category || 'Linux & Systems';
-  let courseThumbnail = (c.thumbnail && typeof c.thumbnail === 'string' && c.thumbnail.trim() !== '' && !c.thumbnail.includes('placeholder'))
-    ? c.thumbnail
-    : (c.banner && typeof c.banner === 'string' && c.banner.trim() !== '' && !c.banner.includes('placeholder'))
-    ? c.banner
+
+  // Support multiple naming conventions from API / Firestore (thumbnail, thumbnailUrl, image, imageUrl, banner, coverImage)
+  const rawThumb = c.thumbnail || c.thumbnailUrl || c.image || c.imageUrl || c.banner || c.coverImage;
+  let courseThumbnail = (rawThumb && typeof rawThumb === 'string' && rawThumb.trim() !== '' && !rawThumb.includes('placeholder'))
+    ? rawThumb
     : getSmartThumbnail(courseTitle, courseCategory);
 
   if (String(c.id) === 'c-programming-course-id' || courseTitle.toLowerCase().includes('c programming')) {
@@ -605,14 +606,26 @@ function normalizeCourseToICourse(c: any): ICourse {
     courseThumbnail = '/assets/images/java_course_thumbnail.webp';
   }
 
+  const rawDesc = c.description || c.fullDescription || c.shortDescription || c.overview || 'Enterprise technical course with hands-on labs.';
+  const rawShortDesc = c.shortDescription || c.description?.slice(0, 160) || c.fullDescription?.slice(0, 160) || 'Comprehensive technical curriculum with practical exercises.';
+
+  if (import.meta.env.DEV) {
+    if (!c.description && !c.fullDescription) {
+      console.warn(`[CourseDataAudit] Course "${courseTitle}" (${c.id}) is missing a description. Using graceful fallback.`);
+    }
+    if (!c.thumbnail && !c.thumbnailUrl && !c.image) {
+      console.warn(`[CourseDataAudit] Course "${courseTitle}" (${c.id}) is missing a thumbnail. Using smart category fallback.`);
+    }
+  }
+
   const slug = c.slug || c.title?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `course-${c.id}`;
 
   return {
     id: String(c.id),
     title: courseTitle,
     slug,
-    shortDescription: c.shortDescription || c.description || 'Enterprise technical course.',
-    description: c.description || 'Enterprise technical course with hands-on labs.',
+    shortDescription: rawShortDesc,
+    description: rawDesc,
     thumbnail: courseThumbnail,
     banner: c.banner || courseThumbnail,
     category: courseCategory,
@@ -955,7 +968,9 @@ class CourseService {
         if (res.ok) {
           const json = await res.json();
           if (json.success && json.data) {
-            json.data.courses = (json.data.courses || []).filter((c: any) => !isRemovedMockCourse(c));
+            json.data.courses = (json.data.courses || [])
+              .map((c: any) => this.normalizeCourseToICourse(c))
+              .filter((c: any) => !isRemovedMockCourse(c));
             return json.data;
           }
         }
@@ -1040,8 +1055,9 @@ class CourseService {
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {
-          this.courseDetailsCache.set(idOrSlug, { data: json.data, expiry: Date.now() + 300000 }); // 5 minutes cache
-          return json.data;
+          const normalized = this.normalizeCourseToICourse(json.data);
+          this.courseDetailsCache.set(idOrSlug, { data: normalized, expiry: Date.now() + 300000 }); // 5 minutes cache
+          return normalized;
         }
       }
     } catch (e) {}
@@ -1063,12 +1079,12 @@ class CourseService {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ ...dto, price: typeof dto.price === 'number' ? dto.price : 299 }),
+        body: JSON.stringify({ ...dto, price: typeof dto.price === 'number' ? dto.price : 0 }),
       });
 
       if (res.ok) {
         const json = await res.json();
-        if (json.success) return json.data;
+        if (json.success) return this.normalizeCourseToICourse(json.data);
       }
     } catch (e) {}
 

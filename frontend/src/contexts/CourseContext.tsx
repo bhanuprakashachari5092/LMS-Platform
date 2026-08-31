@@ -92,6 +92,7 @@ export interface ModuleItem {
 export interface CourseItem {
   id: number | string;
   title: string;
+  slug?: string;
   subtitle?: string;
   instructor: string;
   role?: string;
@@ -105,9 +106,11 @@ export interface CourseItem {
   badge?: string;
   tracks?: string;
   thumbnail: string;
+  banner?: string;
   status: 'Published' | 'Draft';
   price?: number;
   description: string;
+  shortDescription?: string;
   syllabus: string[];
   modules?: ModuleItem[];
   createdAt?: string;
@@ -674,7 +677,19 @@ const sanitizeCourseList = (list: CourseItem[]): CourseItem[] => {
       };
       map.set(key, updatedItem);
     } else {
-      map.set(String(c.id), c);
+      const courseTitle = c.title || 'Technical Course Track';
+      const defaultThumb = (c as any).thumbnail || (c as any).thumbnailUrl || (c as any).image || (c as any).imageUrl || (c as any).banner || 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=800&q=80';
+      const defaultDesc = (c as any).description || (c as any).fullDescription || (c as any).shortDescription || (c as any).subtitle || 'Comprehensive technical curriculum with hands-on labs and projects.';
+      const defaultShortDesc = (c as any).shortDescription || (c as any).description?.slice(0, 160) || 'Practical learning track with hands-on exercises.';
+      map.set(String(c.id), {
+        ...c,
+        title: courseTitle,
+        thumbnail: defaultThumb,
+        banner: (c as any).banner || defaultThumb,
+        description: defaultDesc,
+        shortDescription: defaultShortDesc,
+        price: typeof c.price === 'number' ? c.price : 0,
+      });
     }
   });
 

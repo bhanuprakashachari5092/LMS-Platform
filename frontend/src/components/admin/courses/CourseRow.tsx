@@ -88,7 +88,7 @@ export const CourseRow: React.FC<CourseRowProps> = ({
       <td className="py-4 px-4 align-middle">
         <div className="w-12 h-8 rounded-lg overflow-hidden border border-sky-100 dark:border-slate-800 shadow-2xs shrink-0 bg-slate-100 dark:bg-slate-800">
           <img
-            src={course.thumbnail}
+            src={course.thumbnail || (course as any).thumbnailUrl || (course as any).image || (course as any).banner || 'https://images.unsplash.com/photo-1618401471353-b98aedd07871?auto=format&fit=crop&w=1200&q=80'}
             alt={course.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             onError={(e) => {

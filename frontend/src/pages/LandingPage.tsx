@@ -190,19 +190,22 @@ export const LandingPage: React.FC = () => {
   }, []);
 
   const getCourseImage = (course: ICourse) => {
-    if (course.thumbnail && course.thumbnail.trim() !== '' && !course.thumbnail.includes('placeholder')) {
-      return course.thumbnail;
-    }
-    if (course.banner && course.banner.trim() !== '' && !course.banner.includes('placeholder')) {
-      return course.banner;
+    const rawThumb = course.thumbnail || (course as any).thumbnailUrl || (course as any).image || (course as any).imageUrl || course.banner;
+    if (rawThumb && typeof rawThumb === 'string' && rawThumb.trim() !== '' && !rawThumb.includes('placeholder')) {
+      return rawThumb;
     }
     const t = (course.title || '').toLowerCase();
     const cat = (course.category || '').toLowerCase();
     if (t.includes('linux') || cat.includes('linux')) return '/assets/images/linux_course_thumbnail.webp';
     if (t.includes('git') || cat.includes('git') || t.includes('github')) return '/assets/images/github_course_banner.webp';
+    if (t.includes('c programming') || t.includes('c language')) return '/assets/images/c_course_thumbnail.webp';
+    if (t.includes('python')) return '/assets/images/python_course_thumbnail.webp';
+    if (t.includes('java')) return '/assets/images/java_course_thumbnail.webp';
+    if (t.includes('react') || t.includes('web') || t.includes('javascript'))
+      return 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?auto=format&fit=crop&w=500&fm=webp&q=80';
     if (t.includes('ai') || cat.includes('ai') || t.includes('machine learning'))
       return 'https://images.unsplash.com/photo-1677442136019-21780efad99a?auto=format&fit=crop&w=500&fm=webp&q=80';
-    if (t.includes('devops') || cat.includes('devops') || t.includes('cloud'))
+    if (t.includes('devops') || cat.includes('devops') || t.includes('cloud') || t.includes('kubernetes'))
       return 'https://images.unsplash.com/photo-1667372393119-3d4c48d07fc9?auto=format&fit=crop&w=500&fm=webp&q=80';
     return 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=500&fm=webp&q=80';
   };

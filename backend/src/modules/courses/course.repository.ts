@@ -58,11 +58,31 @@ export class CourseRepository {
   }
 
   /**
-   * Sanitizes course document for lightweight catalog transport (removes heavy embedded modules)
+   * Sanitizes and normalizes course document for lightweight catalog transport
    */
   private sanitizeForCatalog(raw: any): ICourse {
-    const { modules, ...lightweight } = raw;
-    return lightweight as ICourse;
+    return this.normalizeCourseDoc(raw);
+  }
+
+  private normalizeCourseDoc(raw: any): ICourse {
+    const { modules, ...lightweight } = raw || {};
+    const title = lightweight.title || 'Untitled Technical Course';
+    const thumbnail = lightweight.thumbnail || lightweight.thumbnailUrl || lightweight.image || lightweight.imageUrl || lightweight.banner || '';
+    const description = lightweight.description || lightweight.fullDescription || lightweight.shortDescription || lightweight.overview || '';
+    const shortDescription = lightweight.shortDescription || description.slice(0, 160) || 'Comprehensive technical learning track.';
+
+    return {
+      ...lightweight,
+      title,
+      thumbnail,
+      banner: lightweight.banner || thumbnail,
+      description: description || title,
+      shortDescription,
+      price: typeof lightweight.price === 'number' ? lightweight.price : 0,
+      skills: Array.isArray(lightweight.skills) ? lightweight.skills : [],
+      prerequisites: Array.isArray(lightweight.prerequisites) ? lightweight.prerequisites : [],
+      learningOutcomes: Array.isArray(lightweight.learningOutcomes) ? lightweight.learningOutcomes : [],
+    } as ICourse;
   }
 
   async create(data: CreateCourseDTO): Promise<ICourse> {
@@ -107,7 +127,7 @@ export class CourseRepository {
       return null;
     }
 
-    const course = { ...docSnap.data(), id: docSnap.id } as ICourse;
+    const course = this.normalizeCourseDoc({ ...docSnap.data(), id: docSnap.id });
     this.setInCache(this.courseCache, cacheKey, course);
     return course;
   }
@@ -124,7 +144,7 @@ export class CourseRepository {
       return null;
     }
 
-    const course = { ...snapshot.docs[0].data(), id: snapshot.docs[0].id } as ICourse;
+    const course = this.normalizeCourseDoc({ ...snapshot.docs[0].data(), id: snapshot.docs[0].id });
     this.setInCache(this.courseCache, cacheKey, course);
     return course;
   }

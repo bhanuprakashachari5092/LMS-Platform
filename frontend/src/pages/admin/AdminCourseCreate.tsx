@@ -240,6 +240,21 @@ export const AdminCourseCreate: React.FC = () => {
   };
 
   const onSubmitManual = async (data: FieldValues) => {
+    if (!data.title || String(data.title).trim().length < 3) {
+      toast.error('Course title is required.');
+      return;
+    }
+
+    if (!data.description || String(data.description).trim().length < 10) {
+      toast.error('Course description is required (at least 10 characters).');
+      return;
+    }
+
+    if (!data.thumbnail || String(data.thumbnail).trim() === '') {
+      toast.error('Course thumbnail image is required. Please upload or specify an image URL.');
+      return;
+    }
+
     if (outcomesInput.length < 2) {
       toast.error('Please provide at least 2 learning outcomes.');
       return;
