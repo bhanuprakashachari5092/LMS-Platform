@@ -33,7 +33,7 @@ const lazyComponent = <T extends Record<string, any>, K extends keyof T>(
 };
 
 const InCourseLearningView = lazyComponent(() => import('@/components/learning/InCourseLearningView'), 'InCourseLearningView');
-const PaymentCheckoutModal = lazyComponent(() => import('@/components/payment/PaymentCheckoutModal'), 'PaymentCheckoutModal');
+const CheckoutModal = lazyComponent(() => import('@/components/courses/CheckoutModal'), 'CheckoutModal');
 
 const mapCourseModulesToPlayerModules = (modules?: any[]): any[] => {
   if (!modules) return [];
@@ -151,8 +151,13 @@ export const CourseView: React.FC = () => {
       navigate('/auth/login', { state: { from: location } });
       return;
     }
-    setConfirmActionType('enroll');
-    setConfirmModalOpen(true);
+    const currentPrice = Number((dynamicCourse as any)?.price ?? 0);
+    if (currentPrice > 0) {
+      setCheckoutModalOpen(true);
+    } else {
+      setConfirmActionType('enroll');
+      setConfirmModalOpen(true);
+    }
   };
 
   const handleEnrollSuccess = (_enrollmentRecord?: any) => {
@@ -371,25 +376,18 @@ export const CourseView: React.FC = () => {
         onEnroll={handleEnrollClick}
       />
 
-      <PaymentCheckoutModal
+      <CheckoutModal
         isOpen={checkoutModalOpen}
         onClose={() => setCheckoutModalOpen(false)}
-        course={{
-          id: targetCourseId,
-          title: activeCourseData.title,
-          price: (dynamicCourse as any)?.price ?? 0,
-          instructor: { name: activeCourseData.instructor },
-          duration: activeCourseData.duration,
-        }}
-        studentInfo={{
-          uid: userId,
-          email: user?.email || undefined,
-          name: studentName,
-        }}
-        onPaymentSuccess={handleEnrollSuccess}
-        onNavigateToLiveClass={() =>
-          navigate(userProfile?.role === 'admin' || userProfile?.role === 'instructor' ? '/admin/live-classes' : '/dashboard/live-classroom')
-        }
+        courses={[
+          {
+            id: targetCourseId,
+            title: activeCourseData.title,
+            price: (dynamicCourse as any)?.price ?? 0,
+          },
+        ]}
+        totalPrice={(dynamicCourse as any)?.price ?? 0}
+        onSuccess={() => handleEnrollSuccess()}
       />
 
       <CourseActionConfirmModal

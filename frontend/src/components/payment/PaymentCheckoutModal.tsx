@@ -57,6 +57,15 @@ export const PaymentCheckoutModal: React.FC<PaymentCheckoutModalProps> = ({
     if (isOpen && course?.id && studentInfo?.uid) {
       setStep('details');
       setErrorMessage('');
+
+      // Guard: If course is free (price is 0), immediately activate free enrollment
+      if (course.price === 0) {
+        setStep('success');
+        toast.success('🎉 Free course enrollment activated!');
+        onPaymentSuccess({ courseId: course.id, studentId: studentInfo.uid, isFree: true });
+        return;
+      }
+
       setLoadingOrder(true);
 
       paymentService
