@@ -98,6 +98,7 @@ export const GradientButton: React.FC<{
 ══════════════════════════════════════════════════════════════════════════════ */
 export const Navbar: React.FC = () => {
   const [isScrolled, setIsScrolled]         = useState(false);
+  const [hoveredIndex, setHoveredIndex]     = useState<number | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen]     = useState(false);
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
@@ -115,19 +116,23 @@ export const Navbar: React.FC = () => {
     const handleScroll = () => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
-          setIsScrolled(window.scrollY > 20);
+          setIsScrolled(window.scrollY > 100);
           if (window.location.pathname === '/') {
             const sections = ['courses', 'features', 'pricing', 'about', 'contact'];
             let current = '';
+            const viewportCenter = window.innerHeight / 3;
             for (const s of sections) {
               const el = document.getElementById(s);
               if (el) {
                 const r = el.getBoundingClientRect();
-                if (r.top <= 200 && r.bottom >= 120) { current = `#${s}`; break; }
+                if (r.top <= viewportCenter && r.bottom >= viewportCenter) {
+                  current = `#${s}`;
+                  break;
+                }
               }
             }
             if (current) setActiveHash(current);
-            else if (window.scrollY < 200) setActiveHash('');
+            else if (window.scrollY < 100) setActiveHash('');
           }
           ticking = false;
         });
@@ -262,43 +267,47 @@ export const Navbar: React.FC = () => {
   return (
     <>
       <header className={headerClass}>
-        <div className="w-full max-w-7xl mx-auto h-20 flex items-center justify-between px-5 sm:px-8 md:px-12 lg:px-16">
+        <div className={`w-full max-w-7xl mx-auto flex items-center justify-between px-5 sm:px-8 md:px-12 lg:px-16 transition-all duration-300 ${isScrolled ? 'h-16' : 'h-20'}`}>
 
           {/* Brand Logo */}
           <BrandLogo size="md" showSubtitle={true} responsive={true} />
 
           {/* Center nav links — desktop only */}
-          <nav className="hidden lg:flex items-center gap-8" aria-label="Main navigation">
-            {navLinks.map((link) => {
+          <nav className="hidden lg:flex items-center gap-10" aria-label="Main navigation">
+            {navLinks.map((link, idx) => {
               const active = isLinkActive(link.href);
+              const isHovered = hoveredIndex === idx;
               return (
                 <button
                   key={link.name}
                   type="button"
+                  onMouseEnter={() => setHoveredIndex(idx)}
+                  onMouseLeave={() => setHoveredIndex(null)}
                   onClick={(e) => handleNavClick(e, link.href)}
                   className={`
-                    relative px-3.5 py-1.5 text-[13.5px] rounded-md cursor-pointer group
-                    transition-all duration-150 whitespace-nowrap
+                    relative px-4 py-1.5 text-[13.5px] rounded-full cursor-pointer z-10
+                    transition-colors duration-200 whitespace-nowrap
                     ${active
-                      ? 'text-slate-950 dark:text-white font-bold'
+                      ? 'text-[#2563EB] dark:text-white font-bold'
                       : 'text-[#64748B] dark:text-[#8b95a8] hover:text-slate-950 dark:hover:text-white font-medium'
                     }
                   `}
                 >
-                  {link.name}
-                  {/* Underline indicator with small gap, active=full, inactive=fade-in on hover */}
-                  <span
-                    className={`
-                      absolute -bottom-1.5 left-3 right-3 h-[2px] rounded-full 
-                      bg-gradient-to-r from-[#2563EB] via-[#8B5CF6] to-[#EC4899]
-                      transition-all duration-200
-                      ${active 
-                        ? 'opacity-100 scale-x-100' 
-                        : 'opacity-0 scale-x-0 group-hover:opacity-60 group-hover:scale-x-100'
-                      }
-                    `}
-                    style={{ transformOrigin: 'center' }}
-                  />
+                  <span className="relative z-20">{link.name}</span>
+                  {active && (
+                    <motion.div
+                      layoutId="activeNavBackground"
+                      className="absolute inset-0 bg-blue-50 dark:bg-white/[0.06] border border-blue-100/50 dark:border-white/[0.04] rounded-full z-10"
+                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                  {!active && isHovered && (
+                    <motion.div
+                      layoutId="hoverNavBackground"
+                      className="absolute inset-0 bg-slate-100/70 dark:bg-white/[0.03] rounded-full z-10"
+                      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                    />
+                  )}
                 </button>
               );
             })}

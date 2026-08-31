@@ -8,7 +8,6 @@ import {
   BookOpen,
   Check,
   ChevronDown,
-  Clock,
   Send,
   Star,
   Terminal,
@@ -24,6 +23,9 @@ import { OrganizationSchema } from '@/components/seo/StructuredData';
 import { AnimatedHeroBackground } from '@/components/landing/AnimatedHeroBackground';
 import { RotatingSplitText } from '@/components/landing/RotatingSplitText';
 import { FloatingLogo } from '@/components/landing/FloatingLogo';
+import { FlipCard } from '@/components/landing/FlipCard';
+import { RevealOnScroll, StaggerContainer, StaggerItem } from '@/components/landing/RevealOnScroll';
+import { BackToTop } from '@/components/landing/BackToTop';
 
 // Minimal Course Card Skeleton
 const CourseSkeleton: React.FC = () => (
@@ -533,43 +535,42 @@ export const LandingPage: React.FC = () => {
       <section className="w-full py-24 border-t border-[#e2e8f0] dark:border-[#1f2937]">
         <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-16 space-y-14">
           
-          <div className="text-center space-y-3">
+          <RevealOnScroll className="text-center space-y-3">
             <span className="text-[11px] font-bold tracking-[0.25em] text-[#475569] dark:text-[#a1a5b7] uppercase">
               THE METHODOLOGY
             </span>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0f172a] dark:text-[#ffffff] tracking-tight">
               How You Grow With KaizenQ
             </h2>
-          </div>
+          </RevealOnScroll>
   
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {pillars.map((pillar) => {
-            const Icon = pillar.icon;
-            return (
-              <div
-                key={pillar.title}
-                className="bg-[#f8fafc] dark:bg-[#111827] rounded-2xl p-8 border border-[#e2e8f0] dark:border-[#1f2937] space-y-5 flex flex-col justify-between shadow-2xs"
-              >
-                <div className="space-y-4">
-                  <div className={`w-11 h-11 rounded-xl ${pillar.gradientClass} flex items-center justify-center shadow-xs`}>
-                    <Icon className="w-5 h-5" />
+          <StaggerContainer className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {pillars.map((pillar) => {
+              const Icon = pillar.icon;
+              return (
+                <StaggerItem
+                  key={pillar.title}
+                  className="bg-[#f8fafc] dark:bg-[#111827] rounded-2xl p-8 border border-[#e2e8f0] dark:border-[#1f2937] space-y-5 flex flex-col justify-between shadow-2xs hover:border-slate-300 dark:hover:border-slate-800 transition-all duration-200"
+                >
+                  <div className="space-y-4">
+                    <div className={`w-11 h-11 rounded-xl ${pillar.gradientClass} flex items-center justify-center shadow-xs`}>
+                      <Icon className="w-5 h-5" />
+                    </div>
+
+                    <h3 className="text-lg font-bold text-[#0f172a] dark:text-[#ffffff]">
+                      {pillar.title}
+                    </h3>
+
+                    <p className="text-xs sm:text-sm text-[#475569] dark:text-[#a1a5b7] leading-relaxed font-normal">
+                      {pillar.description}
+                    </p>
                   </div>
-
-                  <h3 className="text-lg font-bold text-[#0f172a] dark:text-[#ffffff]">
-                    {pillar.title}
-                  </h3>
-
-                  <p className="text-xs sm:text-sm text-[#475569] dark:text-[#a1a5b7] leading-relaxed font-normal">
-                    {pillar.description}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
+                </StaggerItem>
+              );
+            })}
+          </StaggerContainer>
         </div>
-      </div>
-
-    </section>
+      </section>
 
       {/* ========================================================================= */}
       {/* 9. SECTION — FEATURES (USE EXISTING FEATURES ONLY)                        */}
@@ -577,22 +578,22 @@ export const LandingPage: React.FC = () => {
       <section id="features" className="py-24 border-t border-[#e2e8f0] dark:border-[#1f2937] bg-[#f8fafc]/60 dark:bg-[#111827]/40">
         <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-16 space-y-14">
           
-          <div className="text-center space-y-3">
+          <RevealOnScroll className="text-center space-y-3">
             <span className="text-[11px] font-bold tracking-[0.25em] text-[#2563eb] dark:text-[#3b82f6] uppercase">
               PLATFORM FEATURES
             </span>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0f172a] dark:text-[#ffffff] tracking-tight">
               Essential Tools for Practical Mastery
             </h2>
-          </div>
+          </RevealOnScroll>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+          <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
             {features.map((feature, idx) => {
               const Icon = feature.icon;
               return (
-                <div
+                <StaggerItem
                   key={idx}
-                  className="bg-white dark:bg-[#111827] p-7 rounded-2xl border border-[#e2e8f0] dark:border-[#1f2937] space-y-3.5 shadow-2xs"
+                  className="bg-white dark:bg-[#111827] p-7 rounded-2xl border border-[#e2e8f0] dark:border-[#1f2937] space-y-3.5 shadow-2xs hover:border-slate-300 dark:hover:border-slate-800 transition-all duration-200"
                 >
                   <div className="w-10 h-10 rounded-xl bg-[#f8fafc] dark:bg-[#1e293b] text-[#2563eb] dark:text-[#3b82f6] flex items-center justify-center">
                     <Icon className="w-5 h-5" />
@@ -603,10 +604,10 @@ export const LandingPage: React.FC = () => {
                   <p className="text-xs sm:text-sm text-[#475569] dark:text-[#a1a5b7] leading-relaxed font-normal">
                     {feature.description}
                   </p>
-                </div>
+                </StaggerItem>
               );
             })}
-          </div>
+          </StaggerContainer>
 
         </div>
       </section>
@@ -617,7 +618,7 @@ export const LandingPage: React.FC = () => {
       <section id="courses" className="w-full py-24 border-t border-[#e2e8f0] dark:border-[#1f2937]">
         <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-16 space-y-12">
           
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <RevealOnScroll className="flex flex-col md:flex-row md:items-end justify-between gap-6">
             <div className="space-y-3">
               <span className="text-[11px] font-bold tracking-[0.25em] text-[#475569] dark:text-[#a1a5b7] uppercase">
                 COURSES
@@ -627,101 +628,46 @@ export const LandingPage: React.FC = () => {
               </h2>
             </div>
 
-          <Link
-            to="/courses"
-            className="px-4 py-2 rounded-xl bg-[#f8fafc] hover:bg-slate-200/70 dark:bg-[#111827] dark:hover:bg-[#1e293b] text-[#0f172a] dark:text-[#ffffff] border border-[#e2e8f0] dark:border-[#1f2937] font-semibold text-xs flex items-center gap-1.5 self-start md:self-auto transition-all"
-          >
-            <span>View All Courses</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-
-        {loadingCourses ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            <CourseSkeleton />
-            <CourseSkeleton />
-          </div>
-        ) : catalogCourses.length === 0 ? (
-          <div className="py-16 text-center text-slate-500 bg-[#f8fafc] dark:bg-[#111827] rounded-2xl border border-[#e2e8f0] dark:border-[#1f2937] p-8 space-y-4">
-            <p className="text-[#0f172a] dark:text-[#ffffff] font-bold text-base">No featured courses available.</p>
-            <Link to="/courses" className="px-5 py-2.5 rounded-xl bg-[#2563eb] text-white font-bold text-xs inline-flex items-center gap-2">
-              Explore Catalog
+            <Link
+              to="/courses"
+              className="px-4 py-2 rounded-xl bg-[#f8fafc] hover:bg-slate-200/70 dark:bg-[#111827] dark:hover:bg-[#1e293b] text-[#0f172a] dark:text-[#ffffff] border border-[#e2e8f0] dark:border-[#1f2937] font-semibold text-xs flex items-center gap-1.5 self-start md:self-auto transition-all"
+            >
+              <span>View All Courses</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </Link>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            {catalogCourses.map((course, idx) => (
-              <div
-                key={course.id || course.slug || idx}
-                className="bg-white dark:bg-[#111827] rounded-2xl border border-[#e2e8f0] dark:border-[#1f2937] overflow-hidden flex flex-col justify-between shadow-2xs hover:border-[#cbd5e1] dark:hover:border-[#334155] transition-all"
-              >
-                {/* Thumbnail */}
-                <div className="relative h-48 overflow-hidden bg-slate-100 dark:bg-[#1e293b]">
-                  <img
-                    src={getCourseImage(course)}
-                    alt={course.title}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src =
-                        'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=800&q=80';
+          </RevealOnScroll>
+
+          {loadingCourses ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+              <CourseSkeleton />
+              <CourseSkeleton />
+            </div>
+          ) : catalogCourses.length === 0 ? (
+            <div className="py-16 text-center text-slate-500 bg-[#f8fafc] dark:bg-[#111827] rounded-2xl border border-[#e2e8f0] dark:border-[#1f2937] p-8 space-y-4">
+              <p className="text-[#0f172a] dark:text-[#ffffff] font-bold text-base">No featured courses available.</p>
+              <Link to="/courses" className="px-5 py-2.5 rounded-xl bg-[#2563eb] text-white font-bold text-xs inline-flex items-center gap-2">
+                Explore Catalog
+              </Link>
+            </div>
+          ) : (
+            <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+              {catalogCourses.map((course, idx) => (
+                <StaggerItem key={course.id || course.slug || idx}>
+                  <FlipCard
+                    course={course}
+                    getCourseImage={getCourseImage}
+                    onEnrollClick={(c) => {
+                      setCheckoutCourses([{ id: c.id || c.slug, title: c.title }]);
+                      setCheckoutPrice(c.price || 299);
+                      setIsCheckoutOpen(true);
                     }}
                   />
-                  <div className="absolute top-3 left-3 bg-[#0b0f19]/90 text-white text-[10px] px-2.5 py-0.5 rounded-md font-bold capitalize">
-                    {(course.level || 'all_levels').replace('_', ' ')}
-                  </div>
-                  <div className="absolute top-3 right-3 bg-[#2563eb] text-white text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
-                    <Star className="w-3 h-3 fill-amber-300 text-amber-300" />
-                    <span>{course.rating || 5.0}</span>
-                  </div>
-                </div>
-
-                {/* Course Body */}
-                <div className="p-6 flex-1 flex flex-col justify-between space-y-5">
-                  <div className="space-y-2">
-                    <span className="text-[10px] font-bold text-[#2563eb] dark:text-[#3b82f6] uppercase tracking-wider">
-                      {course.category || 'Engineering'}
-                    </span>
-                    <h3 className="text-base sm:text-lg font-bold text-[#0f172a] dark:text-[#ffffff] line-clamp-2">
-                      {course.title}
-                    </h3>
-                    <p className="text-xs text-[#475569] dark:text-[#a1a5b7] line-clamp-2 leading-relaxed">
-                      {course.shortDescription || 'Practical hands-on curriculum with real terminal exercises.'}
-                    </p>
-                  </div>
-
-                  <div className="space-y-4 pt-3 border-t border-[#e2e8f0] dark:border-[#1f2937]">
-                    <div className="flex items-center justify-between text-xs text-[#475569] dark:text-[#a1a5b7] font-medium">
-                      {course.duration && (
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5" />
-                          {course.duration}
-                        </span>
-                      )}
-                      <span className="font-bold text-[#0f172a] dark:text-[#ffffff] text-base">
-                        ₹{course.price || 299}
-                      </span>
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        setCheckoutCourses([{ id: course.id || course.slug, title: course.title }]);
-                        setCheckoutPrice(course.price || 299);
-                        setIsCheckoutOpen(true);
-                      }}
-                      className="w-full py-2.5 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-98"
-                    >
-                      <span>Enroll in Course</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-    </section>
+                </StaggerItem>
+              ))}
+            </StaggerContainer>
+          )}
+        </div>
+      </section>
 
       {/* ========================================================================= */}
       {/* PRICING & TIERS                                                           */}
@@ -729,25 +675,25 @@ export const LandingPage: React.FC = () => {
       <section id="pricing" className="py-24 border-t border-[#e2e8f0] dark:border-[#1f2937] bg-[#f8fafc]/60 dark:bg-[#111827]/40">
         <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-16 space-y-14">
           
-          <div className="text-center space-y-3">
+          <RevealOnScroll className="text-center space-y-3">
             <span className="text-[11px] font-bold tracking-[0.25em] text-[#2563eb] dark:text-[#3b82f6] uppercase">
               PLANS & ENROLLMENT
             </span>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0f172a] dark:text-[#ffffff] tracking-tight">
               Simple, Transparent Pricing
             </h2>
-          </div>
+          </RevealOnScroll>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {pricingPlans
               .filter((p) => !p.vipPass)
               .map((plan, idx) => (
-                <div
+                <StaggerItem
                   key={idx}
-                  className={`bg-white dark:bg-[#111827] rounded-2xl p-6 flex flex-col justify-between space-y-6 border transition-all ${
+                  className={`bg-white dark:bg-[#111827] rounded-2xl p-6 flex flex-col justify-between space-y-6 border transition-all hover:shadow-lg ${
                     plan.popular
                       ? 'border-[#2563eb] dark:border-[#3b82f6] shadow-md ring-1 ring-[#2563eb]/20'
-                      : 'border-[#e2e8f0] dark:border-[#1f2937]'
+                      : 'border-[#e2e8f0] dark:border-[#1f2937] hover:border-[#cbd5e1] dark:hover:border-[#334155]'
                   }`}
                 >
                   <div className="space-y-4">
@@ -773,7 +719,7 @@ export const LandingPage: React.FC = () => {
                     <ul className="space-y-2 pt-4 border-t border-[#e2e8f0] dark:border-[#1f2937] text-xs text-[#0f172a] dark:text-[#ffffff] font-medium">
                       {plan.features.map((feat, fIdx) => (
                         <li key={fIdx} className="flex items-center gap-2">
-                          <Check className="w-3.5 h-3.5 text-[#2563eb] dark:text-[#3b82f6] shrink-0" />
+                           <Check className="w-3.5 h-3.5 text-[#2563eb] dark:text-[#3b82f6] shrink-0" />
                           <span>{feat}</span>
                         </li>
                       ))}
@@ -794,9 +740,9 @@ export const LandingPage: React.FC = () => {
                   >
                     {plan.cta}
                   </button>
-                </div>
+                </StaggerItem>
               ))}
-          </div>
+          </StaggerContainer>
 
           {/* VIP Pro Pass Card */}
           {pricingPlans
@@ -860,72 +806,72 @@ export const LandingPage: React.FC = () => {
       {/* ========================================================================= */}
       <section className="w-full py-24 border-t border-[#e2e8f0] dark:border-[#1f2937]">
         <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-16 space-y-14">
-          <div className="text-center space-y-3">
+          <RevealOnScroll className="text-center space-y-3">
             <span className="text-[11px] font-bold tracking-[0.25em] text-[#475569] dark:text-[#a1a5b7] uppercase">
               LEARNER REVIEWS
             </span>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0f172a] dark:text-[#ffffff] tracking-tight">
               Trusted by Developers & Students
             </h2>
-          </div>
+          </RevealOnScroll>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {testimonials.map((item, idx) => (
-            <div
-              key={idx}
-              className="bg-[#f8fafc] dark:bg-[#111827] p-7 rounded-2xl border border-[#e2e8f0] dark:border-[#1f2937] flex flex-col justify-between space-y-6"
-            >
-              <div className="space-y-3">
-                <div className="flex items-center gap-1 text-amber-400">
-                  {[...Array(item.rating)].map((_, i) => (
-                    <Star key={i} className="w-3.5 h-3.5 fill-current" />
-                  ))}
-                </div>
-                <p className="text-xs sm:text-sm text-[#475569] dark:text-[#a1a5b7] leading-relaxed font-normal">
-                  "{item.quote}"
-                </p>
-              </div>
-
-              <div className="flex items-center gap-3 pt-4 border-t border-[#e2e8f0] dark:border-[#1f2937]">
-                <img
-                  src={item.avatar}
-                  alt={item.name}
-                  className="w-9 h-9 rounded-full object-cover border border-[#e2e8f0] dark:border-[#1f2937]"
-                />
-                <div>
-                  <h4 className="text-xs font-bold text-[#0f172a] dark:text-[#ffffff]">
-                    {item.name}
-                  </h4>
-                  <p className="text-[11px] text-[#2563eb] dark:text-[#3b82f6] font-medium">
-                    {item.role}
+          <StaggerContainer className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {testimonials.map((item, idx) => (
+              <StaggerItem
+                key={idx}
+                className="bg-[#f8fafc] dark:bg-[#111827] p-7 rounded-2xl border border-[#e2e8f0] dark:border-[#1f2937] flex flex-col justify-between space-y-6 hover:shadow-md hover:border-slate-300 dark:hover:border-slate-850 transition-all duration-200"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-center gap-1 text-amber-400">
+                    {[...Array(item.rating)].map((_, i) => (
+                      <Star key={i} className="w-3.5 h-3.5 fill-current" />
+                    ))}
+                  </div>
+                  <p className="text-xs sm:text-sm text-[#475569] dark:text-[#a1a5b7] leading-relaxed font-normal">
+                    "{item.quote}"
                   </p>
                 </div>
-              </div>
-            </div>
-          ))}
+
+                <div className="flex items-center gap-3 pt-4 border-t border-[#e2e8f0] dark:border-[#1f2937]">
+                  <img
+                    src={item.avatar}
+                    alt={item.name}
+                    className="w-9 h-9 rounded-full object-cover border border-[#e2e8f0] dark:border-[#1f2937]"
+                  />
+                  <div>
+                    <h4 className="text-xs font-bold text-[#0f172a] dark:text-[#ffffff]">
+                      {item.name}
+                    </h4>
+                    <p className="text-[11px] text-[#2563eb] dark:text-[#3b82f6] font-medium">
+                      {item.role}
+                    </p>
+                  </div>
+                </div>
+              </StaggerItem>
+            ))}
+          </StaggerContainer>
         </div>
-      </div>
-    </section>
+      </section>
 
       {/* ========================================================================= */}
       {/* FAQ ACCORDION                                                             */}
       {/* ========================================================================= */}
       <section id="about" className="py-24 border-t border-[#e2e8f0] dark:border-[#1f2937] bg-[#f8fafc]/60 dark:bg-[#111827]/40">
         <div className="max-w-4xl mx-auto px-6 md:px-12 lg:px-16 space-y-12">
-          <div className="text-center space-y-3">
+          <RevealOnScroll className="text-center space-y-3">
             <span className="text-[11px] font-bold tracking-[0.25em] text-[#2563eb] dark:text-[#3b82f6] uppercase">
               FAQ
             </span>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0f172a] dark:text-[#ffffff] tracking-tight">
               Frequently Asked Questions
             </h2>
-          </div>
+          </RevealOnScroll>
 
-          <div className="space-y-3">
+          <RevealOnScroll className="space-y-3">
             {faqs.map((faq, idx) => (
               <div
                 key={idx}
-                className="bg-white dark:bg-[#111827] rounded-xl border border-[#e2e8f0] dark:border-[#1f2937] overflow-hidden"
+                className="bg-white dark:bg-[#111827] rounded-xl border border-[#e2e8f0] dark:border-[#1f2937] overflow-hidden hover:border-[#cbd5e1] dark:hover:border-slate-800 transition-all duration-200"
               >
                 <button
                   onClick={() => toggleFaq(idx)}
@@ -939,13 +885,13 @@ export const LandingPage: React.FC = () => {
                   />
                 </button>
                 {openFaq === idx && (
-                  <div className="px-5 pb-5 pt-1 text-xs sm:text-sm text-[#475569] dark:text-[#a1a5b7] leading-relaxed border-t border-[#e2e8f0] dark:border-[#1f2937] font-normal">
+                  <div className="px-5 pb-5 pt-1 text-xs sm:text-sm text-[#475569] dark:text-[#a1a5b7] leading-relaxed border-t border-[#e2e8f0] dark:border-[#1f2937] font-normal animate-fadeIn">
                     {faq.answer}
                   </div>
                 )}
               </div>
             ))}
-          </div>
+          </RevealOnScroll>
         </div>
       </section>
 
@@ -953,7 +899,7 @@ export const LandingPage: React.FC = () => {
       {/* INSTITUTIONAL INQUIRIES & CONTACT                                         */}
       {/* ========================================================================= */}
       <section id="contact" className="py-24 border-t border-[#e2e8f0] dark:border-[#1f2937]">
-        <div className="max-w-4xl mx-auto px-6 md:px-12 lg:px-16">
+        <RevealOnScroll className="max-w-4xl mx-auto px-6 md:px-12 lg:px-16">
           <div className="bg-[#f8fafc] dark:bg-[#111827] rounded-3xl p-8 sm:p-12 border border-[#e2e8f0] dark:border-[#1f2937] space-y-8 shadow-2xs">
             
             <div className="text-center space-y-2">
@@ -1014,14 +960,14 @@ export const LandingPage: React.FC = () => {
             )}
 
           </div>
-        </div>
+        </RevealOnScroll>
       </section>
 
       {/* ========================================================================= */}
       {/* 11. CTA SECTION                                                           */}
       {/* ========================================================================= */}
       <section className="py-24 md:py-28 text-center border-t border-[#e2e8f0] dark:border-[#1f2937] bg-[#f8fafc]/60 dark:bg-[#111827]/40">
-        <div className="max-w-3xl mx-auto px-6 md:px-12 lg:px-16 space-y-6">
+        <RevealOnScroll className="max-w-3xl mx-auto px-6 md:px-12 lg:px-16 space-y-6">
           <h2 className="text-3xl sm:text-4xl font-extrabold text-[#0f172a] dark:text-[#ffffff] tracking-tight">
             Start Your Learning Journey
           </h2>
@@ -1046,8 +992,11 @@ export const LandingPage: React.FC = () => {
               <span>Explore Courses</span>
             </a>
           </div>
-        </div>
+        </RevealOnScroll>
       </section>
+
+      {/* Floating Back to Top Button */}
+      <BackToTop />
 
       {/* Checkout Modal */}
       <CheckoutModal

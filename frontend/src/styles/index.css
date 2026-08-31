@@ -968,3 +968,22 @@ html.dark .premium-glass-card:hover {
 .btn-gradient:hover {
   background-position: 100% center;
 }
+
+/* 3D Flip Card Interactions */
+.perspective-1200 {
+  perspective: 1200px;
+}
+
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
