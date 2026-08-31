@@ -59,14 +59,14 @@ const Sparkle: React.FC<{ particle: SparkleParticle; isExit: boolean }> = ({
   );
 };
 
-/** Generates 3 sparkle particles per letter at a given position */
+/** Generates 4 sparkle particles per letter at a given position */
 function generateSparkles(
   charIdx: number,
   letterWidth: number,
   containerHeight: number,
   isExit: boolean,
 ): SparkleParticle[] {
-  const count = 3;
+  const count = 4;
   const particles: SparkleParticle[] = [];
 
   for (let i = 0; i < count; i++) {
@@ -130,16 +130,16 @@ export const RotatingSplitText: React.FC<RotatingSplitTextProps> = ({
     visible: {
       opacity: 1,
       transition: {
-        // ~45ms stagger between letters on enter
-        staggerChildren: shouldReduceMotion ? 0 : 0.045,
+        // ~55ms stagger between letters on enter
+        staggerChildren: shouldReduceMotion ? 0 : 0.055,
         delayChildren: 0.04,
       },
     },
     exit: {
       opacity: shouldReduceMotion ? 0 : 1,
       transition: {
-        // ~40ms stagger on exit
-        staggerChildren: shouldReduceMotion ? 0 : 0.04,
+        // ~55ms stagger on exit
+        staggerChildren: shouldReduceMotion ? 0 : 0.055,
         staggerDirection: 1,
       },
     },
@@ -149,27 +149,27 @@ export const RotatingSplitText: React.FC<RotatingSplitTextProps> = ({
   const letterVariants: Variants = {
     hidden: {
       opacity: 0,
-      y: shouldReduceMotion ? 0 : 20,
-      scale: shouldReduceMotion ? 1 : 0.78,
+      y: shouldReduceMotion ? 0 : 14,
+      scale: shouldReduceMotion ? 1 : 0.40,
     },
     visible: {
       opacity: 1,
       y: 0,
       scale: 1,
       transition: {
-        // 500ms per letter enter — feels smooth, not rushed
-        duration: 0.5,
+        // ~550ms enter animation so it is clearly tracked by eye
+        duration: 0.55,
         ease: [0.16, 1, 0.3, 1],
       },
     },
     exit: {
       opacity: 0,
-      y: shouldReduceMotion ? 0 : -20,
-      scale: shouldReduceMotion ? 1 : 0.85,
+      y: shouldReduceMotion ? 0 : 8,       // pull inward toward center baseline instead of fly-up
+      scale: shouldReduceMotion ? 1 : 0.35,  // visibly shrink down
       transition: {
-        // 300ms per letter exit
-        duration: 0.3,
-        ease: [0.7, 0, 0.84, 0],
+        // ~550ms exit animation
+        duration: 0.55,
+        ease: [0.16, 1, 0.3, 1],
       },
     },
   };

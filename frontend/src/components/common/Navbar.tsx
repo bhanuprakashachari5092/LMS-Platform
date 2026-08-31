@@ -276,23 +276,27 @@ export const Navbar: React.FC = () => {
                   type="button"
                   onClick={(e) => handleNavClick(e, link.href)}
                   className={`
-                    relative px-3.5 py-1.5 text-[13.5px] rounded-md cursor-pointer
-                    transition-colors duration-150 whitespace-nowrap
+                    relative px-3.5 py-1.5 text-[13.5px] rounded-md cursor-pointer group
+                    transition-all duration-150 whitespace-nowrap
                     ${active
                       ? 'text-slate-950 dark:text-white font-bold'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-medium'
+                      : 'text-[#64748B] dark:text-[#8b95a8] hover:text-slate-950 dark:hover:text-white font-medium'
                     }
                   `}
                 >
                   {link.name}
-                  {/* Thin animated underline with a small gap below the text */}
+                  {/* Underline indicator with small gap, active=full, inactive=fade-in on hover */}
                   <span
-                    className="absolute bottom-0 left-3.5 right-3.5 h-[2px] rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 dark:from-blue-400 dark:to-indigo-450 transition-all duration-205"
-                    style={{
-                      transform: active ? 'scaleX(1)' : 'scaleX(0)',
-                      transformOrigin: 'center',
-                      opacity: active ? 1 : 0,
-                    }}
+                    className={`
+                      absolute -bottom-1.5 left-3 right-3 h-[2px] rounded-full 
+                      bg-gradient-to-r from-[#2563EB] via-[#8B5CF6] to-[#EC4899]
+                      transition-all duration-200
+                      ${active 
+                        ? 'opacity-100 scale-x-100' 
+                        : 'opacity-0 scale-x-0 group-hover:opacity-60 group-hover:scale-x-100'
+                      }
+                    `}
+                    style={{ transformOrigin: 'center' }}
                   />
                 </button>
               );

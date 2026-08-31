@@ -33,12 +33,12 @@
 @layer base {
   :root {
     /* Premium Light Theme Palette - Sleek Enterprise SaaS */
-    --color-bg: #F7FBFF;
+    --color-bg: #F8FAFC;              /* clean off-white / very light gray */
     --color-bg-subtle: #FFFFFF;
     --color-surface: #FFFFFF;
-    --color-border: #DCEEFF;
-    --color-text-main: #0F172A;
-    --color-text-muted: #64748B;
+    --color-border: #E2E8F0;
+    --color-text-main: #1E293B;        /* proper dark gray / near-black (not pure black) */
+    --color-text-muted: #64748B;       /* muted gray-500 / 600 secondary text */
     
     --color-primary: #2563EB;
     --color-secondary: #3B82F6;
@@ -54,14 +54,14 @@
 
   html.dark {
     /* ── Deep Dark Theme — Rich Navy / Near-Black ─────────────────────────── */
-    --color-bg:            #060914;           /* page base — true near-black navy */
-    --color-bg-subtle:     #0a0e1a;           /* hero / section background */
-    --color-surface:       #0f1422;           /* cards, dropdowns */
-    --color-surface-2:     #141928;           /* elevated / hover surfaces */
+    --color-bg:            #0a0e1a;           /* page base — true deep navy / near-black */
+    --color-bg-subtle:     #0f1422;           /* hero / section background */
+    --color-surface:       #121829;           /* cards, dropdowns */
+    --color-surface-2:     #171e35;           /* elevated / hover surfaces */
     --color-border:        rgba(255,255,255,0.08);
     --color-border-strong: rgba(255,255,255,0.14);
-    --color-text-main:     #f1f5f9;           /* high-contrast primary text */
-    --color-text-muted:    #8b95a8;           /* secondary / caption text */
+    --color-text-main:     #f1f5f9;           /* off-white for body — easier on eyes */
+    --color-text-muted:    #94a3b8;           /* muted gray-400 for secondary */
     --color-text-faint:    #4a5368;           /* placeholder / disabled */
 
     --color-primary:   #3b82f6;
@@ -70,11 +70,11 @@
     --color-success:   #10b981;
     --color-warning:   #f59e0b;
 
-    /* Ambient glow tokens for dark mode */
-    --glow-blue:   rgba(59,130,246,0.22);
-    --glow-purple: rgba(99,102,241,0.2);
-    --glow-pink:   rgba(236,72,153,0.16);
-    --glow-cyan:   rgba(34,211,238,0.15);
+    /* Ambient glow tokens for dark mode — richer, more saturated opacity */
+    --glow-blue:   rgba(59,130,246,0.25);
+    --glow-purple: rgba(99,102,241,0.22);
+    --glow-pink:   rgba(236,72,153,0.18);
+    --glow-cyan:   rgba(34,211,238,0.18);
   }
 
 
