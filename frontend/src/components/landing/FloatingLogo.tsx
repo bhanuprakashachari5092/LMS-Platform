@@ -17,6 +17,14 @@ interface FloatingLogoProps {
  */
 export const FloatingLogo: React.FC<FloatingLogoProps> = ({ className = '' }) => {
   const shouldReduceMotion = useReducedMotion();
+  const [isMobile, setIsMobile] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsMobile(window.innerWidth < 768);
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize, { passive: true });
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // ─── Orbit dots — radii scaled up ~28% to match larger logo ───────────────
   const orbitDots = [
@@ -25,13 +33,15 @@ export const FloatingLogo: React.FC<FloatingLogoProps> = ({ className = '' }) =>
     { color: '#EC4899', shadowColor: 'rgba(236,72,153,0.9)', radius: 90,  speed: 11, size: 4,   startAngle: 240 },
   ];
 
+  const visibleDots = shouldReduceMotion ? [] : (isMobile ? orbitDots.slice(0, 1) : orbitDots);
+
   return (
     <div className={`relative flex items-center justify-center group ${className}`}>
 
       {/* ── Pulsing radial glow aura — scaled to 280px to match larger logo ── */}
       <motion.div
         className="absolute rounded-full pointer-events-none"
-        style={{ width: 280, height: 280 }}
+        style={{ width: 280, height: 280, willChange: 'transform, opacity' }}
         animate={
           shouldReduceMotion
             ? {}
@@ -45,7 +55,7 @@ export const FloatingLogo: React.FC<FloatingLogoProps> = ({ className = '' }) =>
       >
         {/* Light mode glow — soft pastel */}
         <div
-          className="absolute inset-0 rounded-full dark:opacity-0 transition-opacity duration-300"
+          className="absolute inset-0 rounded-full dark:opacity-0 transition-opacity duration-300 pointer-events-none"
           style={{
             background:
               'radial-gradient(circle, rgba(99,102,241,0.22) 0%, rgba(37,99,235,0.14) 35%, rgba(236,72,153,0.08) 65%, transparent 80%)',
@@ -54,7 +64,7 @@ export const FloatingLogo: React.FC<FloatingLogoProps> = ({ className = '' }) =>
         />
         {/* Dark mode glow — vivid */}
         <div
-          className="absolute inset-0 rounded-full opacity-0 dark:opacity-100 transition-opacity duration-300"
+          className="absolute inset-0 rounded-full opacity-0 dark:opacity-100 transition-opacity duration-300 pointer-events-none"
           style={{
             background:
               'radial-gradient(circle, rgba(99,102,241,0.50) 0%, rgba(37,99,235,0.34) 35%, rgba(236,72,153,0.20) 65%, transparent 80%)',
@@ -64,30 +74,30 @@ export const FloatingLogo: React.FC<FloatingLogoProps> = ({ className = '' }) =>
       </motion.div>
 
       {/* ── Orbiting accent dots ───────────────────────────────────────────── */}
-      {!shouldReduceMotion &&
-        orbitDots.map((dot, i) => (
-          <motion.div
-            key={i}
-            className="absolute pointer-events-none"
-            style={{
-              width: dot.size,
-              height: dot.size,
-              borderRadius: '50%',
-              backgroundColor: dot.color,
-              boxShadow: `0 0 ${dot.size * 3}px ${dot.shadowColor}`,
-            }}
-            animate={{ rotate: [dot.startAngle, dot.startAngle + 360] }}
-            transition={{ duration: dot.speed, ease: 'linear', repeat: Infinity }}
-            transformTemplate={(_props, generated) => {
-              const match = generated.match(/rotate\(([^)]+)\)/);
-              const deg = match ? parseFloat(match[1]) : 0;
-              const rad = (deg * Math.PI) / 180;
-              const x = Math.cos(rad) * dot.radius;
-              const y = Math.sin(rad) * dot.radius * 0.35; // flatten to ellipse
-              return `translate(${x}px, ${y}px)`;
-            }}
-          />
-        ))}
+      {visibleDots.map((dot, i) => (
+        <motion.div
+          key={i}
+          className="absolute pointer-events-none"
+          style={{
+            width: dot.size,
+            height: dot.size,
+            borderRadius: '50%',
+            backgroundColor: dot.color,
+            boxShadow: `0 0 ${dot.size * 3}px ${dot.shadowColor}`,
+            willChange: 'transform',
+          }}
+          animate={{ rotate: [dot.startAngle, dot.startAngle + 360] }}
+          transition={{ duration: dot.speed, ease: 'linear', repeat: Infinity }}
+          transformTemplate={(_props, generated) => {
+            const match = generated.match(/rotate\(([^)]+)\)/);
+            const deg = match ? parseFloat(match[1]) : 0;
+            const rad = (deg * Math.PI) / 180;
+            const x = Math.cos(rad) * dot.radius;
+            const y = Math.sin(rad) * dot.radius * 0.35; // flatten to ellipse
+            return `translate(${x}px, ${y}px)`;
+          }}
+        />
+      ))}
 
       {/* ── Floating logo ─────────────────────────────────────────────────── */}
       <motion.div

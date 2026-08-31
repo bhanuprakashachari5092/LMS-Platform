@@ -46,6 +46,7 @@ const Sparkle: React.FC<{ particle: SparkleParticle; isExit: boolean }> = ({
         top: particle.y,
         translateX: '-50%',
         translateY: '-50%',
+        willChange: 'transform, opacity',
       }}
       initial={{ opacity: isExit ? 0.95 : 0, scale: isExit ? 0.4 : 1.6, x: 0, y: 0 }}
       animate={
@@ -59,14 +60,15 @@ const Sparkle: React.FC<{ particle: SparkleParticle; isExit: boolean }> = ({
   );
 };
 
-/** Generates 4 sparkle particles per letter at a given position */
+/** Generates sparkle particles per letter at a given position */
 function generateSparkles(
   charIdx: number,
   letterWidth: number,
   containerHeight: number,
   isExit: boolean,
 ): SparkleParticle[] {
-  const count = 4;
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  const count = isMobile ? 2 : 4;
   const particles: SparkleParticle[] = [];
 
   for (let i = 0; i < count; i++) {

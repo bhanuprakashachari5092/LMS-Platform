@@ -1,6 +1,9 @@
 import React from 'react';
+import { useReducedMotion } from 'framer-motion';
 
 export const AnimatedHeroBackground: React.FC = () => {
+  const shouldReduceMotion = useReducedMotion();
+
   return (
     <div
       className="absolute inset-0 overflow-hidden pointer-events-none select-none transition-colors duration-500"
@@ -15,7 +18,7 @@ export const AnimatedHeroBackground: React.FC = () => {
         style={{
           background:
             'radial-gradient(circle, rgba(37, 99, 235, 0.18) 0%, rgba(99, 102, 241, 0.12) 60%, transparent 80%)',
-          animation: 'floatSlow1 18s ease-in-out infinite alternate',
+          animation: shouldReduceMotion ? 'none' : 'floatSlow1 18s ease-in-out infinite alternate',
         }}
       />
 
@@ -25,27 +28,27 @@ export const AnimatedHeroBackground: React.FC = () => {
         style={{
           background:
             'radial-gradient(circle, rgba(6, 182, 212, 0.16) 0%, rgba(59, 130, 246, 0.10) 60%, transparent 80%)',
-          animation: 'floatSlow2 22s ease-in-out infinite alternate',
+          animation: shouldReduceMotion ? 'none' : 'floatSlow2 22s ease-in-out infinite alternate',
         }}
       />
 
-      {/* Floating Animated Blob 3 — Bottom Left (Purple / Indigo) */}
+      {/* Floating Animated Blob 3 — Bottom Left (Purple / Indigo) — Hidden on mobile to save GPU */}
       <div
-        className="absolute -bottom-16 -left-10 w-80 h-80 sm:w-96 sm:h-96 rounded-full blur-3xl opacity-20 dark:opacity-70 transition-all duration-500 will-change-transform"
+        className="hidden md:block absolute -bottom-16 -left-10 w-80 h-80 sm:w-96 sm:h-96 rounded-full blur-3xl opacity-20 dark:opacity-70 transition-all duration-500 will-change-transform"
         style={{
           background:
             'radial-gradient(circle, rgba(139, 92, 246, 0.14) 0%, rgba(99, 102, 241, 0.08) 60%, transparent 80%)',
-          animation: 'floatSlow3 20s ease-in-out infinite alternate',
+          animation: shouldReduceMotion ? 'none' : 'floatSlow3 20s ease-in-out infinite alternate',
         }}
       />
 
-      {/* Floating Animated Blob 4 — Bottom Right / Edge (Pink / Orange Ambient) */}
+      {/* Floating Animated Blob 4 — Bottom Right / Edge (Pink / Orange Ambient) — Hidden on mobile to save GPU */}
       <div
-        className="absolute -bottom-12 -right-12 w-80 h-80 sm:w-96 sm:h-96 rounded-full blur-3xl opacity-20 dark:opacity-65 transition-all duration-500 will-change-transform"
+        className="hidden md:block absolute -bottom-12 -right-12 w-80 h-80 sm:w-96 sm:h-96 rounded-full blur-3xl opacity-20 dark:opacity-65 transition-all duration-500 will-change-transform"
         style={{
           background:
             'radial-gradient(circle, rgba(236, 72, 153, 0.12) 0%, rgba(249, 115, 22, 0.08) 60%, transparent 80%)',
-          animation: 'floatSlow1 24s ease-in-out infinite alternate-reverse',
+          animation: shouldReduceMotion ? 'none' : 'floatSlow1 24s ease-in-out infinite alternate-reverse',
         }}
       />
 

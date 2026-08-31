@@ -7,11 +7,14 @@ export const BackToTop: React.FC = () => {
   const shouldReduceMotion = useReducedMotion();
 
   useEffect(() => {
+    let ticking = false;
     const toggleVisibility = () => {
-      if (window.scrollY > 600) {
-        setIsVisible(true);
-      } else {
-        setIsVisible(false);
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          setIsVisible(window.scrollY > 600);
+          ticking = false;
+        });
+        ticking = true;
       }
     };
 

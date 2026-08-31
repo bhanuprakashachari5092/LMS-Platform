@@ -27,6 +27,9 @@ export const FlipCard: React.FC<FlipCardProps> = ({
             src={getCourseImage(course)}
             alt={course.title}
             className="w-full h-full object-cover"
+            loading="lazy"
+            width="384"
+            height="192"
             onError={(e) => {
               (e.target as HTMLImageElement).src =
                 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=800&q=80';
@@ -104,6 +107,7 @@ export const FlipCard: React.FC<FlipCardProps> = ({
           relative w-full h-full preserve-3d duration-550 ease-in-out transition-all
           ${isFlipped ? 'rotate-y-180 shadow-2xl scale-[1.01]' : 'shadow-xs hover:shadow-lg group-hover:scale-[1.005]'}
         `}
+        style={{ willChange: 'transform' }}
       >
         
         {/* ════════════════════════════════════════════════════════════════════
@@ -117,6 +121,9 @@ export const FlipCard: React.FC<FlipCardProps> = ({
               src={getCourseImage(course)}
               alt={course.title}
               className="w-full h-full object-cover"
+              loading="lazy"
+              width="384"
+              height="192"
               onError={(e) => {
                 (e.target as HTMLImageElement).src =
                   'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=800&q=80';
