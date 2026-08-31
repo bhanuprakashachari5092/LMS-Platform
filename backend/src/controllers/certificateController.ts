@@ -500,6 +500,8 @@ export class CertificateController {
         });
       }
 
+      const isRevoked = certData.status === 'revoked' || certData.status === 'REVOKED' || certData.isRevoked === true;
+
       // Explicit Public Verification DTO (Masks all private fields: studentUid, studentEmail, googleDriveFileId, etc.)
       const publicVerificationDto = {
         certificateId: certData.certificateId || certificateId,
@@ -511,12 +513,14 @@ export class CertificateController {
         courseDuration: certData.courseDuration || '25 Hours',
         modulesCompleted: certData.modulesCompleted || 'All Modules',
         achievement: certData.achievement || '100% Completed',
-        status: certData.status || 'Issued',
+        status: isRevoked ? 'REVOKED' : (certData.status || 'Issued'),
+        isRevoked,
       };
 
       return res.status(200).json({
         success: true,
-        verified: true,
+        verified: !isRevoked,
+        data: publicVerificationDto,
         certificate: publicVerificationDto,
       });
     } catch (err: any) {
@@ -526,6 +530,72 @@ export class CertificateController {
         verified: false,
         error: 'Failed to verify certificate',
       });
+    }
+  }
+
+  /**
+   * POST /api/certificates/:certificateId/revoke
+   * Revoke certificate (Admin only)
+   */
+  public async revokeCertificate(req: AuthenticatedRequest, res: Response): Promise<Response> {
+    try {
+      const certificateId = String(req.params.certificateId || '').trim();
+      const { reason } = req.body || {};
+
+      if (!certificateId || !db) {
+        return res.status(400).json({ success: false, error: 'certificateId required' });
+      }
+
+      await db.collection('certificates').doc(certificateId).set(
+        {
+          status: 'REVOKED',
+          isRevoked: true,
+          revokedAt: new Date().toISOString(),
+          revokedBy: req.user?.uid || 'admin',
+          revocationReason: reason || 'Revoked by administrator',
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: `Certificate ${certificateId} revoked successfully.`,
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err?.message || err });
+    }
+  }
+
+  /**
+   * POST /api/certificates/:certificateId/restore
+   * Restore revoked certificate (Admin only)
+   */
+  public async restoreCertificate(req: AuthenticatedRequest, res: Response): Promise<Response> {
+    try {
+      const certificateId = String(req.params.certificateId || '').trim();
+
+      if (!certificateId || !db) {
+        return res.status(400).json({ success: false, error: 'certificateId required' });
+      }
+
+      await db.collection('certificates').doc(certificateId).set(
+        {
+          status: 'Issued',
+          isRevoked: false,
+          restoredAt: new Date().toISOString(),
+          restoredBy: req.user?.uid || 'admin',
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: `Certificate ${certificateId} restored successfully.`,
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err?.message || err });
     }
   }
 

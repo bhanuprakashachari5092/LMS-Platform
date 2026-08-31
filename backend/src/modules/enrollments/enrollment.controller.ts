@@ -110,6 +110,78 @@ export class EnrollmentController {
       next(err);
     }
   }
+
+  // POST /api/enrollments/progress
+  public async updateProgress(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const headerUid = req.headers['x-user-id'];
+      const authUid = req.user?.uid;
+      const isAdmin = req.user?.role === 'admin';
+
+      // If authenticated as a non-admin student, strictly enforce own studentId
+      if (authUid && !isAdmin && req.body.studentId && req.body.studentId !== authUid) {
+        res.status(403).json({ success: false, error: 'Forbidden: You cannot modify another student\'s learning progress.' });
+        return;
+      }
+
+      const studentId = authUid || req.body.studentId || (typeof headerUid === 'string' ? headerUid : undefined);
+      const courseId = req.body.courseId || req.params.courseId;
+      const lessonId = req.body.lessonId || req.body.unitId;
+      const totalLessonsInCourse = req.body.totalLessonsInCourse ? Number(req.body.totalLessonsInCourse) : 1;
+
+      if (!studentId || !courseId || !lessonId) {
+        res.status(400).json({ success: false, error: 'studentId, courseId, and lessonId are required' });
+        return;
+      }
+
+      const result = await enrollmentService.updateLessonProgress({
+        studentId: String(studentId),
+        courseId: String(courseId),
+        lessonId: String(lessonId),
+        totalLessonsInCourse,
+      });
+
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // GET /api/enrollments/:courseId/progress
+  public async getCourseProgress(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const headerUid = req.headers['x-user-id'];
+      const authUid = req.user?.uid;
+      const isAdmin = req.user?.role === 'admin';
+
+      // If authenticated as a non-admin student, strictly enforce own studentId
+      if (authUid && !isAdmin && req.query.studentId && req.query.studentId !== authUid) {
+        res.status(403).json({ success: false, error: 'Forbidden: You cannot access another student\'s learning progress.' });
+        return;
+      }
+
+      const studentId = authUid || (req.query.studentId as string) || (typeof headerUid === 'string' ? headerUid : undefined);
+      const courseId = String(req.params.courseId || '');
+
+      if (!studentId || !courseId) {
+        res.status(400).json({ success: false, error: 'studentId and courseId are required' });
+        return;
+      }
+
+      const enrollment = await enrollmentService.getEnrollment(String(studentId), courseId);
+      const completedLessons = enrollment?.completedLessons || [];
+      const progressPercentage = enrollment?.progressPercentage || 0;
+
+      res.json({
+        success: true,
+        completedLessons,
+        progressPercentage,
+        status: enrollment?.status || 'NOT_STARTED',
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 export const enrollmentController = new EnrollmentController();

@@ -5,10 +5,10 @@ export type KqThemeMode = 'coding' | 'field-guide';
 export type KqAppearance = 'day' | 'night';
 
 interface ThemeContextType {
-  theme: ThemeMode; // Compatibility
-  resolvedTheme: 'light' | 'dark'; // Compatibility
-  setTheme: (theme: ThemeMode) => void; // Compatibility
-  toggleTheme: () => void; // Compatibility
+  theme: ThemeMode;
+  resolvedTheme: 'light' | 'dark';
+  setTheme: (theme: ThemeMode) => void;
+  toggleTheme: () => void;
   kqTheme: KqThemeMode;
   setKqTheme: (theme: KqThemeMode) => void;
   kqAppearance: KqAppearance;
@@ -17,55 +17,39 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-const KQ_THEME_KEY = 'kq_theme';
 const KQ_APPEARANCE_KEY = 'kq_appearance';
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [kqTheme, setKqThemeState] = useState<KqThemeMode>(() => {
-    const saved = localStorage.getItem(KQ_THEME_KEY);
-    if (saved === 'coding' || saved === 'field-guide') {
-      return saved as KqThemeMode;
-    }
-    return 'field-guide'; // Default to DEVELOPER FIELD GUIDE
-  });
-
   const [kqAppearance, setKqAppearanceState] = useState<KqAppearance>(() => {
     const saved = localStorage.getItem(KQ_APPEARANCE_KEY);
     if (saved === 'day' || saved === 'night') {
       return saved as KqAppearance;
     }
-    return 'night'; // Default to NIGHT
+    return 'night'; // Default to clean dark mode
   });
 
-  // Compatibility compatibility values:
+  const [kqTheme, setKqThemeState] = useState<KqThemeMode>('field-guide');
+
   const theme: ThemeMode = kqAppearance === 'night' ? 'dark' : 'light';
   const resolvedTheme: 'light' | 'dark' = kqAppearance === 'night' ? 'dark' : 'light';
 
   useEffect(() => {
     const root = document.documentElement;
 
-    const applyTheme = () => {
-      // Set the KaizenQ theme attribute
-      root.setAttribute('data-kq-theme', kqTheme);
-
-      // Set class dark on HTML if appearance is night, else remove it
-      if (kqAppearance === 'night') {
-        root.classList.add('dark');
-        root.classList.remove('light');
-        root.style.colorScheme = 'dark';
-      } else {
-        root.classList.add('light');
-        root.classList.remove('dark');
-        root.style.colorScheme = 'light';
-      }
-    };
-
-    applyTheme();
-  }, [kqTheme, kqAppearance]);
+    if (kqAppearance === 'night') {
+      root.classList.add('dark');
+      root.classList.remove('light');
+      root.style.colorScheme = 'dark';
+    } else {
+      root.classList.add('light');
+      root.classList.remove('dark');
+      root.style.colorScheme = 'light';
+    }
+    root.removeAttribute('data-kq-theme');
+  }, [kqAppearance]);
 
   const setKqTheme = (newTheme: KqThemeMode) => {
     setKqThemeState(newTheme);
-    localStorage.setItem(KQ_THEME_KEY, newTheme);
   };
 
   const setKqAppearance = (newAppearance: KqAppearance) => {
@@ -73,7 +57,6 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStorage.setItem(KQ_APPEARANCE_KEY, newAppearance);
   };
 
-  // Compatibility mappings:
   const setTheme = (newTheme: ThemeMode) => {
     if (newTheme === 'dark') {
       setKqAppearance('night');

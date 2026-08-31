@@ -251,18 +251,92 @@ export class EmailService {
   }
 
   /**
-   * Flow 2: Student Signup Welcome Email
+   * Flow 2: Course Completion Email (with Idempotency Protection)
+   */
+  public async sendCourseCompletionEmail(options: {
+    studentName: string;
+    studentEmail: string;
+    courseTitle: string;
+    courseId?: string;
+    completionDate?: string;
+    certificateUrl?: string;
+    dashboardUrl?: string;
+    enrollmentId?: string;
+  }): Promise<{ success: boolean; messageId?: string; duplicated?: boolean; error?: string }> {
+    const {
+      studentName,
+      studentEmail,
+      courseTitle,
+      courseId,
+      completionDate,
+      certificateUrl,
+      dashboardUrl,
+      enrollmentId,
+    } = options;
+
+    if (!studentEmail || !courseTitle) {
+      return { success: false, error: 'studentEmail and courseTitle are required' };
+    }
+
+    const normalizedEmail = studentEmail.toLowerCase().trim();
+    const idempotencyKey = `course_completion:${enrollmentId || `${normalizedEmail}_${courseId || courseTitle}`}`;
+
+    if (this.sentIdempotencyKeys.has(idempotencyKey)) {
+      logger.info(`[EMAIL] ⚠️ Duplicate completion email skipped for key: ${idempotencyKey}`);
+      return { success: true, duplicated: true };
+    }
+
+    const payload = {
+      studentName: studentName || normalizedEmail.split('@')[0],
+      email: normalizedEmail,
+      courseTitle,
+      courseId,
+      completionDate: completionDate || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+      certificateUrl: certificateUrl || 'https://www.kaizenq.in/certificates',
+      dashboardUrl: dashboardUrl || 'https://www.kaizenq.in/dashboard',
+    };
+
+    const result = await this.sendEventEmail(
+      EmailEventType.COURSE_COMPLETION,
+      normalizedEmail,
+      payload,
+      enrollmentId || courseId
+    );
+
+    if (result.success) {
+      this.sentIdempotencyKeys.add(idempotencyKey);
+    }
+
+    return result;
+  }
+
+  /**
+   * Flow 3: Student Signup Welcome Email
    */
   public async sendWelcomeEmail(
     email: string,
     studentName: string,
     dashboardUrl: string = 'https://www.kaizenq.in/dashboard'
   ) {
-    return this.sendEventEmail(EmailEventType.STUDENT_REGISTRATION, email, {
-      studentName: studentName || email.split('@')[0],
-      email: email.toLowerCase().trim(),
+    const normalizedEmail = (email || '').toLowerCase().trim();
+    const idempotencyKey = `welcome_email:${normalizedEmail}`;
+
+    if (this.sentIdempotencyKeys.has(idempotencyKey)) {
+      logger.info(`[EMAIL] ⚠️ Duplicate welcome email skipped for: ${normalizedEmail}`);
+      return { success: true, duplicated: true };
+    }
+
+    const result = await this.sendEventEmail(EmailEventType.STUDENT_REGISTRATION, normalizedEmail, {
+      studentName: studentName || normalizedEmail.split('@')[0],
+      email: normalizedEmail,
       dashboardUrl,
     });
+
+    if (result.success) {
+      this.sentIdempotencyKeys.add(idempotencyKey);
+    }
+
+    return result;
   }
 
   /**

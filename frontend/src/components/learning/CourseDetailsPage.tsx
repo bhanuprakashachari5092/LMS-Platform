@@ -1,19 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Star,
   Award,
   CheckCircle2,
-  Layers,
+  BookOpen,
   ChevronDown,
   ChevronUp,
-  Sparkles,
   HelpCircle,
   ShieldCheck,
   ArrowRight,
   ArrowLeft,
   UserPlus,
   PlayCircle,
+  Clock,
+  Sparkles,
+  Code,
+  GraduationCap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -43,6 +46,8 @@ export interface CourseDetailsProps {
         title: string;
         duration?: string;
         type?: string;
+        content?: string;
+        description?: string;
       }>;
     }>;
   };
@@ -58,6 +63,7 @@ export const CourseDetailsPage: React.FC<CourseDetailsProps> = ({
   onEnroll,
 }) => {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<'overview' | 'curriculum' | 'outcomes' | 'faq'>('overview');
   const [openModuleId, setOpenModuleId] = useState<string | number | null>(course.modules[0]?.id || null);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
 
@@ -69,348 +75,648 @@ export const CourseDetailsPage: React.FC<CourseDetailsProps> = ({
     setOpenFaqIndex(openFaqIndex === idx ? null : idx);
   };
 
+  const instructorName = typeof course.instructor === 'object' && course.instructor !== null
+    ? ((course.instructor as any).name || 'KaizenQ Team')
+    : String(course.instructor || 'KaizenQ Team');
+
+  const instructorRole = course.role || (typeof course.instructor === 'object' && (course.instructor as any)?.role) || 'Curriculum Instructor';
+
+  const instructorAvatar = course.avatar || (typeof course.instructor === 'object' && (course.instructor as any)?.avatar) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
+
+  const introParagraphs = useMemo(() => {
+    if (Array.isArray(course.introText)) {
+      return course.introText.map((t) => typeof t === 'string' ? t : String(t));
+    }
+    if (typeof course.introText === 'string') {
+      return [course.introText];
+    }
+    return [(course as any)?.description || (course as any)?.subtitle || 'Welcome to this course.'];
+  }, [course.introText, course]);
+
+  const learningOutcomes = useMemo(() => {
+    if (Array.isArray(course.outcomes)) {
+      return course.outcomes.map((o) => typeof o === 'string' ? o : String(o));
+    }
+    return [];
+  }, [course.outcomes]);
+
+  // Flatten lessons and calculate progress
+  const allLessons = useMemo(() => {
+    return (course.modules || []).flatMap((m) => m.lessons || []);
+  }, [course.modules]);
+
+  const totalLessonsCount = allLessons.length;
+
+  const completedLessonIds = useMemo((): string[] => {
+    try {
+      const saved = localStorage.getItem(`shaivika_completed_${course.id}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  }, [course.id]);
+
+  const completedCount = completedLessonIds.filter((id) =>
+    allLessons.some((l) => String(l.id) === String(id))
+  ).length;
+
+  const progressPercent = totalLessonsCount > 0
+    ? Math.min(100, Math.round((completedCount / totalLessonsCount) * 100))
+    : 0;
+
   const skills = [
-    'CLI Terminal Navigation',
-    'Version Control & Git Pipelines',
-    'System Architecture',
-    'Shell Automation',
-    'Production Hardening',
-    'CI/CD Workflows',
+    'Structured Program Architecture',
+    'Memory Management & Pointers',
+    'Algorithm Design & Logic Flow',
+    'Modular Functions & Libraries',
+    'Data Structures & Buffers',
+    'Command Line & System Tools',
   ];
 
   const prerequisites = [
-    'Basic understanding of computers and operating systems',
-    'No prior Linux or Git coding experience required',
-    'A modern browser (Chrome, Edge, Firefox, Safari)',
+    'Basic computer literacy and text editor familiarity',
+    'No prior C programming background required',
+    'Any modern browser (Chrome, Firefox, Safari, Edge)',
+  ];
+
+  const milestones = [
+    { label: 'Programming Fundamentals', done: completedCount >= 1 },
+    { label: 'Control Flow & Logic Decisions', done: progressPercent >= 35 },
+    { label: 'Advanced Functions & Memory', done: progressPercent >= 70 },
+    { label: 'Course Completion & Verified Certificate', done: progressPercent === 100 },
   ];
 
   const faqs = [
     {
-      q: 'Will I get a verified completion certificate?',
-      a: 'Yes! Upon finishing all module lessons and hands-on assessments, you will earn a verifiable SHAIVIKA AI LMS completion certificate.',
+      q: 'Will I receive a verified certificate upon completion?',
+      a: 'Yes. After completing all lessons and required assessments, you will be issued an official, verifiable KaizenQ Certificate of Completion.',
     },
     {
-      q: 'Is there hands-on terminal practice included?',
-      a: 'Absolutely. The course features built-in interactive CLI terminal sandboxes right inside the lesson interface, with no manual setup needed.',
+      q: 'Are interactive exercises included in this course?',
+      a: 'Yes. Each lesson includes practical examples, syntax walkthroughs, and hands-on exercises to solidify your understanding.',
     },
     {
-      q: 'How long do I have access to the course content?',
-      a: 'You receive lifetime unlimited access to all course modules, updates, cheat sheets, and downloadable resources.',
+      q: 'How long do I have access to the curriculum?',
+      a: 'You receive full, lifetime access to all course materials, lesson notes, and future updates at your own pace.',
+    },
+    {
+      q: 'Is this course suitable for complete beginners?',
+      a: 'Yes. The syllabus begins with foundational concepts and progressively builds towards advanced programming techniques.',
     },
   ];
 
   const reviews = [
     {
       name: 'Priya Sharma',
-      role: 'DevOps Engineer',
+      role: 'Software Engineer',
       avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-      comment: 'The distraction-free learning environment and built-in interactive CLI lab made mastering Git and Linux effortless. Highly recommend!',
+      comment: 'The structured notes, clear code snippets, and distraction-free interface made learning seamless and engaging.',
     },
     {
       name: 'Alex Chen',
-      role: 'Full-Stack Developer',
+      role: 'Systems Developer',
       avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-      comment: 'Cleanest LMS interface I have ever used! Compares with Microsoft Learn and Codecademy.',
+      comment: 'Cleanest LMS platform I have used. Focused directly on high-yield programming concepts without unnecessary noise.',
     },
   ];
 
-  const totalLessonsCount = course.modules.reduce((acc, m) => acc + m.lessons.length, 0);
-
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans pb-20 transition-colors">
-      <section className="relative overflow-hidden bg-linear-to-b from-sky-50/80 via-white to-slate-50 dark:from-slate-900 dark:via-slate-950 dark:to-slate-950 border-b border-sky-100 dark:border-slate-800 pt-28 sm:pt-32 lg:pt-36 pb-16 px-4 sm:px-6 lg:px-8">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,var(--tw-gradient-stops))] from-sky-400/10 dark:from-blue-500/10 via-transparent to-transparent pointer-events-none" />
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6 relative z-10">
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-white dark:bg-slate-900 hover:bg-sky-50 dark:hover:bg-slate-800 border border-sky-200/80 dark:border-slate-800 text-sky-800 dark:text-cyan-400 text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95"
-          >
-            <ArrowLeft className="w-4 h-4 text-sky-600 dark:text-cyan-400" />
-            <span>Back to Dashboard</span>
-          </button>
-        </div>
-
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 items-center relative z-10">
-          <div className="lg:col-span-7 space-y-6">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="px-3.5 py-1 rounded-full text-xs font-mono font-bold bg-sky-100 dark:bg-cyan-950/60 text-sky-700 dark:text-cyan-300 border border-sky-200 dark:border-cyan-800/50 flex items-center gap-1.5 shadow-xs">
-                <Sparkles className="w-3.5 h-3.5 text-sky-600 dark:text-cyan-400" />
-                {course.category}
-              </span>
-              <span className="px-3.5 py-1 rounded-full text-xs font-mono font-semibold bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-sky-100 dark:border-slate-800 shadow-xs">
-                {course.level || 'All Levels'}
-              </span>
-            </div>
-
-            <h1 className="text-3xl sm:text-5xl font-heading font-black text-slate-900 dark:text-white tracking-tight leading-tight">
+    <div className="min-h-screen bg-white dark:bg-[#0B1120] text-[#111827] dark:text-[#F8FAFC] font-sans antialiased transition-colors duration-200 pb-20">
+      
+      {/* ── Breadcrumb & Back Row ─────────────────────────────────────── */}
+      <div className="border-b border-[#E5E7EB] dark:border-[#25324A] bg-[#F8FAFC] dark:bg-[#111827]/80 sticky top-0 z-30 backdrop-blur-md">
+        <div className="max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-8 h-12 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs text-[#64748B] dark:text-[#94A3B8]">
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="hover:text-[#2563EB] dark:hover:text-[#3B82F6] flex items-center gap-1.5 font-medium transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Courses</span>
+            </button>
+            <span>/</span>
+            <span className="text-[#111827] dark:text-[#F8FAFC] font-semibold truncate max-w-[200px] sm:max-w-none">
               {course.title}
-            </h1>
-
-            <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed max-w-2xl font-sans">
-              {course.introText[0]}
-            </p>
-
-            <div className="flex items-center gap-3 p-3 rounded-2xl bg-white dark:bg-slate-900/90 border border-sky-100 dark:border-slate-800 shadow-sm w-fit">
-              <img
-                src={course.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
-                alt={course.instructor}
-                className="w-10 h-10 rounded-full object-cover border-2 border-sky-400 dark:border-cyan-400 shadow-xs"
-              />
-              <div>
-                <span className="text-xs text-slate-500 dark:text-slate-400 block font-medium">Instructor</span>
-                <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1">
-                  {course.instructor} <ShieldCheck className="w-3.5 h-3.5 text-sky-600 dark:text-cyan-400" />
-                </span>
-              </div>
-            </div>
-
-            <div className="pt-2 flex flex-wrap items-center gap-4">
-              {isEnrolled ? (
-                <button
-                  onClick={onStartLearning}
-                  className="px-8 py-4 rounded-2xl bg-gradient-to-r from-sky-500 via-sky-400 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-black text-base flex items-center gap-3 transition-all duration-200 shadow-xl shadow-sky-500/25 hover:scale-105 active:scale-95 cursor-pointer border border-sky-300/40"
-                >
-                  <PlayCircle className="w-5 h-5" />
-                  <span>Track Course</span>
-                  <ArrowRight className="w-5 h-5" />
-                </button>
-              ) : (
-                <button
-                  onClick={onEnroll || onStartLearning}
-                  className="px-8 py-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black text-base flex items-center gap-3 transition-all duration-200 shadow-xl shadow-emerald-500/25 hover:scale-105 active:scale-95 cursor-pointer border border-emerald-300/40"
-                >
-                  <UserPlus className="w-5 h-5" />
-                  <span>
-                    Enroll Free to Access
-                  </span>
-                  <ArrowRight className="w-5 h-5" />
-                </button>
-              )}
-            </div>
+            </span>
           </div>
 
-          <div className="lg:col-span-5">
-            <div className="p-4 rounded-3xl bg-white dark:bg-slate-900/90 border border-sky-100 dark:border-slate-800 shadow-xl shadow-sky-500/5 space-y-5 relative">
-              <div className="relative aspect-video rounded-2xl overflow-hidden border border-sky-100 dark:border-slate-800 group shadow-sm">
-                <img
-                  src={course.thumbnail}
-                  alt={course.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="p-3 rounded-xl bg-sky-50/60 dark:bg-slate-950/70 border border-sky-100 dark:border-slate-800">
-                  <span className="text-slate-500 dark:text-slate-400 block">Total Duration</span>
-                  <span className="font-bold text-slate-900 dark:text-white font-mono">{course.duration}</span>
-                </div>
-                <div className="p-3 rounded-xl bg-sky-50/60 dark:bg-slate-950/70 border border-sky-100 dark:border-slate-800">
-                  <span className="text-slate-500 dark:text-slate-400 block">Lessons</span>
-                  <span className="font-bold text-slate-900 dark:text-white font-mono">{totalLessonsCount} Lessons</span>
-                </div>
-                <div className="p-3 rounded-xl bg-sky-50/60 dark:bg-slate-950/70 border border-sky-100 dark:border-slate-800">
-                  <span className="text-slate-500 dark:text-slate-400 block">Enrolled Students</span>
-                  <span className="font-bold text-slate-900 dark:text-white font-mono">{course.students}</span>
-                </div>
-                <div className="p-3 rounded-xl bg-sky-50/60 dark:bg-slate-950/70 border border-sky-100 dark:border-slate-800">
-                  <span className="text-slate-500 dark:text-slate-400 block">Live Classroom</span>
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Included
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-16">
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900/90 border border-sky-100 dark:border-slate-800 shadow-md shadow-sky-500/5 space-y-4">
-            <h2 className="text-xl font-heading font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <CheckCircle2 className="w-6 h-6 text-sky-600 dark:text-cyan-400" />
-              Learning Outcomes (Measurable)
-            </h2>
-            <ol className="space-y-3">
-              {course.outcomes.map((item, idx) => (
-                <li key={idx} className="flex items-start gap-3 text-sm text-slate-700 dark:text-slate-300 leading-relaxed font-sans">
-                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-sky-100 dark:bg-cyan-950/60 text-sky-700 dark:text-cyan-300 font-mono font-bold text-xs shrink-0 mt-0.5 border border-sky-200 dark:border-cyan-800/50">
-                    {idx + 1}
-                  </span>
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-
-          <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900/90 border border-sky-100 dark:border-slate-800 shadow-md shadow-sky-500/5 space-y-6">
-            <div>
-              <h2 className="text-xl font-heading font-extrabold text-slate-900 dark:text-white flex items-center gap-2 mb-3">
-                <Award className="w-6 h-6 text-sky-600 dark:text-cyan-400" />
-                Skills You Will Learn
-              </h2>
-              <ol className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {skills.map((skill, idx) => (
-                  <li
-                    key={idx}
-                    className="p-2.5 rounded-xl bg-sky-50/70 dark:bg-slate-950/70 border border-sky-100 dark:border-slate-800 text-xs font-mono font-bold text-sky-800 dark:text-cyan-300 flex items-center gap-2"
-                  >
-                    <span className="w-5 h-5 rounded-md bg-sky-200/80 dark:bg-cyan-900/40 text-sky-900 dark:text-cyan-200 flex items-center justify-center text-[10px]">
-                      {idx + 1}
-                    </span>
-                    <span className="truncate">{skill}</span>
-                  </li>
-                ))}
-              </ol>
-            </div>
-
-            <div className="pt-4 border-t border-sky-100 dark:border-slate-800">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Prerequisites</h3>
-              <ol className="space-y-2">
-                {prerequisites.map((pre, idx) => (
-                  <li key={idx} className="text-xs text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                    <span className="font-mono font-bold text-sky-600 dark:text-cyan-400">{idx + 1}.</span>
-                    <span>{pre}</span>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          </div>
-        </section>
-
-        <section className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-heading font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                <Layers className="w-6 h-6 text-sky-600 dark:text-cyan-400" />
-                Course Curriculum Preview
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                {course.modules.length} Modules • {totalLessonsCount} Lessons • {course.duration} Total Length
-              </p>
-            </div>
-
-            {isEnrolled ? (
-              <button
-                onClick={onStartLearning}
-                className="px-5 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs flex items-center gap-2 cursor-pointer transition-all self-start sm:self-auto shadow-md shadow-sky-500/20"
-              >
-                <span>Track Course</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            ) : (
-              <button
-                onClick={onEnroll || onStartLearning}
-                className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs flex items-center gap-2 cursor-pointer transition-all self-start sm:self-auto shadow-md shadow-emerald-500/20"
-              >
-                <UserPlus className="w-4 h-4" />
-                <span>Enroll Free to Access</span>
-              </button>
+          <div className="flex items-center gap-3">
+            {isEnrolled && (
+              <span className="text-xs font-semibold text-[#2563EB] dark:text-[#3B82F6] bg-blue-50 dark:bg-blue-950/60 px-2.5 py-1 rounded-md border border-blue-200 dark:border-blue-900/50">
+                Enrolled
+              </span>
             )}
           </div>
+        </div>
+      </div>
 
-          <div className="space-y-3">
-            {course.modules.map((mod) => {
-              const isOpen = openModuleId === mod.id;
-              return (
-                <div
-                  key={mod.id}
-                  className="rounded-2xl border border-sky-100 dark:border-slate-800 bg-white dark:bg-slate-900/90 overflow-hidden shadow-xs"
-                >
-                  <button
-                    onClick={() => toggleModule(mod.id)}
-                    className="w-full p-4 flex items-center justify-between text-left bg-sky-50/40 dark:bg-slate-950/50 hover:bg-sky-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Layers className="w-5 h-5 text-sky-600 dark:text-cyan-400" />
-                      <div>
-                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">{mod.title}</h3>
-                        <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
-                          {mod.lessons.length} Lessons {mod.duration ? `• ${mod.duration}` : ''}
-                        </span>
-                      </div>
-                    </div>
-                    {isOpen ? <ChevronUp className="w-5 h-5 text-sky-600 dark:text-cyan-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
-                  </button>
+      {/* ── Hero Header ─────────────────────────────────────────────────── */}
+      <header className="bg-gradient-to-b from-[#F8FAFC] to-white dark:from-[#111827] dark:to-[#0B1120] border-b border-[#E5E7EB] dark:border-[#25324A] py-10 sm:py-14">
+        <div className="max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+            
+            {/* Left Header Info */}
+            <div className="lg:col-span-8 space-y-5">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-50 dark:bg-blue-950/60 text-[#2563EB] dark:text-[#3B82F6] border border-blue-200 dark:border-blue-900/50">
+                  {course.category}
+                </span>
+                <span className="text-xs text-[#64748B] dark:text-[#94A3B8] font-medium flex items-center gap-1.5">
+                  <span>•</span>
+                  <span>{course.level || 'Beginner • Self-paced'}</span>
+                  <span>•</span>
+                  <span>{course.duration}</span>
+                </span>
+              </div>
 
-                  <AnimatePresence>
-                    {isOpen && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="px-4 py-2 border-t border-sky-100 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2"
-                      >
-                        {mod.lessons.map((les) => (
-                          <div
-                            key={les.id}
-                            className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 text-xs text-slate-700 dark:text-slate-300 border border-slate-100 dark:border-slate-800"
-                          >
-                            <span className="truncate">{les.title}</span>
-                            <span className="font-mono text-slate-400 dark:text-slate-500 shrink-0 ml-2">{les.duration}</span>
-                          </div>
-                        ))}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+              <div className="space-y-2">
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-[#111827] dark:text-white leading-[1.15]">
+                  {course.title}
+                </h1>
+                <p className="text-base sm:text-lg text-[#64748B] dark:text-[#94A3B8] leading-relaxed max-w-3xl">
+                  {course.subtitle || introParagraphs[0]}
+                </p>
+              </div>
+
+              {/* Course Progress Row (Single Clean Component) */}
+              <div className="p-4 rounded-xl bg-[#F8FAFC] dark:bg-[#172033] border border-[#E5E7EB] dark:border-[#25324A] space-y-2.5 max-w-xl">
+                <div className="flex items-center justify-between text-xs font-semibold">
+                  <span className="text-[#111827] dark:text-[#F8FAFC]">Course Progress</span>
+                  <span className="text-[#2563EB] dark:text-[#3B82F6] font-mono">{progressPercent}%</span>
                 </div>
-              );
-            })}
-          </div>
-        </section>
+                <div className="w-full h-2 rounded-full bg-[#E5E7EB] dark:bg-[#25324A] overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-[#2563EB] dark:bg-[#3B82F6] transition-all duration-500"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-[#64748B] dark:text-[#94A3B8]">
+                  <span>{completedCount} of {totalLessonsCount} lessons completed</span>
+                  <span>{totalLessonsCount - completedCount} remaining</span>
+                </div>
+              </div>
 
-        <section className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          <div className="lg:col-span-6 space-y-4">
-            <h2 className="text-xl font-heading font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <Star className="w-5 h-5 text-amber-500 fill-amber-400" />
-              Student Testimonials
-            </h2>
-            <div className="space-y-4">
-              {reviews.map((rev, idx) => (
-                <div key={idx} className="p-5 rounded-2xl bg-white dark:bg-slate-900/90 border border-sky-100 dark:border-slate-800 shadow-sm space-y-3">
-                  <div className="flex items-center gap-3">
-                    <img src={rev.avatar} alt={rev.name} className="w-10 h-10 rounded-full object-cover border-2 border-sky-300 dark:border-cyan-400" />
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900 dark:text-white">{rev.name}</h4>
-                      <span className="text-[11px] text-slate-500 dark:text-slate-400">{rev.role}</span>
-                    </div>
+              {/* Instructor snippet */}
+              <div className="flex items-center gap-3 pt-1">
+                <img
+                  src={instructorAvatar}
+                  alt={instructorName}
+                  className="w-10 h-10 rounded-full object-cover border border-[#E5E7EB] dark:border-[#25324A]"
+                />
+                <div>
+                  <div className="text-xs text-[#64748B] dark:text-[#94A3B8]">{instructorRole}</div>
+                  <div className="text-sm font-semibold text-[#111827] dark:text-white flex items-center gap-1.5">
+                    {instructorName}
+                    <ShieldCheck className="w-4 h-4 text-[#2563EB] dark:text-[#3B82F6]" />
                   </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 italic">"{rev.comment}"</p>
                 </div>
-              ))}
+              </div>
+            </div>
+
+            {/* Right Summary Card (Desktop) */}
+            <div className="lg:col-span-4">
+              <div className="p-5 rounded-2xl bg-white dark:bg-[#111827] border border-[#E5E7EB] dark:border-[#25324A] shadow-sm space-y-5">
+                <div className="aspect-video rounded-xl overflow-hidden bg-[#F8FAFC] dark:bg-[#172033] border border-[#E5E7EB] dark:border-[#25324A]">
+                  <img
+                    src={course.thumbnail}
+                    alt={course.title}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+
+                <div className="space-y-3 text-xs">
+                  <div className="flex items-center justify-between py-1.5 border-b border-[#E5E7EB] dark:border-[#25324A]">
+                    <span className="text-[#64748B] dark:text-[#94A3B8] flex items-center gap-1.5">
+                      <BookOpen className="w-3.5 h-3.5" /> Total Lessons
+                    </span>
+                    <span className="font-semibold text-[#111827] dark:text-[#F8FAFC]">{totalLessonsCount} Lessons</span>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5 border-b border-[#E5E7EB] dark:border-[#25324A]">
+                    <span className="text-[#64748B] dark:text-[#94A3B8] flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5" /> Total Duration
+                    </span>
+                    <span className="font-semibold text-[#111827] dark:text-[#F8FAFC]">{course.duration}</span>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5 border-b border-[#E5E7EB] dark:border-[#25324A]">
+                    <span className="text-[#64748B] dark:text-[#94A3B8] flex items-center gap-1.5">
+                      <Code className="w-3.5 h-3.5" /> Practical Labs
+                    </span>
+                    <span className="font-semibold text-[#2563EB] dark:text-[#3B82F6]">Included</span>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5">
+                    <span className="text-[#64748B] dark:text-[#94A3B8] flex items-center gap-1.5">
+                      <GraduationCap className="w-3.5 h-3.5" /> Verified Certificate
+                    </span>
+                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">Yes</span>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  {isEnrolled ? (
+                    <button
+                      onClick={onStartLearning}
+                      className="w-full py-3 px-4 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-[#3B82F6] dark:hover:bg-[#2563EB] text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer active:scale-[0.99]"
+                    >
+                      <PlayCircle className="w-4 h-4" />
+                      <span>{progressPercent > 0 ? 'Continue Learning' : 'Start Learning'}</span>
+                      <ArrowRight className="w-4 h-4 ml-auto" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={onEnroll || onStartLearning}
+                      className="w-full py-3 px-4 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] dark:bg-[#3B82F6] dark:hover:bg-[#2563EB] text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer active:scale-[0.99]"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      <span>Enroll Free to Access</span>
+                      <ArrowRight className="w-4 h-4 ml-auto" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </header>
+
+      {/* ── Navigation Tabs ─────────────────────────────────────────────── */}
+      <div className="border-b border-[#E5E7EB] dark:border-[#25324A] bg-white dark:bg-[#0B1120] sticky top-12 z-20">
+        <div className="max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-8">
+          <nav className="flex items-center gap-6 overflow-x-auto no-scrollbar text-sm font-medium">
+            {[
+              { id: 'overview', label: 'Overview' },
+              { id: 'curriculum', label: `Course Content (${totalLessonsCount})` },
+              { id: 'outcomes', label: 'Skills & Outcomes' },
+              { id: 'faq', label: 'Reviews & FAQ' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`py-3.5 border-b-2 font-medium text-sm whitespace-nowrap transition-colors cursor-pointer ${
+                  activeTab === tab.id
+                    ? 'border-[#2563EB] dark:border-[#3B82F6] text-[#2563EB] dark:text-[#3B82F6] font-semibold'
+                    : 'border-transparent text-[#64748B] dark:text-[#94A3B8] hover:text-[#111827] dark:hover:text-[#F8FAFC]'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+      </div>
+
+      {/* ── Main Content Body ───────────────────────────────────────────── */}
+      <main className="max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        
+        {/* TAB 1: OVERVIEW */}
+        {activeTab === 'overview' && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+            <div className="lg:col-span-8 space-y-10">
+              
+              {/* Introduction section */}
+              <section className="space-y-4">
+                <h2 className="text-xl font-bold text-[#111827] dark:text-white">
+                  About this Course
+                </h2>
+                <div className="space-y-3 text-[#334155] dark:text-[#CBD5E1] text-[15px] leading-relaxed">
+                  {introParagraphs.map((p, idx) => (
+                    <p key={idx}>{p}</p>
+                  ))}
+                </div>
+              </section>
+
+              {/* What you'll learn */}
+              <section className="p-6 rounded-2xl bg-[#F8FAFC] dark:bg-[#111827] border border-[#E5E7EB] dark:border-[#25324A] space-y-4">
+                <h3 className="text-base font-bold text-[#111827] dark:text-white flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-[#2563EB] dark:text-[#3B82F6]" />
+                  What you will learn
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {learningOutcomes.map((outcome, idx) => (
+                    <div key={idx} className="flex items-start gap-2.5 text-xs text-[#334155] dark:text-[#CBD5E1]">
+                      <span className="text-[#2563EB] dark:text-[#3B82F6] font-bold mt-0.5">•</span>
+                      <span>{outcome}</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* Course Curriculum Preview list */}
+              <section className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-[#111827] dark:text-white">
+                    Curriculum Summary
+                  </h3>
+                  <button
+                    onClick={() => setActiveTab('curriculum')}
+                    className="text-xs font-semibold text-[#2563EB] dark:text-[#3B82F6] hover:underline"
+                  >
+                    View all {totalLessonsCount} lessons →
+                  </button>
+                </div>
+
+                <div className="border border-[#E5E7EB] dark:border-[#25324A] rounded-2xl divide-y divide-[#E5E7EB] dark:divide-[#25324A] overflow-hidden">
+                  {course.modules.slice(0, 4).map((mod, mIdx) => (
+                    <div key={mod.id} className="p-4 bg-white dark:bg-[#111827] flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="w-7 h-7 rounded-lg bg-[#F8FAFC] dark:bg-[#172033] border border-[#E5E7EB] dark:border-[#25324A] text-xs font-mono font-bold text-[#64748B] dark:text-[#94A3B8] flex items-center justify-center shrink-0">
+                          {String(mIdx + 1).padStart(2, '0')}
+                        </span>
+                        <div className="min-w-0">
+                          <h4 className="text-sm font-semibold text-[#111827] dark:text-white truncate">
+                            {mod.title.replace(/^(🟢|🟡|🔵|🔴)\s*/, '')}
+                          </h4>
+                          <span className="text-xs text-[#64748B] dark:text-[#94A3B8]">
+                            {mod.lessons.length} lessons {mod.duration ? `• ${mod.duration}` : ''}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setOpenModuleId(mod.id);
+                          setActiveTab('curriculum');
+                        }}
+                        className="text-xs font-semibold text-[#2563EB] dark:text-[#3B82F6] hover:text-[#1D4ED8] shrink-0"
+                      >
+                        Explore
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+            </div>
+
+            {/* Right column: Learning Roadmap & Milestones */}
+            <div className="lg:col-span-4 space-y-6">
+              
+              {/* Learning Roadmap Milestones */}
+              <div className="p-5 rounded-2xl bg-[#F8FAFC] dark:bg-[#111827] border border-[#E5E7EB] dark:border-[#25324A] space-y-4">
+                <h4 className="text-sm font-bold text-[#111827] dark:text-white flex items-center gap-2">
+                  <Award className="w-4 h-4 text-[#2563EB] dark:text-[#3B82F6]" />
+                  Learning Milestones
+                </h4>
+                <div className="space-y-3 text-xs">
+                  {milestones.map((m, idx) => (
+                    <div key={idx} className="flex items-center gap-2.5">
+                      <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] shrink-0 ${
+                        m.done
+                          ? 'bg-emerald-500 text-white'
+                          : 'border border-[#CBD5E1] dark:border-[#475569] text-transparent'
+                      }`}>
+                        {m.done ? '✓' : ''}
+                      </span>
+                      <span className={m.done ? 'text-[#111827] dark:text-white font-medium' : 'text-[#64748B] dark:text-[#94A3B8]'}>
+                        {m.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Prerequisites Card */}
+              <div className="p-5 rounded-2xl bg-[#F8FAFC] dark:bg-[#111827] border border-[#E5E7EB] dark:border-[#25324A] space-y-3">
+                <h4 className="text-sm font-bold text-[#111827] dark:text-white">
+                  Prerequisites
+                </h4>
+                <ul className="space-y-2 text-xs text-[#64748B] dark:text-[#94A3B8]">
+                  {prerequisites.map((p, idx) => (
+                    <li key={idx} className="flex items-start gap-2">
+                      <span className="text-[#2563EB] dark:text-[#3B82F6] font-bold">•</span>
+                      <span>{p}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
             </div>
           </div>
+        )}
 
-          <div className="lg:col-span-6 space-y-4">
-            <h2 className="text-xl font-heading font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <HelpCircle className="w-5 h-5 text-sky-600 dark:text-cyan-400" />
-              Frequently Asked Questions
-            </h2>
+        {/* TAB 2: CURRICULUM (COURSE CONTENT) */}
+        {activeTab === 'curriculum' && (
+          <div className="space-y-6 max-w-4xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-[#111827] dark:text-white">
+                  Course Content
+                </h2>
+                <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1">
+                  {course.modules.length} Modules • {totalLessonsCount} Total Lessons
+                </p>
+              </div>
+            </div>
+
             <div className="space-y-3">
-              {faqs.map((faq, idx) => {
-                const isOpen = openFaqIndex === idx;
+              {course.modules.map((mod, modIdx) => {
+                const isOpen = openModuleId === mod.id;
                 return (
-                  <div key={idx} className="rounded-2xl border border-sky-100 dark:border-slate-800 bg-white dark:bg-slate-900/90 overflow-hidden shadow-xs">
+                  <div
+                    key={mod.id}
+                    className="rounded-2xl border border-[#E5E7EB] dark:border-[#25324A] bg-white dark:bg-[#111827] overflow-hidden shadow-xs"
+                  >
                     <button
-                      onClick={() => toggleFaq(idx)}
-                      className="w-full p-4 flex items-center justify-between text-left text-xs font-bold text-slate-900 dark:text-white cursor-pointer"
+                      onClick={() => toggleModule(mod.id)}
+                      className="w-full p-4 flex items-center justify-between text-left bg-[#F8FAFC] dark:bg-[#172033] hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors cursor-pointer"
                     >
-                      <span>{faq.q}</span>
-                      {isOpen ? <ChevronUp className="w-4 h-4 text-sky-600 dark:text-cyan-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-                    </button>
-                    {isOpen && (
-                      <div className="px-4 pb-4 text-xs text-slate-600 dark:text-slate-300 border-t border-sky-100/60 dark:border-slate-800/60 pt-3">
-                        {faq.a}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="w-8 h-8 rounded-xl bg-white dark:bg-[#111827] border border-[#E5E7EB] dark:border-[#25324A] text-xs font-mono font-bold text-[#2563EB] dark:text-[#3B82F6] flex items-center justify-center shrink-0">
+                          {String(modIdx + 1).padStart(2, '0')}
+                        </span>
+                        <div className="min-w-0">
+                          <h3 className="text-sm font-bold text-[#111827] dark:text-white truncate">
+                            {mod.title.replace(/^(🟢|🟡|🔵|🔴)\s*/, '')}
+                          </h3>
+                          <span className="text-xs text-[#64748B] dark:text-[#94A3B8]">
+                            {mod.lessons.length} lessons {mod.duration ? `• ${mod.duration}` : ''}
+                          </span>
+                        </div>
                       </div>
-                    )}
+
+                      <div className="flex items-center gap-2 shrink-0 ml-2">
+                        {isOpen ? (
+                          <ChevronUp className="w-4 h-4 text-[#64748B] dark:text-[#94A3B8]" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-[#64748B] dark:text-[#94A3B8]" />
+                        )}
+                      </div>
+                    </button>
+
+                    <AnimatePresence>
+                      {isOpen && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="divide-y divide-[#E5E7EB] dark:divide-[#25324A] border-t border-[#E5E7EB] dark:border-[#25324A]"
+                        >
+                          {mod.lessons.map((lesson, lIdx) => {
+                            const isDone = completedLessonIds.some((id) => String(id) === String(lesson.id));
+                            return (
+                              <div
+                                key={lesson.id}
+                                className="p-3.5 sm:px-5 flex items-center justify-between gap-4 hover:bg-[#F8FAFC] dark:hover:bg-[#172033]/60 transition-colors"
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0 ${
+                                    isDone
+                                      ? 'bg-emerald-500 text-white font-bold'
+                                      : 'border border-[#CBD5E1] dark:border-[#475569] text-[#94A3B8]'
+                                  }`}>
+                                    {isDone ? '✓' : lIdx + 1}
+                                  </span>
+
+                                  <div className="min-w-0">
+                                    <h4 className="text-xs sm:text-sm font-medium text-[#111827] dark:text-white truncate">
+                                      {lesson.title}
+                                    </h4>
+                                    {lesson.description && (
+                                      <p className="text-[11px] text-[#64748B] dark:text-[#94A3B8] truncate max-w-lg">
+                                        {lesson.description}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-3 shrink-0">
+                                  {lesson.duration && (
+                                    <span className="text-[11px] text-[#64748B] dark:text-[#94A3B8] font-mono hidden sm:inline">
+                                      {lesson.duration}
+                                    </span>
+                                  )}
+                                  <button
+                                    onClick={onStartLearning}
+                                    className="px-2.5 py-1 rounded-md text-xs font-semibold text-[#2563EB] dark:text-[#3B82F6] hover:bg-blue-50 dark:hover:bg-blue-950/60 transition-colors cursor-pointer"
+                                  >
+                                    {isDone ? 'Review' : 'Start'} →
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 );
               })}
             </div>
           </div>
-        </section>
+        )}
+
+        {/* TAB 3: SKILLS & OUTCOMES */}
+        {activeTab === 'outcomes' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl">
+            <div className="p-6 rounded-2xl bg-white dark:bg-[#111827] border border-[#E5E7EB] dark:border-[#25324A] space-y-4 shadow-xs">
+              <h3 className="text-lg font-bold text-[#111827] dark:text-white flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-[#2563EB] dark:text-[#3B82F6]" />
+                Measurable Learning Outcomes
+              </h3>
+              <ol className="space-y-3 text-sm text-[#334155] dark:text-[#CBD5E1] leading-relaxed">
+                {learningOutcomes.map((item, idx) => (
+                  <li key={idx} className="flex items-start gap-3">
+                    <span className="w-5 h-5 rounded-md bg-blue-50 dark:bg-blue-950/60 text-[#2563EB] dark:text-[#3B82F6] font-mono font-bold text-xs flex items-center justify-center shrink-0 mt-0.5 border border-blue-200 dark:border-blue-900/50">
+                      {idx + 1}
+                    </span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-white dark:bg-[#111827] border border-[#E5E7EB] dark:border-[#25324A] space-y-4 shadow-xs">
+              <h3 className="text-lg font-bold text-[#111827] dark:text-white flex items-center gap-2">
+                <Award className="w-5 h-5 text-[#2563EB] dark:text-[#3B82F6]" />
+                Core Technical Competencies
+              </h3>
+              <div className="grid grid-cols-1 gap-2.5">
+                {skills.map((skill, idx) => (
+                  <div
+                    key={idx}
+                    className="p-3 rounded-xl bg-[#F8FAFC] dark:bg-[#172033] border border-[#E5E7EB] dark:border-[#25324A] text-xs font-semibold text-[#111827] dark:text-white flex items-center gap-2.5"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-[#2563EB] dark:bg-[#3B82F6]" />
+                    <span>{skill}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: REVIEWS & FAQ */}
+        {activeTab === 'faq' && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="lg:col-span-6 space-y-4">
+              <h3 className="text-lg font-bold text-[#111827] dark:text-white flex items-center gap-2">
+                <Star className="w-5 h-5 text-amber-500 fill-amber-400" />
+                Student Reviews
+              </h3>
+              <div className="space-y-3">
+                {reviews.map((rev, idx) => (
+                  <div key={idx} className="p-5 rounded-2xl bg-white dark:bg-[#111827] border border-[#E5E7EB] dark:border-[#25324A] shadow-xs space-y-2.5">
+                    <div className="flex items-center gap-3">
+                      <img src={rev.avatar} alt={rev.name} className="w-9 h-9 rounded-full object-cover border border-[#E5E7EB] dark:border-[#25324A]" />
+                      <div>
+                        <h4 className="text-xs font-bold text-[#111827] dark:text-white">{rev.name}</h4>
+                        <span className="text-[11px] text-[#64748B] dark:text-[#94A3B8]">{rev.role}</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-[#334155] dark:text-[#CBD5E1] leading-relaxed italic">
+                      "{rev.comment}"
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="lg:col-span-6 space-y-4">
+              <h3 className="text-lg font-bold text-[#111827] dark:text-white flex items-center gap-2">
+                <HelpCircle className="w-5 h-5 text-[#2563EB] dark:text-[#3B82F6]" />
+                Frequently Asked Questions
+              </h3>
+              <div className="space-y-3">
+                {faqs.map((faq, idx) => {
+                  const isOpen = openFaqIndex === idx;
+                  return (
+                    <div key={idx} className="rounded-2xl border border-[#E5E7EB] dark:border-[#25324A] bg-white dark:bg-[#111827] overflow-hidden shadow-xs">
+                      <button
+                        onClick={() => toggleFaq(idx)}
+                        className="w-full p-4 flex items-center justify-between text-left text-xs font-bold text-[#111827] dark:text-white cursor-pointer"
+                      >
+                        <span>{faq.q}</span>
+                        {isOpen ? (
+                          <ChevronUp className="w-4 h-4 text-[#2563EB] dark:text-[#3B82F6]" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-[#64748B] dark:text-[#94A3B8]" />
+                        )}
+                      </button>
+                      {isOpen && (
+                        <div className="px-4 pb-4 text-xs text-[#64748B] dark:text-[#94A3B8] border-t border-[#E5E7EB] dark:border-[#25324A] pt-3 leading-relaxed">
+                          {faq.a}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
       </main>
+
+      {/* ── Sleek Professional AI Assistant Floating Button ─────────────── */}
+      <button
+        onClick={onStartLearning}
+        className="fixed bottom-5 right-5 z-40 px-3.5 py-2.5 rounded-full bg-[#111827] dark:bg-[#172033] hover:bg-[#1F2937] dark:hover:bg-[#1E293B] text-white border border-[#E5E7EB]/20 dark:border-[#25324A] shadow-lg flex items-center gap-2 transition-all duration-200 cursor-pointer active:scale-95 text-xs font-medium"
+        title="Open Course Learning Workspace"
+      >
+        <Sparkles className="w-4 h-4 text-[#3B82F6]" />
+        <span className="hidden sm:inline">AI Assistant</span>
+      </button>
+
     </div>
   );
 };

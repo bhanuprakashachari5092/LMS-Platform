@@ -8,6 +8,7 @@ import { rateLimiter } from './middleware/rateLimiter.middleware';
 import { developerGateMiddleware } from './middleware/developerGate.middleware';
 import { errorMiddleware, notFoundHandler } from './middleware/error.middleware';
 import { requestLogger } from './middleware/logger.middleware';
+import { verifyFirebaseToken, requireRole } from './middleware/auth.middleware';
 import routes from './routes';
 
 const app = express();
@@ -117,39 +118,10 @@ app.get('/health', (_req, res) => {
   });
 });
 
-// 3. Direct GET /api/debug/send-email Endpoint (Brevo HTTP API Transactional Email)
-app.get('/api/debug/send-email', async (req, res) => {
+// 3. Protected GET /api/test-email Endpoint (Admin Authenticated Only)
+app.get('/api/test-email', verifyFirebaseToken as any, requireRole('admin') as any, async (req, res) => {
   const { emailService } = await import('./services/email/EmailService');
-  const targetEmail = (req.query.email as string) || env.SMTP_EMAIL || 'support@kaizenq.in';
-  const subject = 'Brevo HTTP API Test - KaizenQ AI LMS';
-  const html = `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"></head>
-<body style="font-family: Arial, sans-serif; background-color: #f0f6ff; padding: 30px; color: #0f172a;">
-  <div style="max-width: 500px; margin: 0 auto; background: #ffffff; border-radius: 16px; padding: 30px; border: 1px solid #bae6fd;">
-    <h1 style="color: #0284c7; margin-top: 0;">KaizenQ AI LMS</h1>
-    <p style="font-size: 15px; color: #334155;">Brevo HTTP API connection successful on kaizenq.in.</p>
-    <p style="font-size: 13px; color: #64748b; margin-top: 30px;">KaizenQ Team &bull; no-reply@kaizenq.in</p>
-  </div>
-</body>
-</html>`;
-
-  const result = await emailService.sendDirectHtmlEmail(targetEmail, subject, html);
-
-  return res.status(result.success ? 200 : 500).json({
-    success: result.success,
-    accepted: result.accepted || (result.success ? [targetEmail] : []),
-    rejected: result.rejected || [],
-    response: result.response || (result.success ? '200 OK' : 'Failed'),
-    messageId: result.messageId || null,
-    error: result.error || null,
-  });
-});
-
-// 4. Direct GET /api/test-email Endpoint
-app.get('/api/test-email', async (req, res) => {
-  const { emailService } = await import('./services/email/EmailService');
-  const targetEmail = (req.query.email as string) || env.SMTP_EMAIL || 'support@kaizenq.in';
+  const targetEmail = (req.query.email as string) || (req as any).user?.email || env.SMTP_EMAIL || 'support@kaizenq.in';
   const subject = 'Brevo Transactional Email Test Successful - KaizenQ AI LMS';
 
   const html = `<!DOCTYPE html>
@@ -207,7 +179,6 @@ app.get('/api/test-email', async (req, res) => {
       accepted: result.accepted || [],
       rejected: result.rejected || [],
       response: result.response || null,
-      diagnostic: 'Ensure BREVO_API_KEY is configured in Render Environment Variables.',
       status: emailService.getTransporterStatus(),
     });
   }

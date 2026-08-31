@@ -1,0 +1,411 @@
+import React, { useMemo, useState } from 'react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  CheckCircle2,
+  HelpCircle,
+  Link as LinkIcon,
+  ChevronDown,
+  ChevronUp,
+  Sparkles,
+  Code2,
+  Bookmark
+} from 'lucide-react';
+import { MarkdownContent } from './MarkdownContent';
+
+interface LessonContentPanelProps {
+  lessonTitle: string;
+  lessonContent: string;
+  shortDescription?: string;
+  lessonIndex: number;
+  totalLessons: number;
+  isCompleted: boolean;
+  hasPrevLesson: boolean;
+  hasNextLesson: boolean;
+  onPrevLesson: () => void;
+  onNextLesson: () => void;
+  onMarkComplete: () => void;
+  isNightMode?: boolean;
+  learningObjectives?: string[];
+  codeExamples?: Array<{
+    title?: string;
+    language: string;
+    code: string;
+    explanation?: string;
+  }>;
+  keyPoints?: string[];
+  practiceQuestions?: Array<{
+    question: string;
+    answer?: string;
+    explanation?: string;
+    difficulty?: string;
+  }>;
+  resourceLinks?: Array<{
+    title: string;
+    url: string;
+    description?: string;
+  }>;
+}
+
+/** Estimate reading time from content */
+function estimateReadingTime(content: string): string {
+  if (!content) return '1 min read';
+  const cleaned = content
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/!\[.*?\]\(.*?\)/g, '')
+    .replace(/[#*`!\[\]()>-]/g, ' ');
+  const words = cleaned.trim().split(/\s+/).filter((w) => w.length > 0).length;
+  const minutes = Math.max(1, Math.ceil(words / 200));
+  return `${minutes} min read`;
+}
+
+/**
+ * LessonContentPanel — the main reading area for lesson content.
+ * Follows the clean production layout:
+ * - Unit Title + Short Description + Reading Time
+ * - Learning Objectives
+ * - Lesson Content (Markdown theory)
+ * - Code Example (syntax highlighted code + optional explanation)
+ * - Key Points
+ * - Practice (questions with revealable solutions)
+ * - Resources
+ * - Previous Unit | Mark Complete | Next Unit
+ */
+export const LessonContentPanel: React.FC<LessonContentPanelProps> = ({
+  lessonTitle,
+  lessonContent,
+  shortDescription,
+  lessonIndex,
+  totalLessons,
+  isCompleted,
+  hasPrevLesson,
+  hasNextLesson,
+  onPrevLesson,
+  onNextLesson,
+  onMarkComplete,
+  isNightMode = false,
+  learningObjectives,
+  codeExamples,
+  keyPoints,
+  practiceQuestions,
+  resourceLinks,
+}) => {
+  const readingTime = useMemo(() => estimateReadingTime(lessonContent), [lessonContent]);
+  const [openSolutions, setOpenSolutions] = useState<Record<number, boolean>>({});
+
+  const validObjectives = useMemo(() => {
+    return (learningObjectives || []).map((o) => o.trim()).filter((o) => o.length > 0);
+  }, [learningObjectives]);
+
+  const validCodeExamples = useMemo(() => {
+    return (codeExamples || []).filter((ce) => ce.code && ce.code.trim().length > 0);
+  }, [codeExamples]);
+
+  const validKeyPoints = useMemo(() => {
+    return (keyPoints || []).map((kp) => kp.trim()).filter((kp) => kp.length > 0);
+  }, [keyPoints]);
+
+  const validPracticeQuestions = useMemo(() => {
+    return (practiceQuestions || []).filter((pq) => pq.question && pq.question.trim().length > 0);
+  }, [practiceQuestions]);
+
+  const validResourceLinks = useMemo(() => {
+    return (resourceLinks || []).filter((r) => r.title && r.title.trim().length > 0 && r.url && r.url.trim().length > 0);
+  }, [resourceLinks]);
+
+  const toggleSolution = (idx: number) => {
+    setOpenSolutions((prev) => ({ ...prev, [idx]: !prev[idx] }));
+  };
+
+  return (
+    <article className="flex-1 min-w-0 flex flex-col">
+      <div className="flex-1 px-5 sm:px-8 lg:px-12 py-8 max-w-[54rem] mx-auto w-full space-y-8">
+        
+        {/* ── 1. Unit Title & Short Description ───────────────────────────────── */}
+        <div className="space-y-3 pb-2 border-b border-[#E5E7EB] dark:border-[#25324A]">
+          <div className="flex items-center gap-3">
+            <span className={`text-xs font-semibold uppercase tracking-wider
+              ${isNightMode ? 'text-slate-500' : 'text-slate-400'}`}>
+              Unit {lessonIndex + 1} of {totalLessons}
+            </span>
+            <span className={`text-xs ${isNightMode ? 'text-slate-700' : 'text-slate-300'}`}>•</span>
+            <span className={`text-xs flex items-center gap-1 font-medium
+              ${isNightMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              <Clock className="w-3.5 h-3.5 text-[#2563EB] dark:text-[#3B82F6]" />
+              {readingTime}
+            </span>
+          </div>
+
+          <h1 className={`text-2xl sm:text-3xl font-bold tracking-tight leading-tight
+            ${isNightMode ? 'text-white' : 'text-slate-900'}`}>
+            {lessonTitle}
+          </h1>
+
+          {shortDescription && (
+            <p className={`text-sm sm:text-base leading-relaxed
+              ${isNightMode ? 'text-slate-400' : 'text-slate-600'}`}>
+              {shortDescription}
+            </p>
+          )}
+        </div>
+
+        {/* ── 2. Learning Objectives ──────────────────────────────────────────── */}
+        {validObjectives.length > 0 && (
+          <div className={`p-5 rounded-2xl border transition-colors
+            ${isNightMode
+              ? 'bg-[#172033]/60 border-[#25324A] text-slate-200'
+              : 'bg-blue-50/70 border-blue-100 text-slate-800'
+            }`}>
+            <h3 className={`text-xs font-bold uppercase tracking-wider mb-2.5 flex items-center gap-2
+              ${isNightMode ? 'text-blue-400' : 'text-[#2563EB]'}`}>
+              <Sparkles className="w-4 h-4" />
+              <span>Learning Objectives</span>
+            </h3>
+            <ul className="space-y-2 text-xs sm:text-sm leading-relaxed">
+              {validObjectives.map((obj, i) => (
+                <li key={i} className="flex items-start gap-2.5">
+                  <span className="text-[#2563EB] dark:text-[#3B82F6] font-bold mt-0.5">•</span>
+                  <span>{obj}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* ── 3. Lesson Content (Rich Markdown Theory) ─────────────────────────── */}
+        <section className="space-y-4">
+          <MarkdownContent content={lessonContent} isNightMode={isNightMode} />
+        </section>
+
+        {/* ── 4. Code Examples (Syntax Highlighted) ───────────────────────────── */}
+        {validCodeExamples.length > 0 && (
+          <section className="space-y-4 pt-4 border-t border-[#E5E7EB] dark:border-[#25324A]">
+            <h3 className={`text-lg font-bold flex items-center gap-2
+              ${isNightMode ? 'text-white' : 'text-slate-900'}`}>
+              <Code2 className="w-5 h-5 text-[#2563EB] dark:text-[#3B82F6]" />
+              <span>Code Example{validCodeExamples.length > 1 ? 's' : ''}</span>
+            </h3>
+
+            <div className="space-y-5">
+              {validCodeExamples.map((example, idx) => (
+                <div
+                  key={idx}
+                  className={`rounded-2xl border overflow-hidden
+                    ${isNightMode ? 'border-[#25324A] bg-[#0F172A]' : 'border-slate-200 bg-slate-900'}`}
+                >
+                  {example.title && (
+                    <div className="px-4 py-2.5 border-b border-slate-800 flex items-center justify-between text-xs font-mono font-semibold text-slate-300">
+                      <span>{example.title}</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-sky-400 uppercase tracking-wider">
+                        {example.language || 'code'}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="p-4 overflow-x-auto text-xs font-mono text-slate-100">
+                    <pre className="whitespace-pre leading-relaxed">
+                      <code>{example.code}</code>
+                    </pre>
+                  </div>
+
+                  {example.explanation && (
+                    <div className={`p-3.5 text-xs border-t
+                      ${isNightMode
+                        ? 'border-slate-800 bg-[#172033]/60 text-slate-300'
+                        : 'border-slate-800 bg-slate-800/60 text-slate-300'}`}>
+                      <span className="font-semibold text-sky-400 mr-1.5">Explanation:</span>
+                      <span>{example.explanation}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ── 5. Key Points ───────────────────────────────────────────────────── */}
+        {validKeyPoints.length > 0 && (
+          <section className={`p-5 rounded-2xl border transition-colors space-y-3
+            ${isNightMode
+              ? 'bg-[#172033]/40 border-[#25324A]'
+              : 'bg-emerald-50/50 border-emerald-100'
+            }`}>
+            <h3 className={`text-xs font-bold uppercase tracking-wider flex items-center gap-2
+              ${isNightMode ? 'text-emerald-400' : 'text-emerald-700'}`}>
+              <Bookmark className="w-4 h-4" />
+              <span>Key Takeaways</span>
+            </h3>
+            <ul className="space-y-2 text-xs sm:text-sm leading-relaxed">
+              {validKeyPoints.map((kp, i) => (
+                <li key={i} className="flex items-start gap-2.5">
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold mt-0.5">✓</span>
+                  <span className={isNightMode ? 'text-slate-300' : 'text-slate-700'}>{kp}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {/* ── 6. Practice Exercises ───────────────────────────────────────────── */}
+        {validPracticeQuestions.length > 0 && (
+          <section className="pt-4 border-t border-[#E5E7EB] dark:border-[#25324A] space-y-4">
+            <h3 className={`text-lg font-bold flex items-center gap-2
+              ${isNightMode ? 'text-white' : 'text-slate-900'}`}>
+              <HelpCircle className="w-5 h-5 text-[#2563EB] dark:text-[#3B82F6]" />
+              <span>Practice Questions</span>
+            </h3>
+
+            <div className="space-y-4">
+              {validPracticeQuestions.map((pq, idx) => {
+                const isOpen = !!openSolutions[idx];
+                return (
+                  <div
+                    key={idx}
+                    className={`p-5 rounded-2xl border transition-colors space-y-3
+                      ${isNightMode
+                        ? 'bg-[#172033]/40 border-[#25324A]'
+                        : 'bg-[#F8FAFC] border-[#E5E7EB]'
+                      }`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-bold text-[#2563EB] dark:text-[#3B82F6]">
+                        Question #{idx + 1}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => toggleSolution(idx)}
+                        className="text-xs font-semibold text-[#2563EB] dark:text-[#3B82F6] hover:underline cursor-pointer flex items-center gap-1"
+                      >
+                        <span>{isOpen ? 'Hide Solution' : 'Reveal Solution'}</span>
+                        {isOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+
+                    <p className={`text-xs sm:text-sm leading-relaxed whitespace-pre-wrap font-medium
+                      ${isNightMode ? 'text-slate-200' : 'text-slate-800'}`}>
+                      {pq.question}
+                    </p>
+
+                    {isOpen && (
+                      <div className="p-4 rounded-xl bg-[#0F172A] text-slate-100 text-xs font-mono border border-slate-800 space-y-2.5 mt-2 animate-in fade-in duration-200">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+                          Reference Solution
+                        </span>
+                        <pre className="overflow-x-auto whitespace-pre-wrap leading-relaxed font-mono">
+                          {pq.answer || '// Solution code not specified.'}
+                        </pre>
+                        {pq.explanation && (
+                          <div className="text-[11px] text-emerald-400 font-sans mt-2 pt-2 border-t border-slate-800 flex items-start gap-1.5">
+                            <span>💡</span>
+                            <span>{pq.explanation}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* ── 7. Resources ────────────────────────────────────────────────────── */}
+        {validResourceLinks.length > 0 && (
+          <section className="pt-4 border-t border-[#E5E7EB] dark:border-[#25324A] space-y-3">
+            <h3 className={`text-base font-bold flex items-center gap-2
+              ${isNightMode ? 'text-white' : 'text-slate-900'}`}>
+              <LinkIcon className="w-4 h-4 text-[#2563EB] dark:text-[#3B82F6]" />
+              <span>Reference Resources</span>
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {validResourceLinks.map((res, i) => (
+                <a
+                  key={i}
+                  href={res.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={`p-3.5 rounded-xl border transition-colors block text-xs
+                    ${isNightMode
+                      ? 'bg-[#172033]/40 border-[#25324A] hover:border-[#3B82F6]'
+                      : 'bg-white border-[#E5E7EB] hover:border-[#2563EB]'
+                    }`}
+                >
+                  <div className={`font-semibold truncate ${isNightMode ? 'text-white' : 'text-slate-900'}`}>
+                    {res.title}
+                  </div>
+                  <div className="font-mono text-[10px] text-[#2563EB] dark:text-[#3B82F6] truncate mt-0.5">
+                    {res.url}
+                  </div>
+                  {res.description && (
+                    <div className="text-[11px] text-[#64748B] dark:text-[#94A3B8] mt-1 line-clamp-2">
+                      {res.description}
+                    </div>
+                  )}
+                </a>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ── 8. Bottom Navigation & Completion Action Bar ────────────────────── */}
+        <div className="pt-8 border-t border-[#E5E7EB] dark:border-[#25324A] flex items-center justify-between gap-3 pb-8">
+          <button
+            onClick={onPrevLesson}
+            disabled={!hasPrevLesson}
+            className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold
+              transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed
+              ${isNightMode
+                ? 'bg-[#172033] hover:bg-[#1E293B] text-slate-300 border border-[#25324A]'
+                : 'bg-white hover:bg-slate-50 text-slate-700 border border-[#E5E7EB]'
+              }`}
+          >
+            <ChevronLeft className="w-4 h-4" />
+            <span>Previous Unit</span>
+          </button>
+
+          <div>
+            {isCompleted ? (
+              <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold
+                ${isNightMode
+                  ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-800/50'
+                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                }`}>
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                <span>Unit Completed</span>
+              </div>
+            ) : (
+              <button
+                onClick={onMarkComplete}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold
+                  transition-all duration-200 cursor-pointer active:scale-[0.98] shadow-sm
+                  ${isNightMode
+                    ? 'bg-[#3B82F6] hover:bg-[#2563EB] text-white shadow-blue-500/20'
+                    : 'bg-[#2563EB] hover:bg-[#1D4ED8] text-white shadow-blue-600/20'
+                  }`}
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Mark as Complete</span>
+              </button>
+            )}
+          </div>
+
+          <button
+            onClick={onNextLesson}
+            disabled={!hasNextLesson}
+            className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold
+              transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed
+              ${isNightMode
+                ? 'bg-[#3B82F6] hover:bg-[#2563EB] text-white'
+                : 'bg-[#2563EB] hover:bg-[#1D4ED8] text-white'
+              }`}
+          >
+            <span>Next Unit</span>
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+
+      </div>
+    </article>
+  );
+};

@@ -21,27 +21,29 @@ import {
   FileText,
   Eye,
   EyeOff,
-  Sparkles,
-  Check
+  Sparkles
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AssignmentPortal } from '@/components/courses/AssignmentPortal';
+import { UnitContentEditor } from '@/components/admin/UnitContentEditor';
 import {
   useCourses,
   loadStaticCourseModules,
   type ModuleItem,
   type TopicItem,
   type LearningUnitItem,
-  type LearningUnitType,
-  type QuizQuestion
+  type LearningUnitType
 } from '@/contexts/CourseContext';
-import { sanitizeAdminInput, sanitizeMarkdownContent } from '@/utils/adminDataSanitizer';
 
 export const AdminCourseDetails: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const { getCourseById, toggleCourseStatus, updateCourse } = useCourses();
 
   const course = getCourseById(courseId || '');
+
+  const instructorName = typeof course?.instructor === 'object' && course?.instructor !== null
+    ? (course.instructor as any).name || 'KaizenQ Faculty'
+    : String(course?.instructor || 'KaizenQ Faculty');
 
   // Local Modules State (synced from Context)
   const [modules, setModules] = useState<ModuleItem[]>([]);
@@ -122,7 +124,7 @@ export const AdminCourseDetails: React.FC = () => {
   const [isStudentPreviewMode, setIsStudentPreviewMode] = useState(false);
 
   // Completed Lesson Tracking state
-  const [completedUnitIds, setCompletedUnitIds] = useState<Record<string, boolean>>(() => {
+  const [completedUnitIds] = useState<Record<string, boolean>>(() => {
     try {
       const stored = localStorage.getItem(`lms_completed_units_${courseId}`);
       return stored ? JSON.parse(stored) : {};
@@ -131,10 +133,7 @@ export const AdminCourseDetails: React.FC = () => {
     }
   });
 
-  // Persist completedUnitIds to localStorage
-  useEffect(() => {
-    localStorage.setItem(`lms_completed_units_${courseId}`, JSON.stringify(completedUnitIds));
-  }, [completedUnitIds, courseId]);
+
 
   // Certificate Generation Modals and States
   const [certificateModalOpen, setCertificateModalOpen] = useState(false);
@@ -514,7 +513,7 @@ export const AdminCourseDetails: React.FC = () => {
 
                 <div class="footer-signatures">
                   <div class="sig-block">
-                    <div class="sig-name">${course.instructor}</div>
+                    <div class="sig-name">${instructorName}</div>
                     <div class="sig-line">Lead Instructor</div>
                   </div>
                   
@@ -546,241 +545,7 @@ export const AdminCourseDetails: React.FC = () => {
     }
   };
 
-  // Flattened list of syllabus units for navigation
-  const getSyllabusUnits = (): { moduleId: string; topicId: string; unit: LearningUnitItem }[] => {
-    const list: { moduleId: string; topicId: string; unit: LearningUnitItem }[] = [];
-    modules.forEach((m) => {
-      m.topics.forEach((t) => {
-        t.learningUnits.forEach((u) => {
-          list.push({ moduleId: m.id, topicId: t.id, unit: u });
-        });
-      });
-    });
-    return list;
-  };
 
-  const syllabusUnits = getSyllabusUnits();
-  const currentUnitIndex = activeUnit ? syllabusUnits.findIndex(item => item.unit.id === activeUnit.id) : -1;
-  const prevUnitIndex = currentUnitIndex > 0 ? currentUnitIndex - 1 : -1;
-  const nextUnitIndex = currentUnitIndex !== -1 && currentUnitIndex < syllabusUnits.length - 1 ? currentUnitIndex + 1 : -1;
-
-  const navigateToPrevUnit = () => {
-    if (prevUnitIndex === -1) return;
-    const target = syllabusUnits[prevUnitIndex];
-    openEditUnitDrawer(target.moduleId, target.topicId, target.unit);
-  };
-
-  const navigateToNextUnit = () => {
-    if (nextUnitIndex === -1) return;
-    const target = syllabusUnits[nextUnitIndex];
-    openEditUnitDrawer(target.moduleId, target.topicId, target.unit);
-  };
-
-  const handleToggleComplete = (unitId: string) => {
-    setCompletedUnitIds((prev) => {
-      const next = { ...prev, [unitId]: !prev[unitId] };
-      toast.success(next[unitId] ? 'Lesson marked as completed!' : 'Lesson marked as incomplete.');
-      return next;
-    });
-  };
-
-
-
-  const formatQuizTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-  };
-
-  const parseMarkdownToHtml = (md: string): string => {
-    if (!md) return '';
-
-    const cleanMarkdownNewlines = (text: string): string => {
-      if (!text) return '';
-      const lines = text.split('\n');
-      const cleanedLines: string[] = [];
-      
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        const trimmed = line.trim();
-        
-        if (trimmed === '') {
-          let prevNonEmpty = '';
-          for (let j = cleanedLines.length - 1; j >= 0; j--) {
-            if (cleanedLines[j].trim() !== '') {
-              prevNonEmpty = cleanedLines[j].trim();
-              break;
-            }
-          }
-          
-          let nextNonEmpty = '';
-          for (let j = i + 1; j < lines.length; j++) {
-            if (lines[j].trim() !== '') {
-              nextNonEmpty = lines[j].trim();
-              break;
-            }
-          }
-          
-          const isPrevSingleWord = prevNonEmpty && !prevNonEmpty.includes(' ') && !prevNonEmpty.startsWith('#') && !prevNonEmpty.startsWith('-');
-          const isNextSingleWord = nextNonEmpty && !nextNonEmpty.includes(' ') && !nextNonEmpty.startsWith('#') && !nextNonEmpty.startsWith('-');
-          
-          if (isPrevSingleWord && isNextSingleWord) {
-            continue;
-          }
-          cleanedLines.push(line);
-        } else {
-          cleanedLines.push(line);
-        }
-      }
-      
-      const result: string[] = [];
-    let currentTextLine = '';
-    let inCodeBlock = false;
-    
-    cleanedLines.forEach((line) => {
-      const trimmed = line.trim();
-      
-      if (trimmed.startsWith('```')) {
-        if (currentTextLine) {
-          result.push(currentTextLine);
-          currentTextLine = '';
-        }
-        result.push(line);
-        inCodeBlock = !inCodeBlock;
-        return;
-      }
-      
-      if (inCodeBlock) {
-        if (currentTextLine) {
-          result.push(currentTextLine);
-          currentTextLine = '';
-        }
-        result.push(line);
-        return;
-      }
-
-      if (trimmed === '') {
-        if (currentTextLine) {
-          result.push(currentTextLine);
-          currentTextLine = '';
-        }
-        result.push('');
-        return;
-      }
-      
-      const isStructural = 
-        trimmed.startsWith('#') ||
-        trimmed.startsWith('- ') ||
-        trimmed.startsWith('* ') ||
-        trimmed.startsWith('> ') ||
-        trimmed.startsWith('![') ||
-        trimmed.includes('|') ||
-        /^\d+\.\s/.test(trimmed) ||
-        /[│┌└─↓├┤┬┴┼]/.test(trimmed);
-        
-      if (isStructural) {
-        if (currentTextLine) {
-          result.push(currentTextLine);
-          currentTextLine = '';
-        }
-        result.push(line);
-      } else {
-        if (currentTextLine) {
-          currentTextLine += ' ' + trimmed;
-        } else {
-          currentTextLine = line;
-        }
-      }
-    });
-    
-    if (currentTextLine) {
-      result.push(currentTextLine);
-    }
-    
-    return result.join('\n');
-  };
-
-    const sanitizedMd = sanitizeMarkdownContent(md);
-    let html = cleanMarkdownNewlines(sanitizedMd);
-
-    // Escape basic HTML tags to prevent custom injected scripts
-    html = html
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-
-    // 1. Code blocks (fenced with ```)
-    const codeBlocks: string[] = [];
-    html = html.replace(/```(?:(\w+)\n)?([\s\S]+?)```/g, (_, _lang, code) => {
-      const index = codeBlocks.length;
-      const highlighted = code
-        .replace(/(\/\/.+)/g, '<span class="text-slate-400 font-mono font-medium">$1</span>')
-        .replace(/\b(const|let|var|function|return|import|export|class|from|default|type|interface|public|private)\b/g, '<span class="text-sky-600 font-bold font-mono">$1</span>')
-        .replace(/\b(true|false|null|undefined)\b/g, '<span class="text-amber-600 font-mono">$1</span>')
-        .replace(/(['"`])(.*?)\1/g, '<span class="text-emerald-600 font-mono">$1$2$1</span>');
-      
-      codeBlocks.push(
-        `<pre class="bg-slate-900 text-slate-100 p-4 rounded-xl font-mono text-[11px] overflow-x-auto border border-slate-800 leading-normal my-4"><code class="font-mono block">${highlighted}</code></pre>`
-      );
-      return `__CODE_BLOCK_${index}__`;
-    });
-
-    // 2. Images: ![alt](url)
-    html = html.replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" class="my-4 rounded-xl border border-slate-200 shadow-sm max-w-full h-auto object-cover mx-auto" />');
-
-    // 3. Links: [text](url)
-    html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-sky-600 font-bold hover:underline">$1</a>');
-
-    // 4. Headings
-    html = html.replace(/^# (.*?)$/gm, '<h1 class="font-heading font-extrabold text-lg text-slate-900 border-b pb-2 mt-6 mb-3">$1</h1>');
-    html = html.replace(/^## (.*?)$/gm, '<h2 class="font-heading font-bold text-sm text-slate-900 mt-5 mb-2.5">$1</h2>');
-    html = html.replace(/^### (.*?)$/gm, '<h3 class="font-heading font-bold text-xs text-slate-800 mt-4 mb-2">$1</h3>');
-
-    // 5. Tables
-    html = html.replace(/((?:\|[^\n]+\|\r?\n?)+)/g, (tableText) => {
-      const lines = tableText.trim().split('\n');
-      if (lines.length < 2) return tableText;
-      
-      const rows = lines.map(line => {
-        return line.split('|').map(c => c.trim()).filter((_, i, arr) => i > 0 && i < arr.length - 1);
-      });
-
-      const headerCells = rows[0].map(c => `<th class="border border-slate-200 bg-slate-50/50 p-2 text-left text-[11px] font-bold text-slate-700">${c}</th>`).join('');
-      
-      // Filter out divider lines (e.g. |---|---|)
-      const dataRows = rows.slice(1).filter(r => !r.every(c => c.startsWith('-')));
-      
-      const bodyRows = dataRows.map(r => {
-        const tdCells = r.map(c => `<td class="border border-slate-200 p-2 text-[11px] font-medium text-slate-600">${c}</td>`).join('');
-        return `<tr class="hover:bg-slate-50/50 transition-colors">${tdCells}</tr>`;
-      }).join('');
-
-      return `<div class="overflow-x-auto my-5 border border-slate-200 rounded-xl shadow-3xs"><table class="w-full border-collapse bg-white"><thead><tr>${headerCells}</tr></thead><tbody>${bodyRows}</tbody></table></div>`;
-    });
-
-    // 6. Bullet lists
-    html = html.replace(/^(?:-|\*)\s+(.*?)$/gm, '<li class="ml-4 list-disc text-slate-600 font-medium pl-1.5 my-1 leading-relaxed">$1</li>');
-
-    // 7. Bold: **text**
-    html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-slate-900">$1</strong>');
-
-    // 8. Line breaks & Paragraphs (wrapped around plain text lines)
-    html = html.replace(/^(?!<h|<li|<tr|<td|<th|<pre|<img|<\/?table|<\/?thead|<\/?tbody|<\/?tr|__CODE_BLOCK_)(.+)$/gm, '<p class="my-3 text-slate-600 font-medium leading-relaxed">$1</p>');
-
-    // Restore Code Blocks
-    codeBlocks.forEach((block, idx) => {
-      html = html.replace(`__CODE_BLOCK_${idx}__`, block);
-    });
-
-    return html;
-  };
-
-  const getEstimatedReadingTime = (text: string): string => {
-    if (!text) return '1 min read';
-    const words = text.trim().split(/\s+/).length;
-    const time = Math.max(1, Math.round(words / 200));
-    return `${time} min read`;
-  };
 
   // Toggle module expansion
   const toggleExpand = (id: string) => {
@@ -975,45 +740,6 @@ export const AdminCourseDetails: React.FC = () => {
     setDrawerOpen(true);
   };
 
-  const handleSaveUnitDrawer = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!drawerModuleId || !drawerTopicId || !activeUnit || !activeUnit.title.trim()) {
-      toast.error('Learning unit title is required.');
-      return;
-    }
-
-    const sanitizedUnit: LearningUnitItem = {
-      ...activeUnit,
-      title: sanitizeAdminInput(activeUnit.title),
-      description: sanitizeAdminInput(activeUnit.description),
-      readingContent: activeUnit.readingContent ? sanitizeMarkdownContent(activeUnit.readingContent) : activeUnit.readingContent,
-      assignmentInstructions: activeUnit.assignmentInstructions ? sanitizeMarkdownContent(activeUnit.assignmentInstructions) : activeUnit.assignmentInstructions,
-      videoUrl: sanitizeAdminInput(activeUnit.videoUrl)
-    };
-
-    const updated = modules.map((m) => {
-      if (m.id === drawerModuleId) {
-        const nextTopics = m.topics.map((t) => {
-          if (t.id === drawerTopicId) {
-            const nextUnits = t.learningUnits.map((u) =>
-              u.id === sanitizedUnit.id ? sanitizedUnit : u
-            );
-            return { ...t, learningUnits: nextUnits };
-          }
-          return t;
-        });
-        return { ...m, topics: nextTopics };
-      }
-      return m;
-    });
-
-    setModules(updated);
-    updateCourse(course.id, { modules: updated });
-    setDrawerOpen(false);
-    setActiveUnit(null);
-    toast.success('Learning unit saved successfully!');
-  };
-
   const handleDeleteUnitDrawer = () => {
     if (!activeUnit || !drawerModuleId || !drawerTopicId) return;
     if (window.confirm(`Are you sure you want to delete unit "${activeUnit.title}"?`)) {
@@ -1038,50 +764,6 @@ export const AdminCourseDetails: React.FC = () => {
       setActiveUnit(null);
       toast.success('Learning unit deleted successfully');
     }
-  };
-
-  // --- Quiz Questions Builders ---
-  const addQuizQuestion = () => {
-    if (!activeUnit) return;
-    const newQuestion: QuizQuestion = {
-      id: `q-${Date.now()}`,
-      questionText: 'New Multiple Choice Question',
-      options: ['Option 1', 'Option 2', 'Option 3', 'Option 4'],
-      correctAnswerIndex: 0,
-      explanation: '',
-      marks: 5
-    };
-    const updatedQuestions = [...(activeUnit.quizQuestions || []), newQuestion];
-    setActiveUnit({ ...activeUnit, quizQuestions: updatedQuestions });
-    toast.success('New question template added');
-  };
-
-  const updateQuestionText = (index: number, val: string) => {
-    if (!activeUnit || !activeUnit.quizQuestions) return;
-    const updated = [...activeUnit.quizQuestions];
-    updated[index].questionText = val;
-    setActiveUnit({ ...activeUnit, quizQuestions: updated });
-  };
-
-  const updateQuestionOption = (qIdx: number, optIdx: number, val: string) => {
-    if (!activeUnit || !activeUnit.quizQuestions) return;
-    const updated = [...activeUnit.quizQuestions];
-    updated[qIdx].options[optIdx] = val;
-    setActiveUnit({ ...activeUnit, quizQuestions: updated });
-  };
-
-  const updateQuestionAnswer = (qIdx: number, val: number) => {
-    if (!activeUnit || !activeUnit.quizQuestions) return;
-    const updated = [...activeUnit.quizQuestions];
-    updated[qIdx].correctAnswerIndex = val;
-    setActiveUnit({ ...activeUnit, quizQuestions: updated });
-  };
-
-  const deleteQuizQuestion = (index: number) => {
-    if (!activeUnit || !activeUnit.quizQuestions) return;
-    const updated = activeUnit.quizQuestions.filter((_, i) => i !== index);
-    setActiveUnit({ ...activeUnit, quizQuestions: updated });
-    toast.success('Question removed');
   };
 
   // ================= UNIT ACCORDION OPERATIONS =================
@@ -1330,16 +1012,7 @@ export const AdminCourseDetails: React.FC = () => {
     }
   };
 
-  // Safe YouTube Embed cleaner with custom player parameters
-  const getEmbedUrl = (url: string) => {
-    if (!url) return '';
-    const originUrl = typeof window !== 'undefined' ? window.location.origin : '';
-    const ytIdMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
-    if (ytIdMatch) {
-      return `https://www.youtube-nocookie.com/embed/${ytIdMatch[1]}?autoplay=0&controls=0&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&disablekb=1&playsinline=1&enablejsapi=1${originUrl ? `&origin=${encodeURIComponent(originUrl)}` : ''}`;
-    }
-    return url;
-  };
+
 
   return (
     <div className="space-y-8 text-slate-900 font-['Sora'] max-w-7xl mx-auto pb-12 animate-in fade-in-50 duration-300">
@@ -1389,7 +1062,7 @@ export const AdminCourseDetails: React.FC = () => {
             {course.title}
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">
-            Lead Instructor: <span className="text-slate-800 dark:text-slate-200 font-bold">{course.instructor}</span>
+            Lead Instructor: <span className="text-slate-800 dark:text-slate-200 font-bold">{instructorName}</span>
           </p>
         </div>
 
@@ -2020,6 +1693,15 @@ export const AdminCourseDetails: React.FC = () => {
                                                           <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full font-mono shrink-0 ${getUnitTypeBadgeStyles(unit.type)}`}>
                                                             {unit.type}
                                                           </span>
+                                                          {unit.isDraft ? (
+                                                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 shrink-0">
+                                                              Draft
+                                                            </span>
+                                                          ) : (
+                                                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0">
+                                                              Published
+                                                            </span>
+                                                          )}
                                                           <span className="text-[9px] font-semibold text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 border dark:border-slate-700 px-1.5 py-0.5 rounded shrink-0 flex items-center gap-1 font-mono">
                                                             <Clock className="w-2.5 h-2.5 text-sky-500" />
                                                             {unit.duration}
@@ -2121,11 +1803,11 @@ export const AdminCourseDetails: React.FC = () => {
             <div className="flex items-start gap-3.5">
               <img
                 src={course.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
-                alt={course.instructor}
+                alt={instructorName}
                 className="w-12 h-12 rounded-xl object-cover border border-sky-200 dark:border-slate-700"
               />
               <div className="space-y-0.5">
-                <span className="font-bold text-slate-900 dark:text-white text-xs block">{course.instructor}</span>
+                <span className="font-bold text-slate-900 dark:text-white text-xs block">{instructorName}</span>
                 <span className="text-[10px] text-sky-700 dark:text-cyan-400 font-semibold uppercase tracking-wider block">
                   {course.role || 'Senior Technical Instructor'}
                 </span>
@@ -2578,898 +2260,48 @@ export const AdminCourseDetails: React.FC = () => {
         </div>
       )}
 
-      {/* ================= HIGH-FIDELITY SIDE DRAWER FOR UNIT AUTHORING ================= */}
-      {drawerOpen && activeUnit && (
-        <>
-          {/* Backdrop Overlay */}
-          <div
-            onClick={() => {
-              setDrawerOpen(false);
-              setActiveUnit(null);
-            }}
-            className="fixed inset-0 z-40 bg-slate-950/70 backdrop-blur-2xs transition-opacity"
-          />
+      {/* ================= UNIT CONTENT AUTHORING MODAL / EDITOR ================= */}
+      <UnitContentEditor
+        isOpen={drawerOpen}
+        unit={activeUnit}
+        moduleTitle={modules.find((m) => m.id === drawerModuleId)?.title}
+        topicTitle={
+          modules
+            .find((m) => m.id === drawerModuleId)
+            ?.topics.find((t) => t.id === drawerTopicId)?.title
+        }
+        onSave={async (updatedUnit, isDraft) => {
+          if (!drawerModuleId || !drawerTopicId) return;
 
-          {/* Side Drawer Panel */}
-          <div className="fixed top-0 right-0 h-full w-[460px] sm:w-[580px] bg-white dark:bg-slate-900 shadow-2xl border-l border-slate-200/80 dark:border-slate-800 z-50 flex flex-col animate-in slide-in-from-right duration-300 text-slate-900 dark:text-white font-['Sora']">
-            {/* Drawer Header */}
-            <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/60">
-              <div className="min-w-0 flex-1 pr-4">
-                <div className="flex items-center gap-2">
-                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full font-mono ${getUnitTypeBadgeStyles(activeUnit.type)}`}>
-                    {activeUnit.type}
-                  </span>
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">
-                    LMS Content Builder
-                  </span>
-                </div>
-                <h3 className="font-heading font-extrabold text-sm text-slate-900 dark:text-white mt-1 truncate" title={activeUnit.title}>
-                  {activeUnit.title}
-                </h3>
-              </div>
-              
-              <button
-                onClick={() => {
-                  setDrawerOpen(false);
-                  setActiveUnit(null);
-                }}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
-              >
-                <X className="w-4.5 h-4.5" />
-              </button>
-            </div>
+          const updated = modules.map((m) => {
+            if (m.id === drawerModuleId) {
+              const nextTopics = m.topics.map((t) => {
+                if (t.id === drawerTopicId) {
+                  const nextUnits = t.learningUnits.map((u) =>
+                    u.id === updatedUnit.id ? updatedUnit : u
+                  );
+                  return { ...t, learningUnits: nextUnits };
+                }
+                return t;
+              });
+              return { ...m, topics: nextTopics };
+            }
+            return m;
+          });
 
-            {/* Tab Bar Selector (only shown if not in Student Preview Mode) */}
-            {!isStudentPreviewMode ? (
-              <div className="flex border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('edit')}
-                  className={`flex-1 py-3 text-xs font-bold text-center border-b-2 transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                    activeTab === 'edit'
-                      ? 'border-sky-600 text-sky-700 dark:text-cyan-400 bg-sky-50/20 dark:bg-slate-800/40'
-                      : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                  }`}
-                >
-                  <Edit className="w-3.5 h-3.5" />
-                  <span>Edit Content</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('preview')}
-                  className={`flex-1 py-3 text-xs font-bold text-center border-b-2 transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                    activeTab === 'preview'
-                      ? 'border-sky-600 text-sky-700 dark:text-cyan-400 bg-sky-50/20 dark:bg-slate-800/40'
-                      : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                  }`}
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                  <span>Student Preview</span>
-                </button>
-              </div>
-            ) : (
-              <div className="px-6 py-4 bg-slate-50 dark:bg-slate-950 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Registered Student view</span>
-                <h4 className="font-heading font-extrabold text-sm text-slate-800 dark:text-slate-200 mt-0.5">{activeUnit?.title}</h4>
-              </div>
-            )}
+          setModules(updated);
+          await updateCourse(course.id, { modules: updated });
+          setDrawerOpen(false);
+          setActiveUnit(null);
+          toast.success(isDraft ? 'Unit draft saved successfully!' : 'Unit published successfully!');
+        }}
+        onClose={() => {
+          setDrawerOpen(false);
+          setActiveUnit(null);
+        }}
+        onDelete={handleDeleteUnitDrawer}
+      />
 
-            {/* Drawer Body Scrollable Content */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              {activeTab === 'edit' ? (
-                // EDIT CONTENT TAB PANEL
-                <form onSubmit={handleSaveUnitDrawer} className="space-y-5">
-                  {/* Basic Metadata */}
-                  <div className="space-y-4 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-950/40">
-                    <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                      <Settings className="w-3 h-3 text-sky-600 dark:text-cyan-400" />
-                      <span>Standard Metadata</span>
-                    </h4>
-
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block mb-1">Unit Title</label>
-                      <input
-                        type="text"
-                        required
-                        value={activeUnit.title}
-                        onChange={(e) => setActiveUnit({ ...activeUnit, title: e.target.value })}
-                        className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-2 px-3 text-xs focus:outline-hidden focus:border-sky-500 transition-all font-medium text-slate-900 dark:text-white"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block mb-1">Estimated Duration</label>
-                        <input
-                          type="text"
-                          required
-                          value={activeUnit.duration}
-                          onChange={(e) => setActiveUnit({ ...activeUnit, duration: e.target.value })}
-                          placeholder="e.g. 15 mins"
-                          className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-2 px-3 text-xs focus:outline-hidden focus:border-sky-500 transition-all font-medium text-slate-900 dark:text-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block mb-1">Unit Type</label>
-                        <select
-                          value={activeUnit.type}
-                          onChange={(e) => {
-                            const newType = e.target.value as LearningUnitType;
-                            const updated: LearningUnitItem = { ...activeUnit, type: newType };
-                            if (newType === 'Video' && !updated.videoUrl) updated.videoUrl = 'https://www.youtube.com/embed/dQw4w9WgXcQ';
-                            if (newType === 'Reading' && !updated.readingContent) updated.readingContent = '## Reading Notes\n\nStudy guidelines here.';
-                            if (newType === 'Quiz' && (!updated.quizQuestions || updated.quizQuestions.length === 0)) {
-                              updated.quizQuestions = [{ id: `q-${Date.now()}`, questionText: 'Sample Question', options: ['Option 1', 'Option 2'], correctAnswerIndex: 0 }];
-                            }
-                            if (newType === 'Assignment' && !updated.assignmentInstructions) updated.assignmentInstructions = '### Assignment Instructions\n\nComplete lab tasks.';
-                            setActiveUnit(updated);
-                          }}
-                          className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-2 px-3 text-xs focus:outline-hidden focus:border-sky-500 transition-all font-medium text-slate-900 dark:text-white cursor-pointer"
-                        >
-                          <option value="Video" className="dark:bg-slate-900">Video</option>
-                          <option value="Reading" className="dark:bg-slate-900">Reading</option>
-                          <option value="Quiz" className="dark:bg-slate-900">Quiz</option>
-                          <option value="Assignment" className="dark:bg-slate-900">Assignment</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block mb-1">Brief Description</label>
-                      <textarea
-                        rows={2}
-                        value={activeUnit.description}
-                        onChange={(e) => setActiveUnit({ ...activeUnit, description: e.target.value })}
-                        className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-2 px-3 text-xs focus:outline-hidden focus:border-sky-500 transition-all font-medium resize-none text-slate-900 dark:text-white"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Type-Specific Contents Editor */}
-                  <div className="space-y-4">
-                    {activeUnit.type === 'Video' && (
-                      <div className="space-y-3">
-                        <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                          <Play className="w-3.5 h-3.5 text-sky-600 dark:text-cyan-400" />
-                          <span>Video Asset Configuration</span>
-                        </h4>
-                        <div>
-                          <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block mb-1">Video Resource URL (YouTube, Vimeo, MP4)</label>
-                          <input
-                            type="url"
-                            required
-                            value={activeUnit.videoUrl || ''}
-                            onChange={(e) => setActiveUnit({ ...activeUnit, videoUrl: e.target.value })}
-                            placeholder="e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-2.5 px-3 text-xs focus:outline-hidden focus:border-sky-500 transition-all font-medium text-slate-900 dark:text-white"
-                          />
-                          <p className="text-[9px] text-slate-400 dark:text-slate-500 font-medium mt-1">
-                            Paste standard video links. The system automatically converts them to secure iframe embeds for preview checks.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {activeUnit.type === 'Reading' && (
-                      <div className="space-y-3">
-                        <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                          <BookOpen className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                          <span>Reading Markdown content</span>
-                        </h4>
-                        <div>
-                          <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block mb-1">Structured Lesson Text (Markdown Support)</label>
-                          <textarea
-                            rows={12}
-                            required
-                            value={activeUnit.readingContent || ''}
-                            onChange={(e) => setActiveUnit({ ...activeUnit, readingContent: e.target.value })}
-                            placeholder="Write your study notes, code snippets, or reference links here..."
-                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-2.5 px-3 text-xs focus:outline-hidden focus:border-sky-500 transition-all font-medium font-mono text-slate-800 dark:text-slate-200"
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {activeUnit.type === 'Quiz' && (
-                      <div className="space-y-4">
-                        {/* Quiz Unit Parameters */}
-                        <div className="grid grid-cols-3 gap-3 p-4 rounded-2xl bg-emerald-50/20 dark:bg-emerald-950/20 border border-emerald-100/50 dark:border-emerald-800/40">
-                          <div>
-                            <label className="text-[9px] font-bold text-slate-700 dark:text-slate-300 block mb-1">Difficulty</label>
-                            <select
-                              value={activeUnit.quizDifficulty || 'Medium'}
-                              onChange={(e) => setActiveUnit({ ...activeUnit, quizDifficulty: e.target.value as 'Easy' | 'Medium' | 'Hard' })}
-                              className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg py-1.5 px-2.5 text-[11px] font-semibold text-slate-800 dark:text-slate-200 focus:outline-hidden focus:border-emerald-500 cursor-pointer"
-                            >
-                              <option value="Easy" className="dark:bg-slate-900">Easy</option>
-                              <option value="Medium" className="dark:bg-slate-900">Medium</option>
-                              <option value="Hard" className="dark:bg-slate-900">Hard</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label className="text-[9px] font-bold text-slate-700 dark:text-slate-300 block mb-1">Timer (minutes)</label>
-                            <input
-                              type="number"
-                              min={1}
-                              value={activeUnit.quizTimer || 10}
-                              onChange={(e) => setActiveUnit({ ...activeUnit, quizTimer: parseInt(e.target.value) || 10 })}
-                              className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg py-1 px-2 text-[11px] font-semibold text-slate-800 dark:text-slate-200 focus:outline-hidden focus:border-emerald-500"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[9px] font-bold text-slate-700 dark:text-slate-300 block mb-1">Passing Score (%)</label>
-                            <input
-                              type="number"
-                              min={1}
-                              max={100}
-                              value={activeUnit.quizPassingScore || 70}
-                              onChange={(e) => setActiveUnit({ ...activeUnit, quizPassingScore: parseInt(e.target.value) || 70 })}
-                              className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg py-1 px-2 text-[11px] font-semibold text-slate-800 dark:text-slate-200 focus:outline-hidden focus:border-emerald-500"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between pt-2">
-                          <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                            <HelpCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                            <span>Quiz Questions Builder</span>
-                          </h4>
-                          <button
-                            type="button"
-                            onClick={addQuizQuestion}
-                            className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 border border-emerald-100 dark:border-emerald-800 py-1 px-2.5 rounded-lg transition-colors cursor-pointer"
-                          >
-                            <Plus className="w-2.5 h-2.5" />
-                            <span>Add Question</span>
-                          </button>
-                        </div>
-
-                        {(!activeUnit.quizQuestions || activeUnit.quizQuestions.length === 0) ? (
-                          <div className="p-6 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-950/40">
-                            <HelpCircle className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
-                            <p className="text-xs text-slate-400 dark:text-slate-500 italic">No questions created yet. Click "Add Question" to begin.</p>
-                          </div>
-                        ) : (
-                          <div className="space-y-4">
-                            {activeUnit.quizQuestions.map((q, qIdx) => (
-                              <div key={q.id} className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-950/40 space-y-3 relative">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-3">
-                                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 font-mono">
-                                      Question {qIdx + 1}
-                                    </span>
-                                    <div className="flex items-center gap-1">
-                                      <span className="text-[8px] font-bold text-slate-400 uppercase">Marks:</span>
-                                      <input
-                                        type="number"
-                                        min={1}
-                                        value={q.marks || 5}
-                                        onChange={(e) => {
-                                          const val = parseInt(e.target.value) || 5;
-                                          const nextQs = [...(activeUnit.quizQuestions || [])];
-                                          nextQs[qIdx] = { ...q, marks: val };
-                                          setActiveUnit({ ...activeUnit, quizQuestions: nextQs });
-                                        }}
-                                        className="w-12 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md py-0.5 px-1.5 text-[10px] font-bold text-slate-700 dark:text-slate-300 focus:outline-hidden font-mono"
-                                      />
-                                    </div>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => deleteQuizQuestion(qIdx)}
-                                    className="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 p-1 rounded-md transition-colors cursor-pointer"
-                                    title="Delete Question"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-
-                                <div>
-                                  <input
-                                    type="text"
-                                    required
-                                    value={q.questionText}
-                                    onChange={(e) => updateQuestionText(qIdx, e.target.value)}
-                                    placeholder="Enter question prompt..."
-                                    className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-2 px-3 text-xs focus:outline-hidden focus:border-sky-500 font-bold text-slate-900 dark:text-white"
-                                  />
-                                </div>
-
-                                <div className="space-y-2">
-                                  <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                                    Options & Correct Flag
-                                  </span>
-                                  {q.options.map((opt, optIdx) => (
-                                    <div key={optIdx} className="flex items-center gap-2">
-                                      <input
-                                        type="radio"
-                                        name={`correct-ans-${q.id}`}
-                                        checked={q.correctAnswerIndex === optIdx}
-                                        onChange={() => updateQuestionAnswer(qIdx, optIdx)}
-                                        className="w-3.5 h-3.5 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                                        title="Select as correct option"
-                                      />
-                                      <input
-                                        type="text"
-                                        required
-                                        value={opt}
-                                        onChange={(e) => updateQuestionOption(qIdx, optIdx, e.target.value)}
-                                        placeholder={`Option ${optIdx + 1}`}
-                                        className="flex-1 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg py-1.5 px-2.5 text-xs text-slate-800 dark:text-slate-200 focus:outline-hidden font-medium"
-                                      />
-                                    </div>
-                                  ))}
-                                </div>
-
-                                <div>
-                                  <label className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">Explanation (shown to student after submit)</label>
-                                  <textarea
-                                    rows={2}
-                                    value={q.explanation || ''}
-                                    onChange={(e) => {
-                                      const nextQs = [...(activeUnit.quizQuestions || [])];
-                                      nextQs[qIdx] = { ...q, explanation: e.target.value };
-                                      setActiveUnit({ ...activeUnit, quizQuestions: nextQs });
-                                    }}
-                                    placeholder="Provide detailed explanation for correct answer..."
-                                    className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-1.5 px-2.5 text-xs focus:outline-hidden focus:border-sky-500 font-medium text-slate-800 dark:text-slate-200"
-                                  />
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {activeUnit.type === 'Assignment' && (
-                      <div className="space-y-4">
-                        <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                          <FileText className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                          <span>Assignment Builder Configuration</span>
-                        </h4>
-
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="text-[9px] font-bold text-slate-700 dark:text-slate-300 block mb-1">Maximum Marks</label>
-                            <input
-                              type="number"
-                              min={1}
-                              value={activeUnit.assignmentMaxMarks || 100}
-                              onChange={(e) => setActiveUnit({ ...activeUnit, assignmentMaxMarks: parseInt(e.target.value) || 100 })}
-                              className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-2 px-3 text-xs focus:outline-hidden focus:border-sky-500 transition-all font-medium text-slate-900 dark:text-white"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[9px] font-bold text-slate-700 dark:text-slate-300 block mb-1">Submission Deadline</label>
-                            <input
-                              type="text"
-                              value={activeUnit.assignmentDeadline || '7 days after module start'}
-                              onChange={(e) => setActiveUnit({ ...activeUnit, assignmentDeadline: e.target.value })}
-                              placeholder="e.g. 7 days or date"
-                              className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-2 px-3 text-xs focus:outline-hidden focus:border-sky-500 transition-all font-medium text-slate-900 dark:text-white"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="text-[9px] font-bold text-slate-700 dark:text-slate-300 block mb-1">Allowed File Types</label>
-                            <input
-                              type="text"
-                              value={activeUnit.assignmentAllowedTypes || 'PDF, ZIP, MD'}
-                              onChange={(e) => setActiveUnit({ ...activeUnit, assignmentAllowedTypes: e.target.value })}
-                              placeholder="e.g. PDF, ZIP, DOCX"
-                              className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-2 px-3 text-xs focus:outline-hidden focus:border-sky-500 transition-all font-medium text-slate-900 dark:text-white"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[9px] font-bold text-slate-700 dark:text-slate-300 block mb-1">Submission Status</label>
-                            <select
-                              value={activeUnit.assignmentSubmissionStatus || 'Not Submitted'}
-                              onChange={(e) => setActiveUnit({ ...activeUnit, assignmentSubmissionStatus: e.target.value })}
-                              className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-2 px-3 text-xs focus:outline-hidden focus:border-sky-500 transition-all font-medium text-slate-900 dark:text-white cursor-pointer"
-                            >
-                              <option value="Not Submitted" className="dark:bg-slate-900">Not Submitted</option>
-                              <option value="Submitted" className="dark:bg-slate-900">Submitted</option>
-                              <option value="Graded" className="dark:bg-slate-900">Graded</option>
-                            </select>
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="text-[9px] font-bold text-slate-700 dark:text-slate-300 block mb-1">Reference Files (comma-separated)</label>
-                          <input
-                            type="text"
-                            value={activeUnit.assignmentReferenceFiles || ''}
-                            onChange={(e) => setActiveUnit({ ...activeUnit, assignmentReferenceFiles: e.target.value })}
-                            placeholder="e.g. git-cheatsheet.pdf, lab-instructions.md"
-                            className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-2 px-3 text-xs focus:outline-hidden focus:border-sky-500 transition-all font-medium text-slate-900 dark:text-white"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="text-[9px] font-bold text-slate-700 dark:text-slate-300 block mb-1">Detailed Instructions (Markdown Support)</label>
-                          <textarea
-                            rows={6}
-                            required
-                            value={activeUnit.assignmentInstructions || ''}
-                            onChange={(e) => setActiveUnit({ ...activeUnit, assignmentInstructions: e.target.value })}
-                            placeholder="Define steps, build commands, expected layout guidelines..."
-                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-2 px-3 text-xs focus:outline-hidden focus:border-sky-500 transition-all font-medium text-slate-800 dark:text-slate-200 leading-relaxed font-mono"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="text-[9px] font-bold text-slate-700 dark:text-slate-300 block mb-1">Grading Rubric Description</label>
-                          <textarea
-                            rows={3}
-                            value={activeUnit.assignmentRubric || ''}
-                            onChange={(e) => setActiveUnit({ ...activeUnit, assignmentRubric: e.target.value })}
-                            placeholder="e.g. Completeness (50%), Accuracy (30%), Formatting (20%)"
-                            className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-2 px-3 text-xs focus:outline-hidden focus:border-sky-500 transition-all font-medium text-slate-900 dark:text-white leading-normal"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="text-[9px] font-bold text-slate-700 dark:text-slate-300 block mb-1">Teacher Feedback Notes</label>
-                          <textarea
-                            rows={3}
-                            value={activeUnit.assignmentTeacherFeedback || ''}
-                            onChange={(e) => setActiveUnit({ ...activeUnit, assignmentTeacherFeedback: e.target.value })}
-                            placeholder="Provide descriptive feedback for student submission..."
-                            className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-2 px-3 text-xs focus:outline-hidden focus:border-sky-500 transition-all font-medium text-slate-900 dark:text-white leading-normal"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </form>
-              ) : (
-                // STUDENT PREVIEW TAB PANEL
-                <div className="space-y-5">
-                  <div className="p-3 bg-sky-50 dark:bg-slate-950 border border-sky-100 dark:border-slate-800 rounded-2xl flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-sky-600 dark:text-cyan-400 shrink-0 animate-bounce" />
-                    <p className="text-[10px] text-sky-800 dark:text-cyan-300 font-semibold">
-                      This shows how this learning unit displays to registered students inside the curriculum view.
-                    </p>
-                  </div>
-
-                  {activeUnit.type === 'Video' && (
-                    <div className="space-y-4">
-                      {activeUnit.videoUrl ? (
-                        <div className="aspect-video w-full rounded-2xl overflow-hidden bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm relative group select-none">
-                          <div className="absolute top-0 left-0 right-0 h-14 bg-gradient-to-b from-black/90 via-black/50 to-transparent z-10 px-4 py-2.5 flex items-center justify-between pointer-events-auto">
-                            <span className="px-2.5 py-1 rounded-xl bg-sky-500/20 border border-sky-500/40 text-sky-400 text-[10px] font-extrabold">
-                              SHAIVIKA PLAYER
-                            </span>
-                            <span className="text-xs font-bold text-white truncate max-w-xs">{activeUnit.title}</span>
-                          </div>
-                          <iframe
-                            src={getEmbedUrl(activeUnit.videoUrl)}
-                            title={activeUnit.title}
-                            className="w-full h-full border-none"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                          />
-                        </div>
-                      ) : (
-                        <div className="aspect-video w-full rounded-2xl flex flex-col items-center justify-center bg-slate-900 text-slate-400 border border-slate-800">
-                          <Play className="w-12 h-12 text-slate-600 mb-2 animate-pulse" />
-                          <span className="text-xs font-semibold">No Video URL Configured</span>
-                        </div>
-                      )}
-
-                      <div className="space-y-1.5">
-                        <h4 className="font-heading font-extrabold text-sm text-slate-900 dark:text-white">
-                          {activeUnit.title}
-                        </h4>
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold block">
-                          ESTIMATED DURATION: {activeUnit.duration}
-                        </span>
-                        <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-medium pt-1">
-                          {activeUnit.description || 'No description provided.'}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeUnit.type === 'Reading' && (
-                    <div className="space-y-4">
-                      {/* Reading Time Badge */}
-                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 dark:text-slate-400 font-mono bg-slate-100 dark:bg-slate-800 border dark:border-slate-700 py-1.5 px-3 rounded-xl w-fit">
-                        <Clock className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
-                        <span>ESTIMATED DURATION: {activeUnit.duration} ({getEstimatedReadingTime(activeUnit.readingContent || '')})</span>
-                      </div>
-
-                      {/* Scrollable Reader Container */}
-                      <div className="p-6 sm:p-7 rounded-3xl bg-amber-50/15 dark:bg-slate-950/60 border border-amber-100/70 dark:border-slate-800 shadow-3xs max-h-[500px] overflow-y-auto pr-3 select-text leading-relaxed">
-                        {activeUnit.readingContent ? (
-                          <div
-                            dangerouslySetInnerHTML={{ __html: parseMarkdownToHtml(activeUnit.readingContent) }}
-                            className="text-xs text-slate-800 dark:text-slate-200 space-y-3 font-medium select-text"
-                          />
-                        ) : (
-                          <p className="text-slate-400 dark:text-slate-500 italic font-medium">No reading text configured. Write your study notes in the edit tab.</p>
-                        )}
-                      </div>
-
-                      <div className="space-y-1 bg-slate-50 dark:bg-slate-950 border dark:border-slate-800 p-4 rounded-2xl">
-                        <h5 className="font-heading font-bold text-xs text-slate-800 dark:text-slate-200">
-                          {activeUnit.title}
-                        </h5>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                          {activeUnit.description || 'No description.'}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeUnit.type === 'Quiz' && (
-                    <div className="space-y-5">
-                      {/* Quiz Banner & Meta Badges */}
-                      <div className="p-4 rounded-2xl bg-emerald-50/20 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-800/40 flex items-center justify-between flex-wrap gap-3">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-mono">
-                            DIFFICULTY: {activeUnit.quizDifficulty || 'Medium'}
-                          </span>
-                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-sky-100 dark:bg-sky-950 text-sky-800 dark:text-cyan-300 font-mono">
-                            PASSING SCORE: {activeUnit.quizPassingScore || 70}%
-                          </span>
-                        </div>
-
-                        {/* Live Timer Countdown */}
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 font-mono bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-3xs py-1.5 px-3 rounded-xl">
-                          <Clock className={`w-3.5 h-3.5 ${quizTimeRemaining < 60 ? 'text-rose-500 animate-pulse' : 'text-emerald-500'}`} />
-                          <span className={quizTimeRemaining < 60 ? 'text-rose-600 font-bold' : ''}>
-                            {quizSubmitted ? 'Timer Stopped' : formatQuizTime(quizTimeRemaining)}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="space-y-1 border-b dark:border-slate-800 pb-3">
-                        <h4 className="font-heading font-extrabold text-sm text-slate-900 dark:text-white">
-                          {activeUnit.title}
-                        </h4>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                          {activeUnit.description || 'Practice quiz evaluation.'}
-                        </p>
-                      </div>
-
-                      {(!activeUnit.quizQuestions || activeUnit.quizQuestions.length === 0) ? (
-                        <p className="text-xs text-slate-400 dark:text-slate-500 italic">No questions defined in this quiz.</p>
-                      ) : (
-                        <div className="space-y-5">
-                          {activeUnit.quizQuestions.map((q, qIdx) => {
-                            const selectedIdx = quizSelectedAnswers[q.id];
-                            return (
-                              <div key={q.id} className="space-y-3 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-950/40">
-                                <div className="flex items-center justify-between">
-                                  <h5 className="text-xs font-bold text-slate-900 dark:text-white leading-relaxed">
-                                    {qIdx + 1}. {q.questionText}
-                                  </h5>
-                                  <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 font-mono">
-                                    {q.marks || 5} Marks
-                                  </span>
-                                </div>
-                                <div className="space-y-2">
-                                  {q.options.map((opt, optIdx) => {
-                                    const isSelected = selectedIdx === optIdx;
-                                    const isCorrect = q.correctAnswerIndex === optIdx;
-                                    
-                                    let btnStyles = 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800';
-                                    if (quizSubmitted) {
-                                      if (isCorrect) {
-                                        btnStyles = 'border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-900 dark:text-emerald-200 font-bold';
-                                      } else if (isSelected) {
-                                        btnStyles = 'border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/60 text-rose-900 dark:text-rose-200 font-bold';
-                                      } else {
-                                        btnStyles = 'border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-400 dark:text-slate-500';
-                                      }
-                                    } else if (isSelected) {
-                                      btnStyles = 'border-sky-500 dark:border-cyan-500 bg-sky-50 dark:bg-cyan-950/60 text-sky-800 dark:text-cyan-200 font-bold';
-                                    }
-
-                                    return (
-                                      <button
-                                        key={optIdx}
-                                        type="button"
-                                        disabled={quizSubmitted}
-                                        onClick={() => setQuizSelectedAnswers({ ...quizSelectedAnswers, [q.id]: optIdx })}
-                                        className={`w-full text-left p-3 rounded-xl border text-xs transition-all flex items-center justify-between cursor-pointer ${btnStyles}`}
-                                      >
-                                        <span>{opt}</span>
-                                        {quizSubmitted && isCorrect && <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
-                                        {quizSubmitted && isSelected && !isCorrect && <X className="w-3.5 h-3.5 text-rose-600 shrink-0" />}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-
-                                {/* Explanation block shown post-submission */}
-                                {quizSubmitted && q.explanation && (
-                                  <div className="p-3.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
-                                    <strong className="text-slate-800 dark:text-white block mb-0.5 font-bold">Explanation:</strong>
-                                    {q.explanation}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-
-                          <div className="pt-2 flex items-center justify-between">
-                            {quizSubmitted ? (
-                              (() => {
-                                const totalQuizMarks = activeUnit.quizQuestions.reduce((acc, q) => acc + (q.marks || 5), 0);
-                                const scoredMarks = activeUnit.quizQuestions.reduce((acc, q) => {
-                                  return acc + (quizSelectedAnswers[q.id] === q.correctAnswerIndex ? (q.marks || 5) : 0);
-                                }, 0);
-                                const percentage = totalQuizMarks > 0 ? Math.round((scoredMarks / totalQuizMarks) * 100) : 0;
-                                const isPassed = percentage >= (activeUnit.quizPassingScore || 70);
-
-                                return (
-                                  <div className="w-full space-y-3">
-                                    <div className={`p-4 rounded-xl border flex items-center justify-between ${
-                                      isPassed ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200' : 'bg-rose-50 dark:bg-rose-950/60 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200'
-                                    }`}>
-                                      <div className="space-y-0.5">
-                                        <span className="text-xs font-extrabold block">
-                                          {isPassed ? 'Passed!' : 'Try Again'}
-                                        </span>
-                                        <span className="text-[10px] font-bold font-mono">
-                                          Score: {scoredMarks} / {totalQuizMarks} ({percentage}%) — Required: {activeUnit.quizPassingScore || 70}%
-                                        </span>
-                                      </div>
-                                      <button
-                                        type="button"
-                                        onClick={startQuizSimulation}
-                                        className="btn-blue-primary text-[10px] py-2 px-3 font-bold cursor-pointer"
-                                      >
-                                        Retry Simulation
-                                      </button>
-                                    </div>
-                                  </div>
-                                );
-                              })()
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setQuizSubmitted(true);
-                                  setQuizTimerActive(false);
-
-                                  // Save score to localStorage for Student Dashboard
-                                  const totalQuizMarks = activeUnit.quizQuestions?.reduce((acc: number, q: any) => acc + (q.marks || 5), 0) || 0;
-                                  const scoredMarks = activeUnit.quizQuestions?.reduce((acc: number, q: any) => {
-                                    return acc + (quizSelectedAnswers[q.id] === q.correctAnswerIndex ? (q.marks || 5) : 0);
-                                  }, 0) || 0;
-                                  const percentage = totalQuizMarks > 0 ? Math.round((scoredMarks / totalQuizMarks) * 100) : 0;
-                                  
-                                  localStorage.setItem(`lms_quiz_score_${activeUnit.id}`, JSON.stringify({
-                                    score: scoredMarks,
-                                    total: totalQuizMarks,
-                                    percentage,
-                                    date: new Date().toLocaleDateString('en-US')
-                                  }));
-                                }}
-                                className="w-full py-2.5 rounded-xl bg-slate-900 dark:bg-sky-600 text-white font-bold text-xs hover:bg-slate-800 dark:hover:bg-sky-500 transition-colors cursor-pointer"
-                              >
-                                Submit Quiz Answers
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {activeUnit.type === 'Assignment' && (
-                    <div className="space-y-4">
-                      {/* Assignment Meta Header */}
-                      <div className="p-4 rounded-2xl bg-amber-500/5 dark:bg-slate-950/60 border border-amber-200/50 dark:border-amber-800/40 space-y-3">
-                        <div className="flex items-center justify-between flex-wrap gap-2">
-                          <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">Assignment Scope</span>
-                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${
-                            activeUnit.assignmentSubmissionStatus === 'Graded'
-                              ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
-                              : activeUnit.assignmentSubmissionStatus === 'Submitted'
-                              ? 'bg-sky-50 dark:bg-sky-950/60 border-sky-200 dark:border-sky-800 text-sky-800 dark:text-cyan-300'
-                              : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-                          }`}>
-                            STATUS: {activeUnit.assignmentSubmissionStatus || 'Not Submitted'}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-2 text-center border-t border-slate-100 dark:border-slate-800 pt-2.5">
-                          <div className="space-y-0.5">
-                            <span className="text-[8px] font-bold text-slate-400 uppercase block">Max Score</span>
-                            <span className="text-xs font-extrabold text-slate-800 dark:text-slate-200">{activeUnit.assignmentMaxMarks || 100} pts</span>
-                          </div>
-                          <div className="space-y-0.5">
-                            <span className="text-[8px] font-bold text-slate-400 uppercase block">Deadline</span>
-                            <span className="text-xs font-extrabold text-slate-800 dark:text-slate-200 truncate block max-w-full">{activeUnit.assignmentDeadline || '7 Days'}</span>
-                          </div>
-                          <div className="space-y-0.5">
-                            <span className="text-[8px] font-bold text-slate-400 uppercase block">Formats</span>
-                            <span className="text-xs font-extrabold text-slate-800 dark:text-slate-200">{activeUnit.assignmentAllowedTypes || 'Any'}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Reference Files List */}
-                      {activeUnit.assignmentReferenceFiles && (
-                        <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 space-y-1.5">
-                          <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Attachment Resources</span>
-                          <div className="flex flex-wrap gap-2">
-                            {activeUnit.assignmentReferenceFiles.split(',').map((file, idx) => {
-                              const cleanName = file.trim();
-                              if (!cleanName) return null;
-                              return (
-                                <a
-                                  key={idx}
-                                  href="#"
-                                  onClick={(e) => { e.preventDefault(); toast.success(`Simulating download: ${cleanName}`); }}
-                                  className="inline-flex items-center gap-1.5 text-[10px] font-bold text-sky-700 dark:text-cyan-400 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-sky-200 dark:hover:border-cyan-800 shadow-3xs py-1 px-2.5 rounded-lg transition-all"
-                                >
-                                  <FileText className="w-3 h-3 text-sky-500" />
-                                  <span>{cleanName}</span>
-                                </a>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Instructions reader */}
-                      <div className="p-5 sm:p-6 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 space-y-3 max-h-[300px] overflow-y-auto pr-2">
-                        <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Instructions Guidelines</span>
-                        <div
-                          dangerouslySetInnerHTML={{ __html: parseMarkdownToHtml(activeUnit.assignmentInstructions || '') }}
-                          className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed font-medium"
-                        />
-                      </div>
-
-                      {/* Grading Rubric Card */}
-                      {activeUnit.assignmentRubric && (
-                        <div className="p-4 rounded-xl border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-1">
-                          <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Grading Rubric</span>
-                          <p className="text-xs text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
-                            {activeUnit.assignmentRubric}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Submission Upload Action Area */}
-                      <div className="border border-dashed border-sky-300 dark:border-cyan-800 bg-sky-50/10 dark:bg-slate-950/50 p-6 rounded-2xl text-center space-y-2">
-                        <FileText className="w-8 h-8 text-sky-500 dark:text-cyan-400 mx-auto" />
-                        <div>
-                          <span className="text-xs font-bold text-sky-800 dark:text-cyan-300 hover:underline cursor-pointer">
-                            Click to upload response document
-                          </span>{' '}
-                          <span className="text-xs text-slate-500 dark:text-slate-400">
-                            or drag and drop your files ({activeUnit.assignmentAllowedTypes || 'PDF, ZIP'})
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Teacher Feedback Card */}
-                      {activeUnit.assignmentTeacherFeedback && (
-                        <div className="p-4 rounded-2xl border border-indigo-100 dark:border-indigo-900/60 bg-indigo-50/20 dark:bg-indigo-950/20 space-y-1">
-                          <div className="flex items-center gap-1.5">
-                            <Sparkles className="w-4 h-4 text-indigo-500 animate-pulse" />
-                            <span className="text-[10px] font-bold text-indigo-900 dark:text-indigo-300 uppercase tracking-wide">Instructor Evaluations Feedback</span>
-                          </div>
-                          <p className="text-xs text-indigo-950 dark:text-indigo-200 font-medium leading-relaxed pt-0.5">
-                            {activeUnit.assignmentTeacherFeedback}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Navigation and Completion Actions */}
-                  <div className="pt-5 border-t border-slate-100 dark:border-slate-800 space-y-3 mt-6">
-                    <button
-                      type="button"
-                      onClick={() => handleToggleComplete(activeUnit.id)}
-                      className={`w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition-all cursor-pointer ${
-                        completedUnitIds[activeUnit.id]
-                          ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
-                          : 'bg-slate-900 dark:bg-sky-600 text-white border-transparent hover:bg-slate-800 dark:hover:bg-sky-500'
-                      }`}
-                    >
-                      {completedUnitIds[activeUnit.id] ? (
-                        <>
-                          <Check className="w-4 h-4 text-emerald-600" />
-                          <span>Completed (Undo)</span>
-                        </>
-                      ) : (
-                        <span>Mark Complete</span>
-                      )}
-                    </button>
-
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        disabled={prevUnitIndex === -1}
-                        onClick={navigateToPrevUnit}
-                        className={`flex-1 py-2 rounded-lg border text-center text-xs font-bold transition-all cursor-pointer ${
-                          prevUnitIndex === -1
-                            ? 'border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-300 dark:text-slate-600 cursor-not-allowed'
-                            : 'border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-                        }`}
-                      >
-                        Previous Lesson
-                      </button>
-                      <button
-                        type="button"
-                        disabled={nextUnitIndex === -1}
-                        onClick={navigateToNextUnit}
-                        className={`flex-1 py-2 rounded-lg border text-center text-xs font-bold transition-all cursor-pointer ${
-                          nextUnitIndex === -1
-                            ? 'border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-300 dark:text-slate-600 cursor-not-allowed'
-                            : 'border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-                        }`}
-                      >
-                        Next Lesson
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Drawer Footer Actions */}
-            {!isStudentPreviewMode ? (
-              <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex items-center justify-between gap-3 shrink-0">
-                <button
-                  type="button"
-                  onClick={handleDeleteUnitDrawer}
-                  className="py-2.5 px-3.5 rounded-xl text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-transparent transition-all flex items-center gap-1.5 cursor-pointer text-xs font-semibold"
-                  title="Delete Unit from course curriculum"
-                >
-                  <Trash2 className="w-4.5 h-4.5" />
-                  <span>Delete</span>
-                </button>
-
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDrawerOpen(false);
-                      setActiveUnit(null);
-                    }}
-                    className="py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSaveUnitDrawer}
-                    className="btn-blue-primary text-xs py-2.5 px-5 font-bold shadow-md shadow-sky-500/10 flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Save Changes</span>
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end shrink-0">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDrawerOpen(false);
-                    setActiveUnit(null);
-                  }}
-                  className="py-2.5 px-6 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition-all cursor-pointer"
-                >
-                  Close Lesson Viewer
-                </button>
-              </div>
-            )}
-          </div>
-        </>
-      )}
       {/* Certificate Modal */}
       {certificateModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
@@ -3524,7 +2356,7 @@ export const AdminCourseDetails: React.FC = () => {
 
                 <div className="flex items-end justify-between pt-4 text-[9px] font-bold text-slate-450 dark:text-slate-400">
                   <div className="text-center w-1/3">
-                    <span className="text-slate-800 dark:text-slate-200 block text-[10px] font-semibold">{course.instructor}</span>
+                    <span className="text-slate-800 dark:text-slate-200 block text-[10px] font-semibold">{instructorName}</span>
                     <span className="border-t border-slate-200 dark:border-slate-800 pt-1 block uppercase tracking-wider">Lead Instructor</span>
                   </div>
                   <div className="w-16 h-16 rounded-full border-4 border-double border-amber-500 bg-amber-50 dark:bg-amber-950/60 flex items-center justify-center text-[8px] font-extrabold text-amber-800 dark:text-amber-300 uppercase tracking-wider shrink-0 shadow-sm mx-auto">
@@ -3562,6 +2394,48 @@ export const AdminCourseDetails: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Unit Content Authoring Editor */}
+      <UnitContentEditor
+        isOpen={drawerOpen}
+        unit={activeUnit}
+        moduleTitle={modules.find((m) => m.id === drawerModuleId)?.title}
+        topicTitle={modules.find((m) => m.id === drawerModuleId)?.topics.find((t) => t.id === drawerTopicId)?.title}
+        onClose={() => {
+          setDrawerOpen(false);
+          setActiveUnit(null);
+        }}
+        onSave={async (updatedUnit, isDraft) => {
+          if (!drawerModuleId || !drawerTopicId) return;
+          const finalUnit = {
+            ...updatedUnit,
+            isDraft: isDraft ?? false,
+          };
+          const updated = modules.map((m) => {
+            if (m.id === drawerModuleId) {
+              const nextTopics = m.topics.map((t) => {
+                if (t.id === drawerTopicId) {
+                  return {
+                    ...t,
+                    learningUnits: t.learningUnits.map((u) => (u.id === finalUnit.id ? finalUnit : u)),
+                  };
+                }
+                return t;
+              });
+              return { ...m, topics: nextTopics };
+            }
+            return m;
+          });
+          setModules(updated);
+          if (course?.id) {
+            await updateCourse(course.id, { modules: updated });
+          }
+          setDrawerOpen(false);
+          setActiveUnit(null);
+          toast.success(`Unit "${finalUnit.title}" ${isDraft ? 'saved as draft' : 'published'} successfully!`);
+        }}
+        onDelete={handleDeleteUnitDrawer}
+      />
     </div>
   );
 };

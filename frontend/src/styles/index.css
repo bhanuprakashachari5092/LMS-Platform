@@ -66,309 +66,6 @@
 
     --color-primary:   #3b82f6;
     --color-secondary: #6366f1;
-    --color-accent:    #22d3ee;               /* cyan for dark-mode pop */
-    --color-success:   #10b981;
-    --color-warning:   #f59e0b;
-
-    /* Ambient glow tokens for dark mode — richer, more saturated opacity */
-    --glow-blue:   rgba(59,130,246,0.25);
-    --glow-purple: rgba(99,102,241,0.22);
-    --glow-pink:   rgba(236,72,153,0.18);
-    --glow-cyan:   rgba(34,211,238,0.18);
-  }
-
-
-  /* KaizenQ Gamified Global Themes - Day Appearances */
-  html[data-kq-theme="coding"] {
-    --kq-bg: #eceef4;
-    --kq-surface: #f4f6fa;
-    --kq-surface-elevated: #ffffff;
-    --kq-text: #111827;
-    --kq-text-muted: #4b5563;
-    --kq-accent: #f97316; /* warm orange/gold */
-    --kq-accent-secondary: #ea580c;
-    --kq-success: #10b981;
-    --kq-warning: #f59e0b;
-    --kq-danger: #ef4444;
-    --kq-border: #cbd5e1;
-    --kq-glow: rgba(249, 115, 22, 0.1);
-
-    /* Override standard design system variables */
-    --color-bg: #eceef4;
-    --color-bg-subtle: #f4f6fa;
-    --color-surface: #ffffff;
-    --color-border: #cbd5e1;
-    --color-text-main: #111827;
-    --color-text-muted: #4b5563;
-    --color-primary: #f97316;
-    --color-secondary: #ea580c;
-    --color-accent: #f97316;
-    --color-success: #10b981;
-    --color-warning: #f59e0b;
-
-    /* Map standard colors to Orange for coding theme */
-    --color-blue-50: #FFF7ED;
-    --color-blue-100: #FFEDD5;
-    --color-blue-200: #FED7AA;
-    --color-blue-300: #FDBA74;
-    --color-blue-400: #FB923C;
-    --color-blue-500: #F97316;
-    --color-blue-600: #EA580C;
-    --color-blue-700: #C2410C;
-    --color-blue-800: #9A3412;
-    --color-blue-900: #7C2D12;
-    --color-blue-950: #431407;
-
-    --color-indigo-50: #FFF7ED;
-    --color-indigo-100: #FFEDD5;
-    --color-indigo-200: #FED7AA;
-    --color-indigo-300: #FDBA74;
-    --color-indigo-400: #FB923C;
-    --color-indigo-500: #F97316;
-    --color-indigo-600: #EA580C;
-    --color-indigo-700: #C2410C;
-    --color-indigo-800: #9A3412;
-    --color-indigo-900: #7C2D12;
-    --color-indigo-950: #431407;
-
-    /* Map cyan and sky to Amber/Yellow for coding theme */
-    --color-cyan-50: #FFFBEB;
-    --color-cyan-100: #FEF3C7;
-    --color-cyan-200: #FDE68A;
-    --color-cyan-300: #FCD34D;
-    --color-cyan-400: #FBBF24;
-    --color-cyan-500: #F59E0B;
-    --color-cyan-600: #D97706;
-    --color-cyan-700: #B45309;
-    --color-cyan-800: #92400E;
-    --color-cyan-900: #78350F;
-    --color-cyan-950: #451A03;
-
-    --color-sky-50: #FFFBEB;
-    --color-sky-100: #FEF3C7;
-    --color-sky-200: #FDE68A;
-    --color-sky-300: #FCD34D;
-    --color-sky-400: #FBBF24;
-    --color-sky-500: #F59E0B;
-    --color-sky-600: #D97706;
-    --color-sky-700: #B45309;
-    --color-sky-800: #92400E;
-    --color-sky-900: #78350F;
-    --color-sky-950: #451A03;
-  }
-
-  html[data-kq-theme="field-guide"] {
-    --kq-bg: #ebf1f7;
-    --kq-surface: #f3f7fa;
-    --kq-surface-elevated: #ffffff;
-    --kq-text: #0f172a;
-    --kq-text-muted: #475569;
-    --kq-accent: #3b82f6; /* cyan/blue */
-    --kq-accent-secondary: #06b6d4;
-    --kq-success: #10b981;
-    --kq-warning: #eab308;
-    --kq-danger: #ef4444;
-    --kq-border: #cbd5e1;
-    --kq-glow: rgba(59, 130, 246, 0.1);
-
-    /* Override standard design system variables */
-    --color-bg: #ebf1f7;
-    --color-bg-subtle: #f3f7fa;
-    --color-surface: #ffffff;
-    --color-border: #cbd5e1;
-    --color-text-main: #0f172a;
-    --color-text-muted: #475569;
-    --color-primary: #3b82f6;
-    --color-secondary: #06b6d4;
-    --color-accent: #3b82f6;
-    --color-success: #10b981;
-    --color-warning: #eab308;
-  }
-
-  /* KaizenQ Gamified Global Themes - Night Appearances */
-  html.dark[data-kq-theme="coding"] {
-    --kq-bg: #08090d;
-    --kq-surface: #11131a;
-    --kq-surface-elevated: #1a1d28;
-    --kq-text: #f3f4f6;
-    --kq-text-muted: #9ca3af;
-    --kq-accent: #f97316; /* warm orange/gold */
-    --kq-accent-secondary: #ea580c;
-    --kq-success: #10b981;
-    --kq-warning: #f59e0b;
-    --kq-danger: #ef4444;
-    --kq-border: #222635;
-    --kq-glow: rgba(249, 115, 22, 0.2);
-
-    /* Override standard design system variables */
-    --color-bg: #08090d;
-    --color-bg-subtle: #11131a;
-    --color-surface: #11131a;
-    --color-border: #222635;
-    --color-text-main: #f3f4f6;
-    --color-text-muted: #9ca3af;
-    --color-primary: #f97316;
-    --color-secondary: #ea580c;
-    --color-accent: #f97316;
-    --color-success: #10b981;
-    --color-warning: #f59e0b;
-
-    /* Map standard colors to Orange for coding theme */
-    --color-blue-50: #FFF7ED;
-    --color-blue-100: #FFEDD5;
-    --color-blue-200: #FED7AA;
-    --color-blue-300: #FDBA74;
-    --color-blue-400: #FB923C;
-    --color-blue-500: #F97316;
-    --color-blue-600: #EA580C;
-    --color-blue-700: #C2410C;
-    --color-blue-800: #9A3412;
-    --color-blue-900: #7C2D12;
-    --color-blue-950: #431407;
-
-    --color-indigo-50: #FFF7ED;
-    --color-indigo-100: #FFEDD5;
-    --color-indigo-200: #FED7AA;
-    --color-indigo-300: #FDBA74;
-    --color-indigo-400: #FB923C;
-    --color-indigo-500: #F97316;
-    --color-indigo-600: #EA580C;
-    --color-indigo-700: #C2410C;
-    --color-indigo-800: #9A3412;
-    --color-indigo-900: #7C2D12;
-    --color-indigo-950: #431407;
-
-    /* Map cyan and sky to Amber/Yellow for coding theme */
-    --color-cyan-50: #FFFBEB;
-    --color-cyan-100: #FEF3C7;
-    --color-cyan-200: #FDE68A;
-    --color-cyan-300: #FCD34D;
-    --color-cyan-400: #FBBF24;
-    --color-cyan-500: #F59E0B;
-    --color-cyan-600: #D97706;
-    --color-cyan-700: #B45309;
-    --color-cyan-800: #92400E;
-    --color-cyan-900: #78350F;
-    --color-cyan-950: #451A03;
-
-    --color-sky-50: #FFFBEB;
-    --color-sky-100: #FEF3C7;
-    --color-sky-200: #FDE68A;
-    --color-sky-300: #FCD34D;
-    --color-sky-400: #FBBF24;
-    --color-sky-500: #F59E0B;
-    --color-sky-600: #D97706;
-    --color-sky-700: #B45309;
-    --color-sky-800: #92400E;
-    --color-sky-900: #78350F;
-    --color-sky-950: #451A03;
-  }
-
-  html.dark[data-kq-theme="field-guide"] {
-    --kq-bg: #050b1a;
-    --kq-surface: #0c1530;
-    --kq-surface-elevated: #14224c;
-    --kq-text: #f1f5f9;
-    --kq-text-muted: #94a3b8;
-    --kq-accent: #06b6d4; /* cyan/blue */
-    --kq-accent-secondary: #3b82f6;
-    --kq-success: #10b981;
-    --kq-warning: #eab308;
-    --kq-danger: #ef4444;
-    --kq-border: #14224c;
-    --kq-glow: rgba(6, 182, 212, 0.2);
-
-    /* Override standard design system variables */
-    --color-bg: #050b1a;
-    --color-bg-subtle: #0c1530;
-    --color-surface: #0c1530;
-    --color-border: #14224c;
-    --color-text-main: #f1f5f9;
-    --color-text-muted: #94a3b8;
-    --color-primary: #06b6d4;
-    --color-secondary: #3b82f6;
-    --color-accent: #06b6d4;
-    --color-success: #10b981;
-    --color-warning: #eab308;
-  }
-
-  /* Transition for smooth theme switching */
-  html[data-kq-theme],
-  html[data-kq-theme] body,
-  html[data-kq-theme] div,
-  html[data-kq-theme] header,
-  html[data-kq-theme] aside,
-  html[data-kq-theme] footer,
-  html[data-kq-theme] button,
-  html[data-kq-theme] a {
-    transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease, box-shadow 200ms ease, text-shadow 200ms ease !important;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    html[data-kq-theme],
-    html[data-kq-theme] body,
-    html[data-kq-theme] div,
-    html[data-kq-theme] header,
-    html[data-kq-theme] aside,
-    html[data-kq-theme] footer,
-    html[data-kq-theme] button,
-    html[data-kq-theme] a {
-      transition: none !important;
-    }
-  }
-
-  html {
-    overflow-x: hidden;
-    width: 100%;
-    max-width: 100vw;
-    touch-action: manipulation;
-    -webkit-text-size-adjust: 100%;
-  }
-
-  body {
-    background-color: var(--color-bg);
-    color: var(--color-text-main);
-    font-family: var(--font-body);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
-    scroll-behavior: smooth;
-    overflow-x: hidden;
-    width: 100%;
-    max-width: 100vw;
-    touch-action: manipulation;
-    -webkit-text-size-adjust: 100%;
-    transition: background-color 0.4s cubic-bezier(0.16, 1, 0.3, 1), color 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  html.dark body {
-    background: radial-gradient(circle at 50% -20%, #1A2244 0%, #090B16 80%);
-    background-attachment: fixed;
-  }
-
-  html[data-kq-theme="coding"] body {
-    background: radial-gradient(circle at 50% -20%, #fef3c7 0%, #eceef4 80%);
-    background-attachment: fixed;
-  }
-
-  html[data-kq-theme="field-guide"] body {
-    background: radial-gradient(circle at 50% -20%, #dbeafe 0%, #ebf1f7 80%);
-    background-attachment: fixed;
-  }
-
-  html.dark[data-kq-theme="coding"] body {
-    background: radial-gradient(circle at 50% -20%, #2e1a05 0%, #08090d 80%);
-    background-attachment: fixed;
-  }
-
-  html.dark[data-kq-theme="field-guide"] body {
-    background: radial-gradient(circle at 50% -20%, #0b1a3d 0%, #050b1a 80%);
-    background-attachment: fixed;
-  }
-
-  h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-heading);
-    letter-spacing: -0.02em;
   }
 }
 
@@ -995,5 +692,81 @@ html.dark .premium-glass-card:hover {
 
 .rotate-y-180 {
   transform: rotateY(180deg);
+}
+
+/* ─── Highlight.js Code Block Syntax Highlighting ─────────────────────────── */
+/* Minimal dark theme for code blocks (used in both light & dark app themes) */
+.hljs {
+  color: #c9d1d9;
+  background: transparent;
+}
+.hljs-comment,
+.hljs-quote {
+  color: #8b949e;
+  font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-addition {
+  color: #ff7b72;
+}
+.hljs-string,
+.hljs-attribute,
+.hljs-template-variable,
+.hljs-variable,
+.hljs-template-tag {
+  color: #a5d6ff;
+}
+.hljs-number,
+.hljs-literal {
+  color: #79c0ff;
+}
+.hljs-built_in,
+.hljs-type,
+.hljs-params {
+  color: #ffa657;
+}
+.hljs-title,
+.hljs-section {
+  color: #d2a8ff;
+  font-weight: 600;
+}
+.hljs-meta {
+  color: #79c0ff;
+}
+.hljs-deletion {
+  color: #ffdcd7;
+  background: rgba(255, 123, 114, 0.1);
+}
+.hljs-addition {
+  color: #aff5b4;
+  background: rgba(63, 185, 80, 0.1);
+}
+.hljs-symbol,
+.hljs-bullet,
+.hljs-link {
+  color: #79c0ff;
+}
+.hljs-selector-id,
+.hljs-selector-class {
+  color: #ffa657;
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: 700;
+}
+
+/* ─── Markdown Content Typography ─────────────────────────────────────────── */
+.markdown-content {
+  font-family: var(--font-sans);
+  line-height: 1.75;
+}
+.markdown-content > :first-child {
+  margin-top: 0;
+}
+.markdown-content > :last-child {
+  margin-bottom: 0;
 }
 

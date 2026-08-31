@@ -145,12 +145,12 @@ export const CourseRow: React.FC<CourseRowProps> = ({
           {course.avatar && (
             <img
               src={course.avatar}
-              alt={course.instructor}
+              alt={typeof course.instructor === 'object' && course.instructor !== null ? (course.instructor as any).name || 'Instructor' : String(course.instructor || 'Instructor')}
               className="w-6 h-6 rounded-full object-cover border border-sky-200 dark:border-slate-700"
             />
           )}
           <span className="text-slate-700 dark:text-slate-200 text-xs font-bold truncate max-w-28">
-            {course.instructor}
+            {typeof course.instructor === 'object' && course.instructor !== null ? (course.instructor as any).name || 'Instructor' : String(course.instructor || 'Instructor')}
           </span>
         </div>
       </td>

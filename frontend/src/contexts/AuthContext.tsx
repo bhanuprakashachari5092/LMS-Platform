@@ -15,6 +15,7 @@ import {
   getAdditionalUserInfo,
   fetchSignInMethodsForEmail,
   linkWithCredential,
+  sendPasswordResetEmail,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection } from 'firebase/firestore';
 import { auth, db } from '@/firebase';
@@ -873,14 +874,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const resetPassword = async (email: string): Promise<void> => {
-    // Custom Nodemailer Gmail SMTP Dispatcher (Firebase Default Email Disabled)
-    const resetUrl = `${window.location.origin}/auth/login?reset=true&email=${encodeURIComponent(email.trim().toLowerCase())}`;
-    
+    const cleanEmail = email.trim().toLowerCase();
+    let clientSuccess = false;
+
+    // 1. Send via Firebase Client SDK
+    if (auth) {
+      try {
+        await sendPasswordResetEmail(auth, cleanEmail);
+        clientSuccess = true;
+      } catch (fbErr: any) {
+        console.warn('[AuthContext] Firebase Client sendPasswordResetEmail notice:', fbErr?.message || fbErr);
+      }
+    }
+
+    // 2. Also dispatch via backend SMTP service
     try {
       const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+        body: JSON.stringify({ email: cleanEmail }),
       });
 
       if (response.ok) {
@@ -890,23 +902,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.warn('Backend forgot-password endpoint notice:', err);
     }
 
-    try {
-      await fetch(`${API_BASE_URL}/email/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          eventType: 'PASSWORD_RESET',
-          recipientEmail: email.toLowerCase().trim(),
-          payload: {
-            userName: email.split('@')[0],
-            email: email.toLowerCase().trim(),
-            resetUrl,
-            expiresInMinutes: 15,
-          },
-        }),
-      });
-    } catch (e) {
-      console.warn('Backend custom password reset fallback notice:', e);
+    if (!clientSuccess) {
+      try {
+        const resetUrl = `${window.location.origin}/auth/login?reset=true&email=${encodeURIComponent(cleanEmail)}`;
+        await fetch(`${API_BASE_URL}/email/send`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            eventType: 'PASSWORD_RESET',
+            recipientEmail: cleanEmail,
+            payload: {
+              userName: cleanEmail.split('@')[0],
+              email: cleanEmail,
+              resetUrl,
+              expiresInMinutes: 15,
+            },
+          }),
+        });
+      } catch (e) {
+        console.warn('Backend custom password reset fallback notice:', e);
+      }
     }
   };
 

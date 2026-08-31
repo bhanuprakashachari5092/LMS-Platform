@@ -5,7 +5,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { courseService } from '@/services/courseService';
 import { toast } from 'sonner';
 import { CourseDetailsPage } from '@/components/learning/CourseDetailsPage';
-import { GamifiedCourseEntry } from '@/components/courses/GamifiedCourseEntry';
 import { SEOHead } from '@/components/seo/SEOHead';
 import { CourseSchema as StructuredCourseSchema } from '@/components/seo/StructuredData';
 
@@ -32,7 +31,7 @@ const lazyComponent = <T extends Record<string, any>, K extends keyof T>(
   return ComponentWithSuspense;
 };
 
-const InCourseLearningView = lazyComponent(() => import('@/components/learning/InCourseLearningView'), 'InCourseLearningView');
+const CourseLearningLayout = lazyComponent(() => import('@/components/learning/CourseLearningLayout'), 'CourseLearningLayout');
 const CheckoutModal = lazyComponent(() => import('@/components/courses/CheckoutModal'), 'CheckoutModal');
 
 const mapCourseModulesToPlayerModules = (modules?: any[]): any[] => {
@@ -117,7 +116,6 @@ export const CourseView: React.FC = () => {
   });
 
   const [isLearningMode, setIsLearningMode] = useState(() => searchParams.get('mode') === 'learn');
-  const [showEntrySequence, setShowEntrySequence] = useState<boolean>(false);
   const [checkoutModalOpen, setCheckoutModalOpen] = useState<boolean>(false);
   const [confirmModalOpen, setConfirmModalOpen] = useState<boolean>(false);
   const [confirmActionType, setConfirmActionType] = useState<CourseActionType>('enroll');
@@ -162,7 +160,6 @@ export const CourseView: React.FC = () => {
 
   const handleEnrollSuccess = (_enrollmentRecord?: any) => {
     setIsEnrolled(true);
-    setShowEntrySequence(true);
     // Sync local store
     if (dynamicCourse) {
       courseService.enrollCourse(targetCourseId, userId, {
@@ -290,6 +287,24 @@ export const CourseView: React.FC = () => {
         ]
       };
     }
+
+    if (idLower === 'c-programming' || idLower.includes('c-prog') || titleLower.includes('c programming') || titleLower === 'c') {
+      return {
+        subtitle: 'Programming Fundamentals',
+        introText: [
+          "Build a strong foundation in C programming through structured lessons, practical examples, and hands-on exercises.",
+          "Master memory management, pointers, control flow, functions, dynamic allocation, and low-level system programming essentials."
+        ],
+        outcomes: [
+          "Understand C syntax, data types, operators, and memory representation",
+          "Master control flow structures, conditional branches, and iterative loops",
+          "Implement modular programs using user-defined functions and recursion",
+          "Work with arrays, strings, multi-dimensional structures, and buffers",
+          "Understand pointer arithmetic and dynamic memory allocation (malloc/free)",
+          "Perform file I/O operations and write robust command-line applications"
+        ]
+      };
+    }
     
     // Generic fallback for custom admin courses
     return {
@@ -328,24 +343,9 @@ export const CourseView: React.FC = () => {
     modules: mapCourseModulesToPlayerModules(dynamicCourse.modules)
   };
 
-  if (showEntrySequence) {
-    return (
-      <GamifiedCourseEntry
-        courseTitle={activeCourseData.title}
-        modules={activeCourseData.modules}
-        onStartMission={() => {
-          setShowEntrySequence(false);
-          setIsLearningMode(true);
-          setSearchParams({ mode: 'learn' });
-          window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-        }}
-      />
-    );
-  }
-
   if (isLearningMode) {
     return (
-      <InCourseLearningView
+      <CourseLearningLayout
         courseTitle={activeCourseData.title}
         courseId={activeCourseData.id}
         modules={activeCourseData.modules}

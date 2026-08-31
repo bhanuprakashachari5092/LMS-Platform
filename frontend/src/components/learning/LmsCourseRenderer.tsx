@@ -695,12 +695,12 @@ function isCodeLine(line: string, isK8s: boolean, isGit?: boolean, isReact?: boo
       /^\s*(console\.log|useState|useEffect|useContext|useRef|useMemo|useCallback)\b/,
       /^\s*(npm\s+(install|run|create|init)|npx\s+|node\s+-v|npm\s+-v|cd\s+react-app)\b/,
       /^\s*onClick\s*=\s*/,
-      /^[\[\{}\(\)]\s*.*$/, // Matches starting with braces/brackets
+      /^[[{}(）]\s*.*$/, // Matches starting with braces/brackets
       /^\s*props\./,
       /^\s*<\/?\s*>?\s*$/,
       /^\s*\b(ReactDOM|React)\b/,
       /^\s*<\/?[a-zA-Z0-9_\s"'={}.]+>?\s*$/, // XML/JSX tags
-      /^[a-zA-Z0-9_\$]+\s*(\+|-|\*|\/|%|\*\*|\/\/)?=\s*.+/, // Assignments like x = y
+      /^[a-zA-Z0-9_$]+\s*(\+|-|\*|\/|%|\*\*|\/\/)?=\s*.+/, // Assignments like x = y
       /^\s*(?:{|\s*\}\s*|\s*\);\s*|\s*\}\s*\);\s*)$/, // lonely closing brackets/braces
       /^\s*(react-app\/|├──\s*node_modules|└──\s*src\/)/
     ];
@@ -722,8 +722,8 @@ function isCodeLine(line: string, isK8s: boolean, isGit?: boolean, isReact?: boo
       /^\s*(commit\s+[0-9a-f]{6,}|Author:|Date:)/i,
       /^\s*(On branch|No commits yet|Untracked files:|nothing added to commit|Changes to be committed:|Changes not staged for commit:)/i,
       /^\s*(Initialized empty Git repository|MyProject\/|\.git\/|objects\/|refs\/|hooks\/|config|HEAD|index|package\.json|index\.html|style\.css|app\.js)\b/,
-      /^\s*[\w\-\.\/]+\s*│\s*▼/,
-      /^\s*[\w\-\.\/]+\s*──────*→/,
+      /^\s*[\w\-./]+\s*│\s*▼/,
+      /^\s*[\w\-./]+\s*──────*→/,
       /^\s*#\s+.+$/,
       /^\s*(\*?\s*)(main|master|login|payment|authentication|feature\/profile|feature\/cart)\s*$/,
       /^\s*(host|kubelet|apiserver|kubeconfig|minikube|Client Version)\s*:/i,
@@ -741,7 +741,7 @@ function isCodeLine(line: string, isK8s: boolean, isGit?: boolean, isReact?: boo
       /^\s*#\s+.+$/,
       /^\s*"""\s*$/,
       /^\s*["'].*["']\s*$/,
-      /^[\[\{]\s*.*[\]\}]$/,
+      /^[[{]\s*.*[\]}]$/,
       /:$/,
     ];
     return k8sPatterns.some(regex => regex.test(line));
@@ -754,7 +754,7 @@ function isCodeLine(line: string, isK8s: boolean, isGit?: boolean, isReact?: boo
       /^\s*#\s+.+$/,
       /^\s*"""\s*$/,
       /^\s*["'].*["']\s*$/,
-      /^[\[\{]\s*.*[\]\}]$/,
+      /^[[{]\s*.*[\]}]$/,
     ];
     return pythonPatterns.some(regex => regex.test(line));
   }

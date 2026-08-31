@@ -24,4 +24,15 @@ router.get('/:courseId/access', extractOptionalUser as any, (req, res, next) =>
   enrollmentController.checkCourseAccess(req as any, res, next)
 );
 
+// Progress endpoints
+router.post('/progress', extractOptionalUser as any, (req, res, next) =>
+  enrollmentController.updateProgress(req as any, res, next)
+);
+router.post('/:courseId/progress', extractOptionalUser as any, (req, res, next) =>
+  enrollmentController.updateProgress(req as any, res, next)
+);
+router.get('/:courseId/progress', extractOptionalUser as any, (req, res, next) =>
+  enrollmentController.getCourseProgress(req as any, res, next)
+);
+
 export default router;

@@ -121,6 +121,11 @@ export class AuthController {
         token = await adminAuth.createCustomToken(uid, { role: 'student' });
       }
 
+      // Asynchronous Welcome Email Dispatch (Non-Blocking)
+      emailService
+        .sendWelcomeEmail(normalizedEmail, displayName || normalizedEmail.split('@')[0])
+        .catch((emailErr) => logger.warn('[Auth] Welcome email delivery notice:', emailErr?.message || emailErr));
+
       console.log(`[STEP 4] Student registration success response`);
       res.status(201).json({
         success: true,

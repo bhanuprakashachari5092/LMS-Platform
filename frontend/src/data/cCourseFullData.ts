@@ -7400,14 +7400,375 @@ export const cCourseModules: ModuleItem[] = [
         description: 'Evolution, program structure, compilation flow, tokens, and basic syntax.',
         estimatedDuration: '45 mins',
         learningUnits: [
-          createLesson(
-            'c-unit-1-notes',
-            'Module 1 - Complete Notes',
-            'Module 1: Introduction to C Programming Complete Notes.',
-            '45 mins',
-            'Reading',
-            cSyllabusNotes[1]
-          )
+          {
+            id: 'c-unit-1-intro',
+            title: 'Unit 1: Introduction to C',
+            description: 'Understand what C programming is, its purpose, foundational role in software engineering, and core applications.',
+            duration: '15 mins',
+            type: 'Reading',
+            learningObjectives: [
+              'Understand what C programming is and why it was developed.',
+              'Identify key applications of C in operating systems, compilers, and embedded devices.',
+              'Learn the fundamental design principles that make C fast, efficient, and portable.'
+            ],
+            readingContent: `### What is C Programming?
+
+C is a general-purpose, procedural computer programming language developed for system programming, operating systems, and high-performance applications.
+
+C provides low-level memory access while supporting structured, modular programming concepts. It is renowned for being:
+- **Fast & Efficient**: Direct translation to native machine instructions with minimal runtime overhead.
+- **Portable**: Code written in ANSI/ISO standard C can compile across varied hardware architectures with minimal alterations.
+- **Structured**: Modular organization divided into distinct functions, logical blocks, and control flows.
+- **Close to Hardware**: Direct memory address manipulation using explicit pointers and byte-level operations.
+
+---
+
+### Foundational Nature of C
+C is often called the **"Mother of Modern Programming Languages"** because syntactical constructs, memory models, and operator semantics from C directly influenced:
+- C++ (object-oriented extension of C)
+- Java and C# (virtual machine architectures borrowing C syntax)
+- Python, PHP, and JavaScript (core engines written in C / C++)
+
+---
+
+### Real-World Applications of C
+1. **Operating Systems**: The Linux Kernel, Windows core OS subsystems, and macOS Darwin kernel are predominantly implemented in C.
+2. **Embedded Systems & IoT**: Microcontrollers (ARM Cortex, AVR, PIC), automotive ECUs, avionics, and smart appliances run bare-metal C.
+3. **Database Engines**: World-class databases such as MySQL, PostgreSQL, SQLite, and Redis core rely on C for extreme memory throughput.
+4. **Compilers & Interpreters**: Compilers like GCC and Clang, and runtime interpreters like CPython, are built using C.`,
+            codeExamples: [
+              {
+                id: 'code-1',
+                title: 'Basic C Syntax Overview',
+                language: 'c',
+                code: `#include <stdio.h>
+
+int main(void) {
+    printf("Welcome to C Programming!\\n");
+    return 0;
+}`,
+                explanation: 'Standard entry point demonstrating header inclusion, main function declaration, printf output, and clean status return code.'
+              }
+            ],
+            keyPoints: [
+              'C is a statically typed procedural language designed for efficiency and systems programming.',
+              'It provides direct memory access and control without garbage collection overhead.',
+              'Operating systems, embedded controllers, and database engines rely on C for maximum performance.'
+            ],
+            practiceQuestions: [
+              {
+                id: 'pq-1',
+                question: 'Why is C considered a foundational language for systems engineering and computer science?',
+                answer: 'C exposes fundamental computer architecture concepts like explicit memory management, pointers, stack/heap frames, and CPU-level instruction flows without hiding them behind automatic abstractions.',
+                explanation: 'Learning C gives deep intuition into how computers actually store data, manage memory addresses, and execute machine code.',
+                difficulty: 'Easy'
+              }
+            ],
+            resourceLinks: [
+              {
+                id: 'res-1',
+                title: 'ISO C Standard Reference',
+                url: 'https://en.cppreference.com/w/c',
+                description: 'Authoritative reference documentation for standard C libraries, functions, and language syntax.'
+              }
+            ]
+          },
+          {
+            id: 'c-unit-2-history',
+            title: 'Unit 2: History and Features of C',
+            description: 'Explore Dennis Ritchie’s work at Bell Labs, the evolution from BCPL & B, UNIX development, and distinguishing features.',
+            duration: '15 mins',
+            type: 'Reading',
+            learningObjectives: [
+              'Trace the evolutionary timeline from BCPL and B to Dennis Ritchie’s C at Bell Labs.',
+              'Understand how C was designed alongside the UNIX operating system.',
+              'Explore the 6 core features of C: Procedural, Fast, Portable, Structured, Low-level access, and Extensible.'
+            ],
+            readingContent: `### History of the C Language
+
+C was created by **Dennis Ritchie** at AT&T Bell Laboratories between **1969 and 1973**. It evolved directly from earlier languages:
+
+\`\`\`text
+┌─────────────────────────────────┐
+│  BCPL (Martin Richards - 1967)  │
+└────────────────┬────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────┐
+│     B (Ken Thompson - 1970)     │
+└────────────────┬────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────┐
+│   C (Dennis Ritchie - 1972)     │
+└─────────────────────────────────┘
+\`\`\`
+
+#### The UNIX Connection
+Before C, operating systems were written in assembly language specific to particular mainframe architectures. Ken Thompson and Dennis Ritchie wanted a portable, readable language to re-write the **UNIX operating system**. In 1973, UNIX was re-written in C, making it the first truly portable operating system in history.
+
+---
+
+### Core Features of C
+1. **Procedural Paradigm**: Execution follows a disciplined sequence of procedure and function calls.
+2. **Speed & Efficiency**: Absence of runtime garbage collection and minimal standard library bloat yields near-assembly speed.
+3. **Portability**: Code adheres to ANSI/ISO standards and compiles for virtually any CPU target.
+4. **Low-Level Memory Access**: Pointers and bitwise operators allow direct memory manipulation and hardware register control.
+5. **Rich Standard Library**: Standard headers provide battle-tested math, memory, string, and file I/O primitives.
+6. **Extensible Architecture**: Functions and header files allow developers to build modular, reusable frameworks.`,
+            codeExamples: [
+              {
+                id: 'code-2',
+                title: 'Demonstrating Modular Structure in C',
+                language: 'c',
+                code: `#include <stdio.h>
+
+// Function prototype declaration
+void displayFeatures(void);
+
+int main(void) {
+    printf("Exploring C Language Architecture:\\n");
+    displayFeatures();
+    return 0;
+}
+
+void displayFeatures(void) {
+    printf("1. Procedural Execution\\n");
+    printf("2. Deterministic Memory Control\\n");
+    printf("3. Highly Portable Native Machine Code\\n");
+}`,
+                explanation: 'Shows how C separates logic into modular functions for clarity and maintainability.'
+              }
+            ],
+            keyPoints: [
+              'Dennis Ritchie created C at Bell Labs in 1972 to rewrite the UNIX operating system.',
+              'C combines high-level structured programming with low-level hardware access.',
+              'Statically typed variables and structured functions make large systems maintainable.'
+            ],
+            practiceQuestions: [
+              {
+                id: 'pq-2',
+                question: 'What earlier programming languages directly preceded the invention of C?',
+                answer: 'BCPL (Basic Combined Programming Language) created by Martin Richards in 1967, and B developed by Ken Thompson in 1970 at Bell Labs.',
+                explanation: 'Dennis Ritchie extended B by adding explicit data typing, struct mechanisms, and native compilation optimizations.',
+                difficulty: 'Easy'
+              }
+            ],
+            resourceLinks: [
+              {
+                id: 'res-2',
+                title: 'The Development of the C Language (Dennis Ritchie)',
+                url: 'https://www.bell-labs.com/usr/dmr/www/chist.html',
+                description: 'Original historical paper by Dennis M. Ritchie on the creation and philosophy of C at Bell Labs.'
+              }
+            ]
+          },
+          {
+            id: 'c-unit-3-first-program',
+            title: 'Unit 3: First C Program',
+            description: 'Deconstruct the standard Hello World program, preprocessor directives, the main() function, and printf() mechanics.',
+            duration: '15 mins',
+            type: 'Reading',
+            learningObjectives: [
+              'Write, understand, and explain every token in a standard C program.',
+              'Understand the role of \`#include <stdio.h>\` and standard library headers.',
+              'Understand \`int main(void)\`, statement semicolons, and \`return 0\`.'
+            ],
+            readingContent: `### Anatomy of a C Program
+
+Let's dissect the canonical first C program line by line:
+
+\`\`\`c
+#include <stdio.h>
+
+int main(void) {
+    printf("Hello, World!\\n");
+    return 0;
+}
+\`\`\`
+
+---
+
+### Detailed Line Breakdown
+
+#### 1. \`#include <stdio.h>\`
+- The \`#\` symbol marks a **preprocessor directive**.
+- \`stdio.h\` stands for **Standard Input / Output Header**. It provides function prototypes for \`printf()\`, \`scanf()\`, and file operations.
+- Without this header, the compiler would not know the signature and arguments for \`printf()\`.
+
+#### 2. \`int main(void)\`
+- \`main()\` is the mandatory **entry point** of every hosted C program. Execution always starts here.
+- \`int\` specifies that \`main()\` returns an integer exit code to the operating system upon completion.
+- \`void\` explicitly specifies that \`main()\` receives no runtime arguments in this minimal form.
+
+#### 3. Braces \`{ ... }\`
+- Curly braces define the **block scope** of the function body.
+
+#### 4. \`printf("Hello, World!\\n");\`
+- \`printf()\` prints formatted text to the standard output stream (terminal).
+- \`\\n\` is an **escape sequence** representing a newline character.
+- The trailing semicolon \`;\` terminates the statement. Every statement in C must end with a semicolon.
+
+#### 5. \`return 0;\`
+- Returns the integer status code \`0\` to the parent process/operating system.
+- Conventionally, a return value of \`0\` signifies successful execution without errors.`,
+            codeExamples: [
+              {
+                id: 'code-3',
+                title: 'Hello World and Variable Output Program',
+                language: 'c',
+                code: `#include <stdio.h>
+
+int main(void) {
+    // 1. Output greeting
+    printf("Hello, World!\\n");
+
+    // 2. Variable declaration and initialization
+    int releaseYear = 1972;
+    printf("C Language was released in the year: %d\\n", releaseYear);
+
+    // 3. Return success code
+    return 0;
+}`,
+                explanation: 'Demonstrates library inclusion, comment usage, format specifier %d, variable printing, and return code convention.'
+              }
+            ],
+            keyPoints: [
+              '#include <stdio.h> instructs the preprocessor to include standard input/output declarations.',
+              'main() is the designated execution entry point for hosted C applications.',
+              'Every statement in C must terminate with a semicolon (;).',
+              'return 0 signals successful completion back to the operating system.'
+            ],
+            practiceQuestions: [
+              {
+                id: 'pq-3',
+                question: 'What happens if you omit the semicolon (;) at the end of a printf() statement in C?',
+                answer: 'The compiler halts with a syntax error (e.g., "error: expected \';\' before ...").',
+                explanation: 'In C syntax, semicolons act as unambiguous statement terminators.',
+                difficulty: 'Easy'
+              }
+            ],
+            resourceLinks: [
+              {
+                id: 'res-3',
+                title: 'Standard I/O Header Reference',
+                url: 'https://en.cppreference.com/w/c/io',
+                description: 'Detailed documentation on stdio.h, format specifiers, and I/O buffer management.'
+              }
+            ]
+          },
+          {
+            id: 'c-unit-4-compilation',
+            title: 'Unit 4: Compilation Process',
+            description: 'Master the 4 phases of C program compilation: Preprocessing, Compiling, Assembling, and Linking.',
+            duration: '15 mins',
+            type: 'Reading',
+            learningObjectives: [
+              'Understand the 4 distinct stages of transforming \`.c\` source code into a runnable executable.',
+              'Learn what intermediate files are produced: \`.i\` (preprocessed), \`.s\` (assembly), \`.o\` (object code), and final executable binaries.',
+              'Understand the role of linkers in resolving external symbols from standard C libraries.'
+            ],
+            readingContent: `### The 4 Stages of C Compilation
+
+When you run a command like \`gcc main.c -o main\`, the build system performs 4 distinct sequential transformations:
+
+\`\`\`text
+┌─────────────────────────────────────────────────────────────┐
+│ 1. PREPROCESSING (main.c  -->  main.i)                      │
+│    - Strips comments                                        │
+│    - Expands #define macros                                 │
+│    - Replaces #include with header file contents            │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 2. COMPILATION (main.i  -->  main.s)                        │
+│    - Syntax & semantic analysis                             │
+│    - Generates target assembly language code                │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 3. ASSEMBLY (main.s  -->  main.o)                           │
+│    - Translates assembly mnemonics into machine bytecode    │
+│    - Generates relocatable object file                      │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 4. LINKING (main.o + libc.a  -->  main / main.exe)          │
+│    - Resolves external references (e.g., printf)            │
+│    - Combines object files & static/dynamic runtime C libs  │
+│    - Produces final native executable                       │
+└─────────────────────────────────────────────────────────────┘
+\`\`\`
+
+---
+
+### Step-by-Step Breakdown
+
+1. **Preprocessing (\`gcc -E\`)**:
+   - The preprocessor evaluates all lines beginning with \`#\`.
+   - Replaces \`#include <stdio.h>\` by inserting the header's contents directly.
+   - Strips single-line and multi-line comments.
+
+2. **Compilation (\`gcc -S\`)**:
+   - Checks code validity against the C grammar and type rules.
+   - Emits human-readable assembly instructions for the host architecture (e.g. x86_64, ARM64).
+
+3. **Assembly (\`gcc -c\`)**:
+   - Converts assembly instructions (e.g., \`mov\`, \`push\`, \`call\`) into binary machine instructions.
+   - Output is a non-executable relocatable object file (\`.o\` / \`.obj\`).
+
+4. **Linking (\`gcc ... -o executable\`)**:
+   - Matches function calls (such as \`printf\`) with their implementations in the C runtime library (libc).
+   - Generates the final executable file with memory layout headers ready for the OS loader.`,
+            codeExamples: [
+              {
+                id: 'code-4',
+                title: 'Inspecting Intermediate GCC Compilation Stages',
+                language: 'bash',
+                code: `# 1. Preprocess only (generates main.i)
+gcc -E main.c -o main.i
+
+# 2. Compile to assembly (generates main.s)
+gcc -S main.i -o main.s
+
+# 3. Assemble into machine object code (generates main.o)
+gcc -c main.s -o main.o
+
+# 4. Link into final native executable
+gcc main.o -o main
+
+# 5. Run the binary
+./main`,
+                explanation: 'Commands showing how to inspect intermediate compilation files at each phase using GCC.'
+              }
+            ],
+            keyPoints: [
+              'Preprocessing resolves #include and macro directives and removes comments.',
+              'Compilation translates preprocessed C into architecture-specific assembly instructions.',
+              'Assembly translates assembly mnemonics into binary machine object files (.o).',
+              'Linking connects object files with runtime libraries to produce the final executable binary.'
+            ],
+            practiceQuestions: [
+              {
+                id: 'pq-4',
+                question: 'Which stage of the compilation pipeline is responsible for resolving the memory address of external functions like printf()?',
+                answer: 'The Linking phase.',
+                explanation: 'The linker resolves external symbol references across multiple object files and the standard C library (libc).',
+                difficulty: 'Medium'
+              }
+            ],
+            resourceLinks: [
+              {
+                id: 'res-4',
+                title: 'GCC Pipeline Documentation',
+                url: 'https://gcc.gnu.org/onlinedocs/',
+                description: 'Official GNU Compiler Collection documentation explaining intermediate stages and optimization flags.'
+              }
+            ]
+          }
         ]
       }
     ]

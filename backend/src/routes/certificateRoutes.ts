@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { certificateController } from '../controllers/certificateController';
-import { verifyFirebaseToken } from '../middleware/auth.middleware';
+import { verifyFirebaseToken, requireRole } from '../middleware/auth.middleware';
 import { certificateRateLimiter } from '../middleware/rateLimiter.middleware';
 
 const router = Router();
@@ -30,6 +30,10 @@ router.get('/verify/:certificateId', (req, res) => certificateController.verifyC
 
 // Sync student learning state to Firestore for backend validation
 router.post('/sync-state', verifyFirebaseToken, (req, res) => certificateController.syncState(req, res));
+
+// Admin Certificate Lifecycle Management (Revoke & Restore)
+router.post('/:certificateId/revoke', verifyFirebaseToken as any, requireRole('admin') as any, (req, res) => certificateController.revokeCertificate(req, res));
+router.post('/:certificateId/restore', verifyFirebaseToken as any, requireRole('admin') as any, (req, res) => certificateController.restoreCertificate(req, res));
 
 // Test endpoint to trigger automated certificate delivery for diagnostic testing
 router.get('/test-delivery', verifyFirebaseToken, (req, res) => certificateController.testDelivery(req, res));

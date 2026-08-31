@@ -81,8 +81,9 @@ export const VerifyCertificate: React.FC = () => {
           }
         }
 
-        if (response.ok && data.success && data.data) {
-          setCertificate(data.data);
+        const certPayload = data.data || data.certificate;
+        if (response.ok && data.success && certPayload) {
+          setCertificate(certPayload);
         } else {
           setError(data.error || 'Certificate Not Found');
         }
@@ -96,6 +97,8 @@ export const VerifyCertificate: React.FC = () => {
     fetchVerification();
   }, [certId, user]);
 
+  const isRevoked = certificate?.status?.toUpperCase() === 'REVOKED';
+
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col items-center justify-center p-4 sm:p-6 font-sans">
       <div className="w-full max-w-xl bg-slate-800/90 border border-slate-700/80 rounded-2xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
@@ -104,10 +107,10 @@ export const VerifyCertificate: React.FC = () => {
         <div className="flex items-center justify-between border-b border-slate-700/80 pb-6 mb-6">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center font-black text-white text-lg shadow-lg">
-              S
+              K
             </div>
             <div>
-              <h1 className="text-lg font-black text-white tracking-wide">SHAIVIKA LMS</h1>
+              <h1 className="text-lg font-black text-white tracking-wide">KAIZEN Q</h1>
               <p className="text-xs text-blue-400 font-semibold uppercase tracking-wider">Credential Verification</p>
             </div>
           </div>
@@ -123,7 +126,7 @@ export const VerifyCertificate: React.FC = () => {
         {loading && (
           <div className="flex flex-col items-center justify-center py-12 gap-3">
             <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
-            <p className="text-sm font-medium text-slate-400">Verifying credential in SHAIVIKA registry...</p>
+            <p className="text-sm font-medium text-slate-400">Verifying credential in KaizenQ registry...</p>
           </div>
         )}
 
@@ -135,7 +138,7 @@ export const VerifyCertificate: React.FC = () => {
             </div>
             <h2 className="text-2xl font-bold text-white mb-2">Certificate Not Found</h2>
             <p className="text-sm text-slate-400 max-w-md mb-6">
-              The requested Verification ID <span className="font-mono text-amber-400 font-bold">{certId || 'N/A'}</span> could not be verified in the official SHAIVIKA LMS credential registry.
+              The requested Verification ID <span className="font-mono text-amber-400 font-bold">{certId || 'N/A'}</span> could not be verified in the official KaizenQ LMS credential registry.
             </p>
             <div className="bg-slate-900/60 border border-slate-700/50 rounded-xl p-4 text-xs text-slate-400 max-w-md text-left">
               <p className="font-semibold text-slate-300 mb-1">Possible Reasons:</p>
@@ -152,15 +155,27 @@ export const VerifyCertificate: React.FC = () => {
         {!loading && certificate && (
           <div className="space-y-6">
             {/* Status Badge */}
-            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 flex-shrink-0">
-                <ShieldCheck className="w-6 h-6" />
+            {isRevoked ? (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center text-red-400 flex-shrink-0">
+                  <ShieldAlert className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-red-400 uppercase tracking-wider">Credential Status</span>
+                  <h3 className="text-base font-bold text-white">INVALID / REVOKED</h3>
+                </div>
               </div>
-              <div>
-                <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Authenticity Verified</span>
-                <h3 className="text-base font-bold text-white">Valid Official Credential</h3>
+            ) : (
+              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 flex-shrink-0">
+                  <ShieldCheck className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Authenticity Verified</span>
+                  <h3 className="text-base font-bold text-white">Valid Official Credential</h3>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Credential Details Grid */}
             <div className="space-y-4 bg-slate-900/60 border border-slate-700/50 rounded-xl p-5">

@@ -117,15 +117,14 @@ export const extractOptionalUser = async (
     }
   }
 
-  // Fallback to headers or query
+  // Fallback to headers or query (Safe student identity only - never allow unverified admin escalation)
   const queryUid = (req.query.userId as string) || (req.headers['x-user-id'] as string);
-  const queryRole = (req.query.userRole as string) || (req.headers['x-user-role'] as string);
   const queryEmail = (req.query.userEmail as string) || (req.headers['x-user-email'] as string);
 
   if (queryUid) {
     req.user = {
       uid: queryUid,
-      role: queryRole || 'student',
+      role: 'student', // Never grant admin privileges without cryptographic token verification
       email: queryEmail || '',
     };
   }

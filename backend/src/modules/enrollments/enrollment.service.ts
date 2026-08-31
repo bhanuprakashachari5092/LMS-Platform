@@ -232,12 +232,16 @@ export class EnrollmentService {
         Math.round((completedLessons.length / Math.max(1, totalLessonsInCourse)) * 100)
       );
 
+      const isCompletedNow = progressPercentage === 100;
+      const isAlreadyEmailed = doc.exists && doc.data()?.completionEmailSent === true;
+
       await docRef.set(
         {
           completedLessons,
           progressPercentage,
           lastAccessedAt: new Date().toISOString(),
-          status: progressPercentage === 100 ? 'COMPLETED' : 'ACTIVE',
+          status: isCompletedNow ? 'COMPLETED' : 'ACTIVE',
+          ...(isCompletedNow ? { completedAt: doc.data()?.completedAt || new Date().toISOString() } : {}),
         },
         { merge: true }
       );
@@ -251,6 +255,48 @@ export class EnrollmentService {
         },
         { merge: true }
       );
+
+      // 4. Trigger Course Completion Email (Asynchronous, Non-Blocking & Deduplicated)
+      if (isCompletedNow && !isAlreadyEmailed) {
+        (async () => {
+          try {
+            let studentEmail = doc.data()?.studentEmail;
+            let studentName = doc.data()?.studentName;
+            let courseTitle = doc.data()?.courseTitle;
+
+            // Fetch from user profile if missing on enrollment doc
+            if (!studentEmail) {
+              const userSnap = await db.collection('users').doc(studentId).get();
+              if (userSnap.exists) {
+                const uData = userSnap.data();
+                studentEmail = uData?.email;
+                studentName = studentName || uData?.fullName || uData?.name;
+              }
+            }
+
+            if (!courseTitle) {
+              const cSnap = await db.collection('courses').doc(courseId).get();
+              if (cSnap.exists) {
+                courseTitle = cSnap.data()?.title;
+              }
+            }
+
+            if (studentEmail) {
+              await emailService.sendCourseCompletionEmail({
+                studentName: studentName || 'Student',
+                studentEmail,
+                courseTitle: courseTitle || 'KaizenQ Mastery Track',
+                courseId,
+                enrollmentId: enrollDocId,
+              });
+
+              await docRef.set({ completionEmailSent: true }, { merge: true });
+            }
+          } catch (compEmailErr: any) {
+            logger.warn('[EnrollmentService] Completion email notice:', compEmailErr?.message || compEmailErr);
+          }
+        })();
+      }
 
       return { success: true, progressPercentage };
     } catch (err) {

@@ -49,6 +49,30 @@ export interface QuizQuestion {
   marks?: number;
 }
 
+export interface CodeExampleItem {
+  id?: string;
+  title?: string;
+  language: string;
+  code: string;
+  explanation?: string;
+}
+
+export interface PracticeQuestionItem {
+  id?: string;
+  question: string;
+  answer: string;
+  explanation?: string;
+  difficulty?: 'Easy' | 'Medium' | 'Hard';
+}
+
+export interface ResourceLinkItem {
+  id?: string;
+  title: string;
+  url: string;
+  type?: 'pdf' | 'doc' | 'github' | 'url' | 'download';
+  description?: string;
+}
+
 export interface LearningUnitItem {
   id: string;
   title: string;
@@ -57,6 +81,15 @@ export interface LearningUnitItem {
   type: LearningUnitType;
   videoUrl?: string;
   readingContent?: string;
+  learningObjectives?: string[];
+  conceptTheory?: string;
+  codeExamples?: CodeExampleItem[];
+  keyPoints?: string[];
+  practiceQuestions?: PracticeQuestionItem[];
+  resourceLinks?: ResourceLinkItem[];
+  notes?: string;
+  isDraft?: boolean;
+  lastSavedAt?: string;
   quizQuestions?: QuizQuestion[];
   quizDifficulty?: 'Easy' | 'Medium' | 'Hard';
   quizPassingScore?: number;
