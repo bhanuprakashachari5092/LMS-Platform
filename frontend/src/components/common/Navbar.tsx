@@ -66,21 +66,22 @@ export const GradientButton: React.FC<{
     to={to}
     onClick={onClick}
     className={`
-      inline-flex items-center gap-2
-      px-5 py-2 rounded-xl
-      text-white font-semibold text-[13px]
+      inline-flex items-center justify-center gap-2
+      px-6 py-2.5 rounded-lg
+      text-white font-semibold text-[13.5px]
       hover:scale-[1.02] active:scale-[0.98]
       transition-all duration-200
+      whitespace-nowrap shrink-0
       group
       ${className}
     `}
     style={{
-      background: 'linear-gradient(110deg, #2563EB 0%, #3B82F6 100%)',
+      background: 'linear-gradient(135deg, #2563EB 0%, #7C3AED 100%)',
       boxShadow: '0 2px 8px rgba(37,99,235,0.22)',
     }}
     onMouseEnter={(e) => {
       const el = e.currentTarget as HTMLAnchorElement;
-      el.style.boxShadow = '0 6px 20px rgba(37,99,235,0.45)';
+      el.style.boxShadow = '0 6px 18px rgba(124,58,237,0.35)';
     }}
     onMouseLeave={(e) => {
       const el = e.currentTarget as HTMLAnchorElement;
@@ -254,8 +255,8 @@ export const Navbar: React.FC = () => {
     'border-b',
     'backdrop-blur-md',
     isScrolled
-      ? 'bg-white/90 dark:bg-[#060914]/85 border-slate-200/50 dark:border-white/[0.08] shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_30px_rgba(0,0,0,0.3)]'
-      : 'bg-white/70 dark:bg-[#060914]/70 border-slate-200/20 dark:border-white/[0.04]',
+      ? 'bg-white/80 dark:bg-[#0f1420]/80 border-black/[0.05] dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_30px_rgba(0,0,0,0.3)]'
+      : 'bg-white/80 dark:bg-[#0f1420]/80 border-black/[0.05] dark:border-white/10',
   ].join(' ');
 
   return (
