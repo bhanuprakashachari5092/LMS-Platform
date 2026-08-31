@@ -20,7 +20,7 @@ export const FlipCard: React.FC<FlipCardProps> = ({
   // If user prefers reduced motion, render a clean static card without flip interaction
   if (shouldReduceMotion) {
     return (
-      <div className="bg-white dark:bg-[#111827] rounded-2xl border border-[#e2e8f0] dark:border-[#1f2937] overflow-hidden flex flex-col justify-between shadow-xs transition-all h-[520px]">
+      <div className="bg-white dark:bg-[#111827] rounded-2xl border border-[#e2e8f0] dark:border-[#1f2937] overflow-hidden flex flex-col justify-between shadow-xs transition-colors h-[520px]">
         {/* Thumbnail */}
         <div className="relative h-48 overflow-hidden bg-slate-100 dark:bg-[#1e293b] shrink-0">
           <img
@@ -73,7 +73,7 @@ export const FlipCard: React.FC<FlipCardProps> = ({
 
             <button
               onClick={() => onEnrollClick(course)}
-              className="w-full py-2.5 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              className="w-full py-2.5 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
             >
               <span>Enroll in Course</span>
               <ArrowRight className="w-4 h-4" />
@@ -104,7 +104,7 @@ export const FlipCard: React.FC<FlipCardProps> = ({
       {/* ─── 3D Card Inner Wrapper ────────────────────────────────────────── */}
       <div
         className={`
-          relative w-full h-full preserve-3d duration-550 ease-in-out transition-all
+          relative w-full h-full preserve-3d duration-550 ease-in-out transition-[transform,box-shadow]
           ${isFlipped ? 'rotate-y-180 shadow-2xl scale-[1.01]' : 'shadow-xs hover:shadow-lg group-hover:scale-[1.005]'}
         `}
         style={{ willChange: 'transform' }}

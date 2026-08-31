@@ -46,7 +46,7 @@ export const BackToTop: React.FC = () => {
             w-11 h-11 rounded-full flex items-center justify-center
             bg-[#2563EB] hover:bg-[#1d4ed8] text-white
             shadow-lg hover:shadow-xl hover:scale-105 active:scale-95
-            transition-all duration-150 cursor-pointer
+            transition-colors duration-150 cursor-pointer
             border border-white/10
           "
         >

@@ -949,8 +949,18 @@ html.dark .premium-glass-card:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-gradient-shimmer {
+  .animate-gradient-shimmer,
+  .animate-line-draw {
     animation: none !important;
+  }
+  /* Disable all floating blob and decorative keyframe animations */
+  *[style*="animation: floatSlow"],
+  *[style*="animation:floatSlow"] {
+    animation: none !important;
+  }
+  /* Disable 3D flip card transitions */
+  .preserve-3d {
+    transition: none !important;
   }
 }
 
