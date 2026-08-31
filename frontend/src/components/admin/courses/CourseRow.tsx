@@ -23,11 +23,11 @@ export const CourseRow: React.FC<CourseRowProps> = ({
   const { updateCourse } = useCourses();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isPriceModalOpen, setIsPriceModalOpen] = useState(false);
-  const [priceInput, setPriceInput] = useState<string>(() => String(course.price !== undefined ? course.price : 299));
+  const [priceInput, setPriceInput] = useState<string>(() => String(course.price !== undefined ? course.price : 0));
   const [isSavingPrice, setIsSavingPrice] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const currentPrice = course.price !== undefined ? Number(course.price) : 299;
+  const currentPrice = course.price !== undefined ? Number(course.price) : 0;
 
   const handleSavePrice = async (newPriceVal?: number) => {
     const valToSave = newPriceVal !== undefined ? newPriceVal : Number(priceInput);
@@ -367,4 +367,4 @@ export const CourseRow: React.FC<CourseRowProps> = ({
   );
 };
 
-export default CourseRow;
+export default React.memo(CourseRow);

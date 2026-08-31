@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Search, GraduationCap, Mail, Plus, CheckCircle2, X, Loader2, Edit, Trash2, ShieldAlert, Radio, FileText, Calendar, AlertTriangle, Eye, Phone, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,10 +8,16 @@ export const AdminInstructors: React.FC = () => {
   const { userProfile } = useAuth();
   const [instructors, setInstructors] = useState<InstructorUser[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<'pending' | 'approved' | 'rejected'>('pending');
   const [loading, setLoading] = useState(true);
   const [showAll, setShowAll] = useState(false);
-  
+
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
   // Modals & Action States
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [editingInstructor, setEditingInstructor] = useState<InstructorUser | null>(null);
@@ -42,14 +48,12 @@ export const AdminInstructors: React.FC = () => {
   const handleRefresh = useCallback(async () => {
     setLoading(true);
     try {
-      // Try one-shot getDocs first (uses live Firebase SDK auth)
       const firestoreData = await instructorService.fetchFromFirestoreDirectly();
       if (firestoreData.length > 0) {
         setInstructors(firestoreData);
         setLoading(false);
         return;
       }
-      // Fallback to backend REST
       const restData = await instructorService.fetchFirestoreInstructorsDirectly();
       setInstructors(restData);
     } catch (e) {
@@ -59,78 +63,67 @@ export const AdminInstructors: React.FC = () => {
     }
   }, []);
 
-  // Debug: Log instructor data whenever it changes
-  useEffect(() => {
-    if (instructors.length > 0) {
-      const pendingItems = instructors.filter(i => {
+  const filteredInstructors = useMemo(() => {
+    return showAll
+      ? instructors.filter((inst) => {
+          const name = (inst.name || '').toLowerCase();
+          const email = (inst.email || '').toLowerCase();
+          const specialty = (inst.specialty || '').toLowerCase();
+          const query = (debouncedSearch || '').toLowerCase().trim();
+
+          return !query || name.includes(query) || email.includes(query) || specialty.includes(query);
+        })
+      : instructors.filter((inst) => {
+          const name = (inst.name || '').toLowerCase();
+          const email = (inst.email || '').toLowerCase();
+          const specialty = (inst.specialty || '').toLowerCase();
+          const query = (debouncedSearch || '').toLowerCase().trim();
+
+          const matchesSearch = !query || name.includes(query) || email.includes(query) || specialty.includes(query);
+
+          // Normalize status match
+          const normalizedStatus = (inst.status || 'pending').toLowerCase();
+          const isApproved =
+            inst.approved === true ||
+            normalizedStatus === 'approved' ||
+            normalizedStatus === 'verified' ||
+            normalizedStatus === 'active';
+          const isRejected = normalizedStatus === 'rejected';
+          const targetStatus = filterStatus;
+
+          let matchesStatus = false;
+          if (targetStatus === 'approved') {
+            matchesStatus = isApproved;
+          } else if (targetStatus === 'pending') {
+            matchesStatus = !isApproved && !isRejected;
+          } else {
+            matchesStatus = isRejected;
+          }
+
+          return matchesSearch && matchesStatus;
+        });
+  }, [instructors, showAll, debouncedSearch, filterStatus]);
+
+  const pendingCount = useMemo(
+    () =>
+      instructors.filter((i) => {
         const st = (i.status || '').toLowerCase();
-        return !i.approved && st !== 'approved' && st !== 'active' && st !== 'rejected';
-      });
-      console.log(`[ADMIN DASHBOARD AUDIT] Total instructors received: ${instructors.length}`);
-      console.log(`[ADMIN DASHBOARD AUDIT] Pending instructors: ${pendingItems.length}`);
-      console.log(`[ADMIN DASHBOARD AUDIT] Instructor statuses:`, instructors.map(i => ({
-        id: i.id,
-        name: i.name,
-        status: i.status,
-        approved: i.approved,
-      })));
-    } else {
-      console.log('[ADMIN DASHBOARD AUDIT] instructors array is empty — check Firestore query and auth token.');
-    }
-  }, [instructors]);
-
-
-  const filteredInstructors = showAll
-    ? instructors.filter((inst) => {
-        const name = (inst.name || '').toLowerCase();
-        const email = (inst.email || '').toLowerCase();
-        const specialty = (inst.specialty || '').toLowerCase();
-        const query = (searchQuery || '').toLowerCase();
-
-        const matchesSearch =
-          name.includes(query) ||
-          email.includes(query) ||
-          specialty.includes(query);
-        return matchesSearch;
-      })
-    : instructors.filter((inst) => {
-        const name = (inst.name || '').toLowerCase();
-        const email = (inst.email || '').toLowerCase();
-        const specialty = (inst.specialty || '').toLowerCase();
-        const query = (searchQuery || '').toLowerCase();
-
-        const matchesSearch =
-          name.includes(query) ||
-          email.includes(query) ||
-          specialty.includes(query);
-        
-        // Normalize status match
-        const normalizedStatus = (inst.status || 'pending').toLowerCase();
-        const isApproved = inst.approved === true || normalizedStatus === 'approved' || normalizedStatus === 'verified' || normalizedStatus === 'active';
-        const isRejected = normalizedStatus === 'rejected';
-        const targetStatus = filterStatus;
-        
-        let matchesStatus = false;
-        if (targetStatus === 'approved') {
-          matchesStatus = isApproved;
-        } else if (targetStatus === 'pending') {
-          matchesStatus = !isApproved && !isRejected;
-        } else {
-          matchesStatus = isRejected;
-        }
-
-        return matchesSearch && matchesStatus;
-      });
-
-  const pendingCount = instructors.filter(i => {
-    const st = (i.status || '').toLowerCase();
-    return !i.approved && st !== 'approved' && st !== 'verified' && st !== 'active' && st !== 'rejected';
-  }).length;
-  const approvedCount = instructors.filter(i => {
-    const st = (i.status || '').toLowerCase();
-    return i.approved === true || ['approved', 'verified', 'active'].includes(st);
-  }).length;
-  const rejectedCount = instructors.filter(i => (i.status || '').toLowerCase() === 'rejected').length;
+        return !i.approved && st !== 'approved' && st !== 'verified' && st !== 'active' && st !== 'rejected';
+      }).length,
+    [instructors]
+  );
+  const approvedCount = useMemo(
+    () =>
+      instructors.filter((i) => {
+        const st = (i.status || '').toLowerCase();
+        return i.approved === true || ['approved', 'verified', 'active'].includes(st);
+      }).length,
+    [instructors]
+  );
+  const rejectedCount = useMemo(
+    () => instructors.filter((i) => (i.status || '').toLowerCase() === 'rejected').length,
+    [instructors]
+  );
 
   const handleAddInstructor = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -352,7 +345,7 @@ export const AdminInstructors: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
-            {filteredInstructors.map((inst) => {
+            {filteredInstructors.map((inst: InstructorUser) => {
               const appliedFormatted = inst.appliedDate 
                 ? new Date(inst.appliedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                 : inst.joined || 'Recently';
@@ -403,7 +396,7 @@ export const AdminInstructors: React.FC = () => {
                       <div>
                         <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block mb-1">Expertise Skills</span>
                         <div className="flex flex-wrap gap-1">
-                          {(inst.skills || ['Linux', 'Systems', 'DevOps']).slice(0, 3).map((s, idx) => (
+                          {(inst.skills || ['Linux', 'Systems', 'DevOps']).slice(0, 3).map((s: string, idx: number) => (
                             <span key={idx} className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold px-2 py-0.5 rounded-md">
                               {s}
                             </span>

@@ -1,15 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import type { FieldValues } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { CreateCourseSchema } from '../../../../shared/validators/course.validator';
 import type { CreateCourseInput } from '../../../../shared/validators/course.validator';
+import { generateSlug } from '../../../../shared/types/firestoreCourse';
 import { courseService } from '../../services/courseService';
+import { courseStorageService } from '../../services/courseStorageService';
 import { useCourses } from '@/contexts/CourseContext';
 import { CourseHeader } from '../../components/courses/CourseHeader';
-import { CourseThumbnail } from '../../components/courses/CourseThumbnail';
-import { CheckCircle2, ArrowLeft, Loader2, Plus, Trash2, Sparkles, BookOpen, Clock, List } from 'lucide-react';
+import {
+  CheckCircle2,
+  ArrowLeft,
+  Loader2,
+  Plus,
+  Trash2,
+  Sparkles,
+  BookOpen,
+  Clock,
+  List,
+  Upload,
+  Image as ImageIcon,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 interface GeneratedModule {
@@ -114,8 +127,16 @@ export const AdminCourseCreate: React.FC = () => {
   const [skillsInput, setSkillsInput] = useState<string[]>(['Linux CLI', 'System Administration']);
   const [newSkill, setNewSkill] = useState('');
   const [prereqInput] = useState<string[]>(['Basic command line awareness']);
-  const [outcomesInput, setOutcomesInput] = useState<string[]>(['Master Linux permissions and systemd services']);
+  const [outcomesInput, setOutcomesInput] = useState<string[]>([
+    'Understand core technical concepts and architecture',
+    'Build and deploy hands-on sandbox labs',
+  ]);
   const [newOutcome, setNewOutcome] = useState('');
+
+  // Thumbnail upload state
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // AI syllabus generator states
   const [aiTitle, setAiTitle] = useState('');
@@ -152,14 +173,43 @@ export const AdminCourseCreate: React.FC = () => {
         role: 'Senior Technical Instructor',
         avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
       },
-      skills: skillsInput,
-      prerequisites: prereqInput,
-      learningOutcomes: outcomesInput,
+      skills: ['Linux CLI', 'System Administration'],
+      prerequisites: ['Basic command line awareness'],
+      learningOutcomes: [
+        'Understand core technical concepts and architecture',
+        'Build and deploy hands-on sandbox labs',
+      ],
     },
   });
 
   const watchThumbnail = watch('thumbnail');
   const watchTitle = watch('title');
+
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const tempCourseId = watchTitle ? generateSlug(watchTitle) : `new_course_${Date.now()}`;
+
+    try {
+      setIsUploadingImage(true);
+      setUploadProgress(0);
+
+      const downloadUrl = await courseStorageService.uploadCourseThumbnail(
+        tempCourseId,
+        file,
+        (progress) => setUploadProgress(progress)
+      );
+
+      setValue('thumbnail', downloadUrl, { shouldValidate: true });
+      toast.success('Course thumbnail uploaded to Firebase Storage!');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to upload image.');
+    } finally {
+      setIsUploadingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const addSkill = () => {
     if (!newSkill.trim()) return;
@@ -190,10 +240,17 @@ export const AdminCourseCreate: React.FC = () => {
   };
 
   const onSubmitManual = async (data: FieldValues) => {
+    if (outcomesInput.length < 2) {
+      toast.error('Please provide at least 2 learning outcomes.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
+      const slug = data.slug || generateSlug(data.title);
       const created = await courseService.createCourse({
         ...(data as CreateCourseInput),
+        slug,
         skills: skillsInput,
         prerequisites: prereqInput,
         learningOutcomes: outcomesInput,
@@ -426,30 +483,87 @@ export const AdminCourseCreate: React.FC = () => {
           </div>
 
           <div className="rounded-3xl bg-slate-900/80 border border-slate-800 p-6 sm:p-8 backdrop-blur-xl space-y-6">
-            <h2 className="font-heading font-extrabold text-lg text-white flex items-center gap-2 border-b border-slate-800 pb-4">
-              <Sparkles className="w-5 h-5 text-purple-400" /> Media & Visual Branding
-            </h2>
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <h2 className="font-heading font-extrabold text-lg text-white flex items-center gap-2">
+                <ImageIcon className="w-5 h-5 text-indigo-400" /> Media & Visual Branding
+              </h2>
+              <span className="text-[10px] font-bold text-indigo-400 bg-indigo-950/60 border border-indigo-800 px-2.5 py-0.5 rounded-full">
+                Firebase Storage
+              </span>
+            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <label className="text-xs font-bold text-slate-300">Thumbnail Image URL *</label>
-                <input
-                  type="text"
-                  {...register('thumbnail')}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-xs text-white focus:outline-none font-medium"
-                />
-                <div className="w-48">
-                  <CourseThumbnail src={watchThumbnail} alt={watchTitle || 'Thumbnail Preview'} />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+              <div className="md:col-span-2 space-y-3">
+                <label className="text-xs font-bold text-slate-300">Upload Course Thumbnail</label>
+                
+                <div className="flex flex-col sm:flex-row items-center gap-3">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleImageFileChange}
+                    accept="image/png,image/jpeg,image/webp,image/avif"
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploadingImage}
+                    className="w-full sm:w-auto px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-sm disabled:opacity-50"
+                  >
+                    {isUploadingImage ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Uploading ({uploadProgress}%)...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4" />
+                        <span>Choose Thumbnail File</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {isUploadingImage && (
+                  <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                    <div
+                      className="bg-indigo-600 h-full transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-1.5 pt-2">
+                  <label className="text-xs font-bold text-slate-300">Thumbnail URL (Direct Path)</label>
+                  <input
+                    type="text"
+                    {...register('thumbnail')}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-xs text-white focus:outline-none font-mono text-[11px]"
+                  />
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <label className="text-xs font-bold text-slate-300">Banner Background URL (Optional)</label>
-                <input
-                  type="text"
-                  {...register('banner')}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-xs text-white focus:outline-none font-medium"
-                />
+              {/* Live Preview */}
+              <div className="space-y-2">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Live Preview</span>
+                <div className="w-full aspect-video rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 shadow-inner">
+                  {watchThumbnail ? (
+                    <img
+                      src={watchThumbnail}
+                      alt="Thumbnail Preview"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src =
+                          'https://images.unsplash.com/photo-1618401471353-b98aedd07871?auto=format&fit=crop&w=1200&q=80';
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 text-xs">
+                      <ImageIcon className="w-8 h-8 mb-1 opacity-40" />
+                      <span>No Image</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

@@ -658,7 +658,7 @@ export const LandingPage: React.FC = () => {
                     getCourseImage={getCourseImage}
                     onEnrollClick={(c) => {
                       setCheckoutCourses([{ id: c.id || c.slug, title: c.title }]);
-                      setCheckoutPrice(c.price || 299);
+                      setCheckoutPrice(c.price ?? 0);
                       setIsCheckoutOpen(true);
                     }}
                   />

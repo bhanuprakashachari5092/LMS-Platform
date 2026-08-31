@@ -377,7 +377,7 @@ export const CourseView: React.FC = () => {
         course={{
           id: targetCourseId,
           title: activeCourseData.title,
-          price: (dynamicCourse as any)?.price ?? 299,
+          price: (dynamicCourse as any)?.price ?? 0,
           instructor: { name: activeCourseData.instructor },
           duration: activeCourseData.duration,
         }}

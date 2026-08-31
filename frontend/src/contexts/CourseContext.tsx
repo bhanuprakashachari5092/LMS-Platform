@@ -863,7 +863,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       level: coursePayload.level || 'Beginner to Advanced',
       badge: 'New Track',
       status: coursePayload.status || 'Published',
-      price: coursePayload.price !== undefined ? coursePayload.price : 299,
+      price: coursePayload.price !== undefined ? coursePayload.price : 0,
       thumbnail: coursePayload.thumbnail || '/assets/images/linux_course_thumbnail.webp',
       description: coursePayload.description || 'Enterprise technical course with hands-on labs and automated AI evaluations.',
       syllabus: coursePayload.syllabus || [

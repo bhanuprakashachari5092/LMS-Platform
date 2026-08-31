@@ -54,6 +54,7 @@ export const AdminStudents: React.FC = () => {
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [providerFilter, setProviderFilter] = useState<'all' | 'github' | 'manual'>('all');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [verificationFilter, setVerificationFilter] = useState<string>('ALL');
@@ -61,6 +62,11 @@ export const AdminStudents: React.FC = () => {
   const [yearFilter, setYearFilter] = useState<string>('ALL');
   const [dateFilter, setDateFilter] = useState<string>('ALL');
   const [sortBy, setSortBy] = useState<string>('newest');
+
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
 
   // Bulk Selection State
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -128,8 +134,8 @@ export const AdminStudents: React.FC = () => {
     let result = [...students];
 
     // Search filter across Name, Email, College, Branch, GitHub Username, Skills
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase();
       result = result.filter(
         (st) =>
           (st.name || st.fullName || '').toLowerCase().includes(q) ||
@@ -212,7 +218,7 @@ export const AdminStudents: React.FC = () => {
     });
 
     return result;
-  }, [students, searchQuery, providerFilter, statusFilter, verificationFilter, branchFilter, yearFilter, dateFilter, sortBy]);
+  }, [students, debouncedSearch, providerFilter, statusFilter, verificationFilter, branchFilter, yearFilter, dateFilter, sortBy]);
 
   // Bulk Selection Handlers
   const handleSelectAll = () => {

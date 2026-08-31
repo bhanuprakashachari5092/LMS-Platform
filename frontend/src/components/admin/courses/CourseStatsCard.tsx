@@ -57,4 +57,4 @@ export const CourseStatsCard: React.FC<CourseStatsCardProps> = ({
   );
 };
 
-export default CourseStatsCard;
+export default React.memo(CourseStatsCard);

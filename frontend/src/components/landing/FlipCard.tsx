@@ -67,7 +67,7 @@ export const FlipCard: React.FC<FlipCardProps> = ({
                 </span>
               )}
               <span className="font-bold text-[#0f172a] dark:text-[#ffffff] text-base">
-                ₹{course.price || 299}
+                {course.price !== undefined ? (course.price === 0 ? 'Free' : `₹${course.price}`) : 'Free'}
               </span>
             </div>
 
@@ -170,13 +170,13 @@ export const FlipCard: React.FC<FlipCardProps> = ({
                   </span>
                 )}
                 <span className="font-bold text-[#0f172a] dark:text-[#ffffff] text-base">
-                  ₹{course.price || 299}
+                  {course.price !== undefined ? (course.price === 0 ? 'Free' : `₹${course.price}`) : 'Free'}
                 </span>
               </div>
 
               <button
                 onClick={() => onEnrollClick(course)}
-                className="no-flip-btn w-full py-2.5 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-98"
+                className="no-flip-btn w-full py-2.5 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer active:scale-98"
               >
                 <span>Enroll in Course</span>
                 <ArrowRight className="w-4 h-4" />
@@ -246,13 +246,13 @@ export const FlipCard: React.FC<FlipCardProps> = ({
                 {course.duration || '24 Hours'}
               </span>
               <span className="font-bold text-[#0f172a] dark:text-[#ffffff] text-base">
-                ₹{course.price || 299}
+                {course.price !== undefined ? (course.price === 0 ? 'Free' : `₹${course.price}`) : 'Free'}
               </span>
             </div>
 
             <button
               onClick={() => onEnrollClick(course)}
-              className="no-flip-btn w-full py-2.5 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-98"
+              className="no-flip-btn w-full py-2.5 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer active:scale-98"
             >
               <span>Enroll in Course</span>
               <ArrowRight className="w-4 h-4" />

@@ -86,7 +86,7 @@ export const PaymentCheckoutModal: React.FC<PaymentCheckoutModalProps> = ({
 
   if (!isOpen) return null;
 
-  const displayPrice = orderData?.amount ?? course.price ?? 299;
+  const displayPrice = orderData?.amount ?? course.price ?? 0;
   const currencySymbol = '₹';
 
   // Handle Pay Action

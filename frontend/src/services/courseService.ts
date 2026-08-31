@@ -1097,11 +1097,17 @@ class CourseService {
 
     const updatedList = [created, ...list];
     this.saveStoredCourses(updatedList);
+    this.getCoursesCache.clear();
+    this.courseDetailsCache.clear();
 
     if (db) {
       try {
         await setDoc(doc(db, 'courses', id), created);
       } catch (err) {}
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('shaivika_courses_updated', { detail: { courseId: id, created: true } }));
     }
 
     return created;
@@ -1141,11 +1147,17 @@ class CourseService {
 
     list[index] = updated;
     this.saveStoredCourses(list);
+    this.getCoursesCache.clear();
+    this.courseDetailsCache.clear();
 
     if (db) {
       try {
         await updateDoc(doc(db, 'courses', id), updated as any);
       } catch (err) {}
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('shaivika_courses_updated', { detail: { courseId: id, updates } }));
     }
 
     return updated;
@@ -1164,11 +1176,17 @@ class CourseService {
     const list = this.getStoredCourses();
     const filtered = list.filter((c) => c.id !== id);
     this.saveStoredCourses(filtered);
+    this.getCoursesCache.clear();
+    this.courseDetailsCache.clear();
 
     if (db) {
       try {
         await deleteDoc(doc(db, 'courses', id));
       } catch (err) {}
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('shaivika_courses_updated', { detail: { courseId: id, deleted: true } }));
     }
 
     return true;
