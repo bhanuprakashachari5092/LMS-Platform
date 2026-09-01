@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { CheckCircle2, Lock, X } from 'lucide-react';
+import { CheckCircle2, Lock, X, ArrowLeft } from 'lucide-react';
 import type { ModuleData } from './ModuleAccordion';
 
 interface CourseSidebarOutlineProps {
@@ -10,6 +10,7 @@ interface CourseSidebarOutlineProps {
   completedLessonIds: (string | number)[];
   onSelectLesson: (id: string | number) => void;
   isNightMode?: boolean;
+  onBackToCourseDetails?: () => void;
   /** Mobile drawer mode — show close button */
   isDrawer?: boolean;
   onClose?: () => void;
@@ -27,6 +28,7 @@ export const CourseSidebarOutline: React.FC<CourseSidebarOutlineProps> = ({
   completedLessonIds,
   onSelectLesson,
   isNightMode = false,
+  onBackToCourseDetails,
   isDrawer = false,
   onClose,
 }) => {
@@ -79,31 +81,46 @@ export const CourseSidebarOutline: React.FC<CourseSidebarOutlineProps> = ({
       ${isNightMode ? 'bg-slate-900' : 'bg-slate-50'}`}>
 
       {/* Header */}
-      <div className={`flex items-center justify-between px-4 py-3 border-b shrink-0
+      <div className={`flex flex-col gap-2.5 px-4 py-3 border-b shrink-0
         ${isNightMode ? 'border-slate-800' : 'border-slate-200'}`}>
-        <div className="min-w-0">
-          <h2 className={`text-[11px] font-semibold uppercase tracking-wider
-            ${isNightMode ? 'text-slate-500' : 'text-slate-400'}`}>
-            Course Outline
-          </h2>
-          <p className={`text-sm font-semibold truncate mt-0.5
-            ${isNightMode ? 'text-white' : 'text-slate-900'}`}>
-            {courseTitle}
-          </p>
-        </div>
-        {isDrawer && onClose && (
+        {onBackToCourseDetails && (
           <button
-            onClick={onClose}
-            className={`p-1.5 rounded-lg transition-colors cursor-pointer
+            onClick={onBackToCourseDetails}
+            className={`flex items-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer border
               ${isNightMode
-                ? 'hover:bg-slate-800 text-slate-500 hover:text-white'
-                : 'hover:bg-slate-200 text-slate-400 hover:text-slate-700'
+                ? 'bg-slate-800/80 hover:bg-slate-800 border-slate-700/60 text-sky-400 hover:text-white'
+                : 'bg-sky-50 hover:bg-sky-100 border-sky-200 text-sky-700 hover:text-sky-900'
               }`}
-            title="Close"
           >
-            <X className="w-5 h-5" />
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Back to Course Overview</span>
           </button>
         )}
+        <div className="flex items-center justify-between">
+          <div className="min-w-0">
+            <h2 className={`text-[11px] font-semibold uppercase tracking-wider
+              ${isNightMode ? 'text-slate-500' : 'text-slate-400'}`}>
+              Course Outline
+            </h2>
+            <p className={`text-sm font-semibold truncate mt-0.5
+              ${isNightMode ? 'text-white' : 'text-slate-900'}`}>
+              {courseTitle}
+            </p>
+          </div>
+          {isDrawer && onClose && (
+            <button
+              onClick={onClose}
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer
+                ${isNightMode
+                  ? 'hover:bg-slate-800 text-slate-500 hover:text-white'
+                  : 'hover:bg-slate-200 text-slate-400 hover:text-slate-700'
+                }`}
+              title="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Lesson list */}

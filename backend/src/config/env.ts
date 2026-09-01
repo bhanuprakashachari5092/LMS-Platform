@@ -18,6 +18,12 @@ const envSchema = z.object({
   FIREBASE_CLIENT_EMAIL: z.string().optional(),
   FIREBASE_PRIVATE_KEY: z.string().optional(),
   GEMINI_API_KEY: z.string().optional(),
+  ANTHROPIC_API_KEY: z.string().optional(),
+
+  // Cloudinary Asset Storage
+  CLOUDINARY_CLOUD_NAME: z.string().optional().default('kaizenq'),
+  CLOUDINARY_API_KEY: z.string().optional(),
+  CLOUDINARY_API_SECRET: z.string().optional(),
 
   // Stripe Payments
   STRIPE_SECRET_KEY: z.string().optional(),

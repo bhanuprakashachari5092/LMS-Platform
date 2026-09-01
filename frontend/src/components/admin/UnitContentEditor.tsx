@@ -14,7 +14,10 @@ import {
   Clock,
   Sparkles,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  ExternalLink,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -249,10 +252,10 @@ export const UnitContentEditor: React.FC<UnitContentEditorProps> = ({
       ...prev,
       {
         id: `res-${Date.now()}`,
-        title: 'Documentation Link',
+        title: 'New Resource',
         url: 'https://',
-        type: 'url',
-        description: 'Reference documentation or external guide.',
+        type: 'link',
+        description: 'Resource documentation, guide, or downloadable asset.',
       },
     ]);
     markDirty();
@@ -262,6 +265,19 @@ export const UnitContentEditor: React.FC<UnitContentEditorProps> = ({
     setResourceLinks((prev) => {
       const next = [...prev];
       next[index] = { ...next[index], ...updates };
+      return next;
+    });
+    markDirty();
+  };
+
+  const handleMoveResourceLink = (index: number, direction: 'up' | 'down') => {
+    setResourceLinks((prev) => {
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= prev.length) return prev;
+      const next = [...prev];
+      const temp = next[index];
+      next[index] = next[targetIndex];
+      next[targetIndex] = temp;
       return next;
     });
     markDirty();
@@ -977,15 +993,16 @@ export const UnitContentEditor: React.FC<UnitContentEditorProps> = ({
               )}
 
               {/* Section 8: Additional Resources */}
+              {/* Section 8: Resources & Downloads */}
               <section className="p-5 rounded-xl bg-white dark:bg-[#111827] border border-[#E5E7EB] dark:border-[#25324A] space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-sm font-bold text-[#111827] dark:text-white flex items-center gap-2">
                       <LinkIcon className="w-4 h-4 text-[#2563EB] dark:text-[#3B82F6]" />
-                      <span>8. Additional Resources & Downloads</span>
+                      <span>8. Lesson Resources & Downloads</span>
                     </h3>
                     <p className="text-[11px] text-[#64748B] dark:text-[#94A3B8]">
-                      External documentation, repositories, cheat sheets, or downloadable assets.
+                      Attach PDFs, documentation guides, video links, GitHub repositories, and downloadable files.
                     </p>
                   </div>
                   <button
@@ -993,41 +1010,130 @@ export const UnitContentEditor: React.FC<UnitContentEditorProps> = ({
                     onClick={handleAddResourceLink}
                     className="px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-950/60 text-[#2563EB] dark:text-[#3B82F6] text-xs font-semibold flex items-center gap-1 hover:bg-blue-100 transition-colors cursor-pointer"
                   >
-                    <Plus className="w-3.5 h-3.5" /> Add Link
+                    <Plus className="w-3.5 h-3.5" /> Add Resource
                   </button>
                 </div>
 
                 <div className="space-y-3">
-                  {resourceLinks.map((res, idx) => (
-                    <div
-                      key={res.id || idx}
-                      className="flex items-center gap-3 p-3 rounded-lg bg-[#F8FAFC] dark:bg-[#0B1120] border border-[#E5E7EB] dark:border-[#25324A]"
-                    >
-                      <input
-                        type="text"
-                        value={res.title}
-                        onChange={(e) => handleUpdateResourceLink(idx, { title: e.target.value })}
-                        placeholder="Link Title (e.g. C Standard Library Reference)"
-                        className="w-1/3 bg-white dark:bg-[#111827] border border-[#E5E7EB] dark:border-[#25324A] rounded-md py-1.5 px-2.5 text-xs text-[#111827] dark:text-white font-medium"
-                      />
-                      <input
-                        type="url"
-                        value={res.url}
-                        onChange={(e) => handleUpdateResourceLink(idx, { url: e.target.value })}
-                        placeholder="https://..."
-                        className="flex-1 bg-white dark:bg-[#111827] border border-[#E5E7EB] dark:border-[#25324A] rounded-md py-1.5 px-2.5 text-xs font-mono text-[#2563EB] dark:text-[#3B82F6]"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveResourceLink(idx)}
-                        className="p-1.5 text-slate-400 hover:text-rose-500 cursor-pointer"
+                  {resourceLinks.map((res, idx) => {
+                    const cleanUrl = (res.url || '').trim();
+                    const isUrlValid = cleanUrl.startsWith('https://') || cleanUrl.startsWith('http://') || cleanUrl.startsWith('/');
+                    return (
+                      <div
+                        key={res.id || idx}
+                        className="p-3.5 rounded-xl bg-[#F8FAFC] dark:bg-[#0B1120] border border-[#E5E7EB] dark:border-[#25324A] space-y-3"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-[#2563EB] dark:text-[#3B82F6]">
+                              Resource #{idx + 1}
+                            </span>
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                              {res.type || 'link'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleMoveResourceLink(idx, 'up')}
+                              disabled={idx === 0}
+                              className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                              title="Move Up"
+                            >
+                              <ArrowUp className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleMoveResourceLink(idx, 'down')}
+                              disabled={idx === resourceLinks.length - 1}
+                              className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                              title="Move Down"
+                            >
+                              <ArrowDown className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveResourceLink(idx)}
+                              className="p-1 text-slate-400 hover:text-rose-500 cursor-pointer ml-1"
+                              title="Delete Resource"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                          <div className="sm:col-span-2 space-y-1">
+                            <label className="text-[10px] font-bold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8]">
+                              Resource Title
+                            </label>
+                            <input
+                              type="text"
+                              value={res.title}
+                              onChange={(e) => handleUpdateResourceLink(idx, { title: e.target.value })}
+                              placeholder="e.g. Complete Course Textbook & Reference Notes"
+                              className="w-full bg-white dark:bg-[#111827] border border-[#E5E7EB] dark:border-[#25324A] rounded-lg py-1.5 px-3 text-xs text-[#111827] dark:text-white font-medium"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8]">
+                              Resource Type
+                            </label>
+                            <select
+                              value={res.type || 'link'}
+                              onChange={(e) => handleUpdateResourceLink(idx, { type: e.target.value as any })}
+                              className="w-full bg-white dark:bg-[#111827] border border-[#E5E7EB] dark:border-[#25324A] rounded-lg py-1.5 px-3 text-xs text-[#111827] dark:text-white"
+                            >
+                              <option value="pdf">📄 PDF / Document</option>
+                              <option value="link">🔗 External Link / Docs</option>
+                              <option value="video">🎥 Video Tutorial</option>
+                              <option value="github">💻 GitHub Repository</option>
+                              <option value="download">⬇️ Downloadable File</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8]">
+                            Short Description / Note (Optional)
+                          </label>
+                          <input
+                            type="text"
+                            value={res.description || ''}
+                            onChange={(e) => handleUpdateResourceLink(idx, { description: e.target.value })}
+                            placeholder="e.g. Official ISO C standard documentation and syntax reference"
+                            className="w-full bg-white dark:bg-[#111827] border border-[#E5E7EB] dark:border-[#25324A] rounded-lg py-1.5 px-3 text-xs text-[#111827] dark:text-white"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8] flex items-center justify-between">
+                            <span>Resource URL (HTTPS / HTTP)</span>
+                            {!isUrlValid && res.url && (
+                              <span className="text-rose-500 normal-case font-normal">Must start with https:// or http://</span>
+                            )}
+                          </label>
+                          <input
+                            type="url"
+                            value={res.url}
+                            onChange={(e) => handleUpdateResourceLink(idx, { url: e.target.value })}
+                            placeholder="https://..."
+                            className={`w-full bg-white dark:bg-[#111827] border rounded-lg py-1.5 px-3 text-xs font-mono
+                              ${!isUrlValid && res.url
+                                ? 'border-rose-500 text-rose-500'
+                                : 'border-[#E5E7EB] dark:border-[#25324A] text-[#2563EB] dark:text-[#3B82F6]'
+                              }`}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+
                   {resourceLinks.length === 0 && (
-                    <div className="text-xs text-[#64748B] italic">No external resource links added.</div>
+                    <div className="p-4 rounded-lg bg-[#F8FAFC] dark:bg-[#0B1120] border border-dashed border-[#E5E7EB] dark:border-[#25324A] text-center text-xs text-[#64748B] dark:text-[#94A3B8]">
+                      No resources configured for this lesson yet. Click "Add Resource" to attach PDFs, links, or code repositories.
+                    </div>
                   )}
                 </div>
               </section>
@@ -1154,21 +1260,43 @@ export const UnitContentEditor: React.FC<UnitContentEditorProps> = ({
                 <div className="space-y-3 pt-6 border-t border-[#E5E7EB] dark:border-[#25324A]">
                   <h3 className="text-base font-bold text-[#111827] dark:text-white flex items-center gap-2">
                     <LinkIcon className="w-4 h-4 text-[#2563EB] dark:text-[#3B82F6]" />
-                    <span>Additional Resources</span>
+                    <span>Lesson Resources</span>
                   </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {resourceLinks.map((res, i) => (
-                      <a
-                        key={i}
-                        href={res.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="p-3 rounded-xl bg-[#F8FAFC] dark:bg-[#111827] border border-[#E5E7EB] dark:border-[#25324A] hover:border-[#2563EB] dark:hover:border-[#3B82F6] transition-colors block text-xs"
-                      >
-                        <div className="font-semibold text-[#111827] dark:text-white truncate">{res.title}</div>
-                        <div className="font-mono text-[10px] text-[#2563EB] dark:text-[#3B82F6] truncate mt-0.5">{res.url}</div>
-                      </a>
-                    ))}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {resourceLinks.map((res, i) => {
+                      const resType = res.type || 'link';
+                      const badgeLabel =
+                        resType === 'pdf' ? 'PDF Document' :
+                        resType === 'video' ? 'Video Tutorial' :
+                        resType === 'github' ? 'GitHub Repository' :
+                        resType === 'download' ? 'Downloadable Asset' : 'External Documentation';
+
+                      return (
+                        <a
+                          key={i}
+                          href={res.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-3.5 rounded-xl bg-[#F8FAFC] dark:bg-[#111827] border border-[#E5E7EB] dark:border-[#25324A] hover:border-[#2563EB] dark:hover:border-[#3B82F6] transition-colors flex flex-col justify-between text-xs space-y-2"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="font-semibold text-[#111827] dark:text-white truncate">{res.title}</div>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-[#2563EB] dark:text-[#3B82F6] font-semibold flex-shrink-0">
+                              {badgeLabel}
+                            </span>
+                          </div>
+                          {res.description && (
+                            <p className="text-[11px] text-[#64748B] dark:text-[#94A3B8] line-clamp-2">
+                              {res.description}
+                            </p>
+                          )}
+                          <div className="font-mono text-[10px] text-[#2563EB] dark:text-[#3B82F6] truncate flex items-center gap-1">
+                            <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate">{res.url}</span>
+                          </div>
+                        </a>
+                      );
+                    })}
                   </div>
                 </div>
               )}

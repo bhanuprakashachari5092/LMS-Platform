@@ -51,16 +51,16 @@ export const LearningTopBar: React.FC<LearningTopBarProps> = ({
 
         <button
           onClick={onBackToCourseDetails}
-          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium
-            transition-colors cursor-pointer active:scale-95
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold
+            transition-all cursor-pointer active:scale-95 shadow-xs border
             ${isNightMode
-              ? 'hover:bg-slate-800 text-slate-400 hover:text-white'
-              : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900'
+              ? 'bg-slate-900 hover:bg-slate-800 border-slate-700/80 text-sky-400 hover:text-white'
+              : 'bg-sky-50 hover:bg-sky-100 border-sky-200 text-sky-700 hover:text-sky-900'
             }`}
           title="Back to Course Overview"
         >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Overview</span>
+          <ArrowLeft className="w-4 h-4 shrink-0" />
+          <span className="font-semibold">Back to Overview</span>
         </button>
       </div>
 

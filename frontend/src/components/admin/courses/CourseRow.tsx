@@ -239,6 +239,15 @@ export const CourseRow: React.FC<CourseRowProps> = ({
                 <span>Build Curriculum</span>
               </Link>
 
+              <Link
+                to={`/admin/content?courseId=${course.id}`}
+                onClick={() => setMenuOpen(false)}
+                className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-semibold text-sky-600 dark:text-cyan-400 hover:bg-sky-50 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+              >
+                <FileText className="w-3.5 h-3.5 text-sky-500 dark:text-cyan-400" />
+                <span>Manage Lessons & Notes</span>
+              </Link>
+
               <button
                 onClick={() => {
                   setMenuOpen(false);

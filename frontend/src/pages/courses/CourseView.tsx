@@ -305,6 +305,70 @@ export const CourseView: React.FC = () => {
         ]
       };
     }
+
+    if (idLower.includes('javascript') || titleLower === 'javascript' || titleLower.includes('javascript')) {
+      return {
+        subtitle: 'Modern Web Scripting',
+        introText: [
+          "Master modern JavaScript (ES6+) from fundamental syntax and data structures to asynchronous programming and browser APIs.",
+          "Build interactive web applications and gain a comprehensive understanding of the event loop, closures, and object prototypes."
+        ],
+        outcomes: [
+          "Master core JavaScript syntax, types, operators, and functions",
+          "Understand closures, scope, prototypes, and ES6+ features",
+          "Manipulate the DOM dynamically and handle browser events",
+          "Work with Promises, async/await, and REST API integration"
+        ]
+      };
+    }
+
+    if (idLower.includes('node') || titleLower === 'node.js' || titleLower.includes('node.js') || titleLower.includes('nodejs')) {
+      return {
+        subtitle: 'Backend Development & REST APIs',
+        introText: [
+          "Build scalable backend services and RESTful APIs using Node.js, Express, and database integrations.",
+          "Master authentication with JWT, middleware architecture, database queries, and production backend patterns."
+        ],
+        outcomes: [
+          "Understand the Node.js runtime, Event Loop, and non-blocking I/O",
+          "Design and build RESTful APIs using Express.js and middleware",
+          "Implement secure authentication and authorization with JWT",
+          "Integrate SQL and NoSQL databases and deploy production backends"
+        ]
+      };
+    }
+
+    if (idLower.includes('data-structures') || idLower.includes('dsa') || titleLower.includes('data structures') || titleLower.includes('algorithms')) {
+      return {
+        subtitle: 'Problem Solving & Technical Interviews',
+        introText: [
+          "Master essential data structures and algorithms to solve complex computational problems and ace technical coding interviews.",
+          "Learn time and space complexity analysis, linear and non-linear data structures, searching, sorting, and dynamic programming."
+        ],
+        outcomes: [
+          "Analyze algorithms using Big-O time and space complexity",
+          "Implement Arrays, Linked Lists, Stacks, Queues, Trees, and Graphs",
+          "Master sorting, searching, recursion, and backtracking techniques",
+          "Apply Dynamic Programming and Greedy algorithms to complex challenges"
+        ]
+      };
+    }
+
+    if (idLower.includes('web-development') || titleLower.includes('web development')) {
+      return {
+        subtitle: 'Frontend Foundations & Responsive Design',
+        introText: [
+          "Learn HTML5, CSS3, and JavaScript from scratch to build responsive, accessible, and modern web applications.",
+          "Explore Flexbox, CSS Grid, animations, web APIs, and deployment workflows for production web applications."
+        ],
+        outcomes: [
+          "Structure accessible and semantic web pages using HTML5",
+          "Style responsive user interfaces with CSS3, Flexbox, and CSS Grid",
+          "Add dynamic interactive features using modern JavaScript",
+          "Deploy real-world web projects to modern hosting platforms"
+        ]
+      };
+    }
     
     // Generic fallback for custom admin courses
     return {

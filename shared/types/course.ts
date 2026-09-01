@@ -156,6 +156,8 @@ export interface ICourse {
   shortDescription: string;
   description: string;
   thumbnail: string;
+  thumbnailUrl?: string;
+  thumbnailPublicId?: string;
   banner?: string;
   category: string;
   level: CourseLevel;

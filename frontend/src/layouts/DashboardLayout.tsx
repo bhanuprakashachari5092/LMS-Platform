@@ -132,6 +132,7 @@ export const DashboardLayout: React.FC = () => {
       items: [
         { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
         { name: 'Course Catalog', href: '/admin/courses', icon: BookOpen },
+        { name: 'Course Content', href: '/admin/content', icon: FileText },
         {
           name: 'Live Classes',
           href: '/admin/live-classes',

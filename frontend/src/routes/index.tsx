@@ -76,6 +76,7 @@ const AdminUsers = lazyLoad(() => import('@/pages/admin/AdminUsers'), 'AdminUser
 const AdminUserProfile = lazyLoad(() => import('@/pages/admin/AdminUserProfile'), 'AdminUserProfile');
 const AdminCourseDetails = lazyLoad(() => import('@/pages/admin/AdminCourseDetails'), 'AdminCourseDetails');
 const AdminContentManagement = lazyLoad(() => import('@/pages/admin/AdminContentManagement'), 'AdminContentManagement');
+const AdminBulkImport = lazyLoad(() => import('@/pages/admin/AdminBulkImport'), 'AdminBulkImport');
 const LiveClassroomDashboard = lazyLoad(() => import('@/pages/liveClassroom/LiveClassroomDashboard'), 'LiveClassroomDashboard');
 const AdminLiveClassroom = lazyLoad(() => import('@/pages/liveClassroom/AdminLiveClassroom'), 'AdminLiveClassroom');
 const LiveClassroomScreen = lazyLoad(() => import('@/pages/liveClassroom/LiveClassroomScreen'), 'LiveClassroomScreen');
@@ -202,6 +203,8 @@ const router = createBrowserRouter([
     children: [
       { path: 'courses', element: <Courses /> },
       { path: 'courses/create', element: <AdminCourseCreate /> },
+      { path: 'courses/bulk-import', element: <AdminBulkImport /> },
+      { path: 'bulk-import', element: <AdminBulkImport /> },
       { path: 'courses/:id/edit', element: <AdminCourseEdit /> },
       { path: 'courses/edit/:id', element: <AdminCourseEdit /> },
       { path: 'courses/:courseId', element: <AdminCourseDetails /> },

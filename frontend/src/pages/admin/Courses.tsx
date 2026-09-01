@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Plus, Sparkles, BookCheck, FileEdit, Users } from 'lucide-react';
+import { BookOpen, Plus, Sparkles, BookCheck, FileEdit, Users, UploadCloud } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCourses, type CourseItem } from '@/contexts/CourseContext';
@@ -200,13 +200,22 @@ export const Courses: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={handleCreateCourseClick}
-          className="px-6 py-3.5 rounded-xl bg-linear-to-r from-[#2563eb] to-[#7c3aed] hover:from-[#1d4ed8] hover:to-[#6d28d9] text-white text-xs font-bold shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Create Course</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate('/admin/courses/bulk-import')}
+            className="px-5 py-3.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 text-xs font-bold border border-slate-300 dark:border-slate-700 flex items-center justify-center gap-2 cursor-pointer transition-all"
+          >
+            <UploadCloud className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            <span>Bulk Import Content</span>
+          </button>
+          <button
+            onClick={handleCreateCourseClick}
+            className="px-6 py-3.5 rounded-xl bg-linear-to-r from-[#2563eb] to-[#7c3aed] hover:from-[#1d4ed8] hover:to-[#6d28d9] text-white text-xs font-bold shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Create Course</span>
+          </button>
+        </div>
       </div>
 
       {/* Course Stats Cards */}

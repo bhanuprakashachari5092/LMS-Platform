@@ -98,4 +98,17 @@ export class CourseController {
     const lessons = await this.courseService.getModuleLessons(courseId, moduleId, { includeContent });
     res.json(formatResponse(true, lessons, 'Module lessons retrieved successfully'));
   });
+
+  bulkImportCourse = asyncHandler(async (req: Request, res: Response) => {
+    const adminUser = (req as any).user;
+    const result = await this.courseService.bulkImportCourse(req.body, adminUser?.uid || 'admin');
+    res.status(201).json(formatResponse(true, result, 'Course bulk import completed successfully'));
+  });
+
+  bulkImportToCourse = asyncHandler(async (req: Request, res: Response) => {
+    const courseId = req.params.id as string;
+    const adminUser = (req as any).user;
+    const result = await this.courseService.bulkImportToCourse(courseId, req.body, adminUser?.uid || 'admin');
+    res.status(200).json(formatResponse(true, result, 'Course content bulk import completed successfully'));
+  });
 }

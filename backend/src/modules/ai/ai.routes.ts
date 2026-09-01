@@ -9,4 +9,8 @@ router.post('/quiz', controller.quiz);
 router.post('/assignment', controller.assignment);
 router.post('/summary', controller.summary);
 
+// Topic-to-Content AI Autofill Routes
+router.post('/autofill-course', controller.autofillCourse);
+router.post('/autofill-lesson', controller.autofillLesson);
+
 export default router;

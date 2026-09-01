@@ -44,7 +44,15 @@ export const CoursesList: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [quickFilter, setQuickFilter] = useState<QuickFilter>('all');
 
-  const categories = ['All', 'Linux & Systems', 'AI & Data', 'DevOps', 'Development', 'Cybersecurity'];
+  const categories = React.useMemo(() => {
+    const set = new Set<string>();
+    contextCourses
+      .filter((c) => (c.status || '').toLowerCase() === 'published')
+      .forEach((c) => {
+        if (c.category) set.add(c.category);
+      });
+    return ['All', ...Array.from(set)];
+  }, [contextCourses]);
 
   const applyQuickFilter = (list: ICourse[], filter: QuickFilter): ICourse[] => {
     if (filter === 'all') return list;
@@ -83,7 +91,7 @@ export const CoursesList: React.FC = () => {
       // 1. Normalize all courses from context to ICourse
       let list = contextCourses.map((c) => courseService.normalizeCourseToICourse(c));
 
-      // 2. Filter by status (published)
+      // 2. Filter by status (published only for students)
       list = list.filter((c) => c.status === 'published');
 
       // 3. Filter by category
@@ -91,11 +99,7 @@ export const CoursesList: React.FC = () => {
         const selectedCat = selectedCategory.toLowerCase();
         list = list.filter((c) => {
           if (!c.category) return false;
-          const courseCat = c.category.toLowerCase();
-          return courseCat === selectedCat ||
-                 (selectedCat.includes('development') && courseCat.includes('development')) ||
-                 (selectedCat.includes('linux') && courseCat.includes('linux')) ||
-                 (selectedCat.includes('sys') && courseCat.includes('sys'));
+          return c.category.toLowerCase() === selectedCat;
         });
       }
 

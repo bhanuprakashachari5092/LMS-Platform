@@ -14,6 +14,7 @@
     "start": "cross-env NODE_OPTIONS=--openssl-legacy-provider node dist/server.js",
     "test": "jest --runInBand --forceExit --testTimeout=30000",
     "seed:react": "npx ts-node src/scripts/seed-react-course.ts",
+    "import:lessons": "npx tsx src/scripts/importLessons.ts",
     "migrate:courses": "npx ts-node src/scripts/migrateCourseContentToFirestore.ts",
     "migrate:course-content": "npx tsx scripts/migrate-course-content.ts",
     "backup:courses": "npx tsx scripts/backup-course-content.ts",

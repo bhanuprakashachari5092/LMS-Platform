@@ -19,6 +19,7 @@ import type { ICourse } from '../../../shared/types/course';
 import { CheckoutModal } from '../components/courses/CheckoutModal';
 import { SEOHead } from '@/components/seo/SEOHead';
 import { OrganizationSchema } from '@/components/seo/StructuredData';
+import { useAuth } from '@/contexts/AuthContext';
 
 import { AnimatedHeroBackground } from '@/components/landing/AnimatedHeroBackground';
 import { RotatingSplitText } from '@/components/landing/RotatingSplitText';
@@ -44,6 +45,18 @@ const CourseSkeleton: React.FC = () => (
 );
 
 export const LandingPage: React.FC = () => {
+  const { user, userProfile } = useAuth();
+
+  const getStartedRoute = user
+    ? (userProfile?.role === 'admin'
+        ? '/admin/dashboard'
+        : userProfile?.role === 'instructor'
+        ? '/instructor/dashboard'
+        : '/dashboard')
+    : '/auth/register';
+
+  const getStartedText = user ? 'Go to Dashboard' : 'Get Started';
+
   // Checkout Modal State
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [checkoutCourses, setCheckoutCourses] = useState<{ id: string; title: string }[]>([]);
@@ -445,9 +458,9 @@ export const LandingPage: React.FC = () => {
 
             {/* Action Buttons */}
             <div className="pt-2 flex flex-col sm:flex-row items-center gap-3.5 w-full sm:w-auto">
-              {/* Primary: animated gradient Get Started */}
+              {/* Primary: animated gradient Get Started / Go to Dashboard */}
               <Link
-                to="/auth/register"
+                to={getStartedRoute}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl text-white font-bold text-sm transition-all duration-200 hover:scale-[1.03] active:scale-[0.98] group"
                 style={{
                   background: 'linear-gradient(110deg, #2563EB 0%, #6366F1 50%, #8B5CF6 100%)',
@@ -466,7 +479,7 @@ export const LandingPage: React.FC = () => {
                   el.style.boxShadow = '0 2px 8px rgba(37,99,235,0.3)';
                 }}
               >
-                <span>Get Started</span>
+                <span>{getStartedText}</span>
                 <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
               </Link>
 
@@ -981,10 +994,10 @@ export const LandingPage: React.FC = () => {
 
           <div className="pt-3 flex flex-col sm:flex-row items-center justify-center gap-3.5">
             <Link
-              to="/auth/register"
+              to={getStartedRoute}
               className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-bold text-sm shadow-xs hover:shadow-md transition-all flex items-center justify-center gap-2 active:scale-98"
             >
-              <span>Get Started</span>
+              <span>{getStartedText}</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
 

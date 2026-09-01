@@ -20,5 +20,7 @@ router.patch('/:id/publish', verifyFirebaseToken, requireRole('admin'), controll
 router.patch('/:id/unpublish', verifyFirebaseToken, requireRole('admin'), controller.unpublishCourse);
 router.patch('/:id/archive', verifyFirebaseToken, requireRole('admin'), controller.archiveCourse);
 router.post('/:id/duplicate', verifyFirebaseToken, requireRole('admin'), controller.duplicateCourse);
+router.post('/bulk-import', verifyFirebaseToken, requireRole('admin'), controller.bulkImportCourse);
+router.post('/:id/bulk-import', verifyFirebaseToken, requireRole('admin'), controller.bulkImportToCourse);
 
 export default router;

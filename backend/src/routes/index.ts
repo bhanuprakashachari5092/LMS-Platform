@@ -19,11 +19,13 @@ import enrollmentRoutes from '../modules/enrollments/enrollment.routes';
 import portfolioRoutes from './portfolioRoutes';
 import resumeRoutes from './resumeRoutes';
 import developerAccessRoutes from './developerAccess.routes';
+import uploadRoutes from '../modules/upload/upload.routes';
 import { verifyFirebaseToken, requireRole } from '../middleware/auth.middleware';
 
 const router = Router();
 
 router.use('/developer-access', developerAccessRoutes);
+router.use('/upload', uploadRoutes);
 
 router.get('/', (req, res) => {
   res.json({ message: 'Backend Connected Successfully' });

@@ -39,7 +39,8 @@ interface CourseLearningLayoutProps {
   courseId: string | number;
   courseTitle: string;
   modules: ModuleData[];
-  onBackToCourse: () => void;
+  onBackToCourse?: () => void;
+  onBackToCourseDetails?: () => void;
   userAvatar?: string;
   userName?: string;
   isEnrolled?: boolean;
@@ -58,6 +59,7 @@ export const CourseLearningLayout: React.FC<CourseLearningLayoutProps> = ({
   courseTitle,
   modules,
   onBackToCourse,
+  onBackToCourseDetails,
   userAvatar: propAvatar,
   userName: propName,
 }) => {
@@ -72,6 +74,16 @@ export const CourseLearningLayout: React.FC<CourseLearningLayoutProps> = ({
   const userName = propName && propName !== 'Student'
     ? propName
     : (user?.displayName || userProfile?.name || userProfile?.githubUsername || 'Student User');
+
+  const handleBackToOverview = useCallback(() => {
+    if (onBackToCourseDetails) {
+      onBackToCourseDetails();
+    } else if (onBackToCourse) {
+      onBackToCourse();
+    } else {
+      window.location.href = `/courses/${courseId}`;
+    }
+  }, [onBackToCourseDetails, onBackToCourse, courseId]);
 
   // ── Flatten all units/lessons hierarchically across modules and topics ────
   const allLessons = useMemo(() => {
@@ -303,6 +315,23 @@ export const CourseLearningLayout: React.FC<CourseLearningLayoutProps> = ({
     return certs.find((c) => String(c.courseId) === String(courseId)) || null;
   }, [certService, studentUid, courseId]);
 
+  const normalizeResources = (data: any): any[] | undefined => {
+    if (!data) return undefined;
+    if (Array.isArray(data.resourceLinks) && data.resourceLinks.length > 0) {
+      return data.resourceLinks;
+    }
+    if (Array.isArray(data.resources) && data.resources.length > 0) {
+      return data.resources.map((r: any) => ({
+        id: r.id || r.resourceId,
+        title: r.title || r.name || 'Resource',
+        url: r.url,
+        type: r.type || (r.category ? String(r.category).toLowerCase() : 'link'),
+        description: r.description,
+      }));
+    }
+    return undefined;
+  };
+
   // ── Build the active lesson's full details ─────────────────────────────
   const activeLessonFull = useMemo((): {
     title: string;
@@ -325,7 +354,7 @@ export const CourseLearningLayout: React.FC<CourseLearningLayoutProps> = ({
         codeExamples: (allLessons[0] as any)?.codeExamples,
         keyPoints: (allLessons[0] as any)?.keyPoints,
         practiceQuestions: (allLessons[0] as any)?.practiceQuestions,
-        resourceLinks: (allLessons[0] as any)?.resourceLinks,
+        resourceLinks: normalizeResources(allLessons[0]),
       };
     }
 
@@ -342,7 +371,7 @@ export const CourseLearningLayout: React.FC<CourseLearningLayoutProps> = ({
       codeExamples: currentAny.codeExamples,
       keyPoints: currentAny.keyPoints,
       practiceQuestions: currentAny.practiceQuestions,
-      resourceLinks: currentAny.resourceLinks,
+      resourceLinks: normalizeResources(currentAny),
     };
   }, [currentLessonData, allLessons]);
 
@@ -607,7 +636,7 @@ export const CourseLearningLayout: React.FC<CourseLearningLayoutProps> = ({
       <LearningTopBar
         courseTitle={courseTitle}
         lessonTitle={activeLessonFull.title}
-        onBackToCourseDetails={onBackToCourse}
+        onBackToCourseDetails={handleBackToOverview}
         isNightMode={isNightMode}
         userAvatar={userAvatar}
         userName={userName}
@@ -635,6 +664,7 @@ export const CourseLearningLayout: React.FC<CourseLearningLayoutProps> = ({
             selectedLessonId={selectedLessonId}
             completedLessonIds={completedLessonIds}
             onSelectLesson={handleSelectLesson}
+            onBackToCourseDetails={handleBackToOverview}
             isNightMode={isNightMode}
           />
         </aside>
@@ -659,6 +689,7 @@ export const CourseLearningLayout: React.FC<CourseLearningLayoutProps> = ({
                 selectedLessonId={selectedLessonId}
                 completedLessonIds={completedLessonIds}
                 onSelectLesson={handleSelectLesson}
+                onBackToCourseDetails={handleBackToOverview}
                 isNightMode={isNightMode}
                 isDrawer
                 onClose={() => setIsSidebarOpen(false)}
@@ -809,7 +840,7 @@ export const CourseLearningLayout: React.FC<CourseLearningLayoutProps> = ({
         currentLessonTitle={activeLessonFull.title}
         onConfirm={() => {
           setIsExitConfirmOpen(false);
-          onBackToCourse();
+          handleBackToOverview();
         }}
         onCancel={() => setIsExitConfirmOpen(false)}
       />

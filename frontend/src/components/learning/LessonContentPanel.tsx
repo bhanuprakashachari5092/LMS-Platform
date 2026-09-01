@@ -10,7 +10,11 @@ import {
   ChevronUp,
   Sparkles,
   Code2,
-  Bookmark
+  Bookmark,
+  FileText,
+  ExternalLink,
+  Video,
+  Download
 } from 'lucide-react';
 import { MarkdownContent } from './MarkdownContent';
 
@@ -44,6 +48,7 @@ interface LessonContentPanelProps {
   resourceLinks?: Array<{
     title: string;
     url: string;
+    type?: string;
     description?: string;
   }>;
 }
@@ -111,7 +116,14 @@ export const LessonContentPanel: React.FC<LessonContentPanelProps> = ({
   }, [practiceQuestions]);
 
   const validResourceLinks = useMemo(() => {
-    return (resourceLinks || []).filter((r) => r.title && r.title.trim().length > 0 && r.url && r.url.trim().length > 0);
+    return (resourceLinks || []).filter((r) => {
+      if (!r.title || !r.title.trim() || !r.url || !r.url.trim()) return false;
+      const u = r.url.trim().toLowerCase();
+      if (u.startsWith('javascript:') || u.startsWith('data:') || u.startsWith('file:') || u.startsWith('vbscript:')) {
+        return false;
+      }
+      return u.startsWith('https://') || u.startsWith('http://') || u.startsWith('/');
+    });
   }, [resourceLinks]);
 
   const toggleSolution = (idx: number) => {
@@ -312,38 +324,104 @@ export const LessonContentPanel: React.FC<LessonContentPanelProps> = ({
 
         {/* ── 7. Resources ────────────────────────────────────────────────────── */}
         {validResourceLinks.length > 0 && (
-          <section className="pt-4 border-t border-[#E5E7EB] dark:border-[#25324A] space-y-3">
-            <h3 className={`text-base font-bold flex items-center gap-2
-              ${isNightMode ? 'text-white' : 'text-slate-900'}`}>
-              <LinkIcon className="w-4 h-4 text-[#2563EB] dark:text-[#3B82F6]" />
-              <span>Reference Resources</span>
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {validResourceLinks.map((res, i) => (
-                <a
-                  key={i}
-                  href={res.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={`p-3.5 rounded-xl border transition-colors block text-xs
-                    ${isNightMode
-                      ? 'bg-[#172033]/40 border-[#25324A] hover:border-[#3B82F6]'
-                      : 'bg-white border-[#E5E7EB] hover:border-[#2563EB]'
-                    }`}
-                >
-                  <div className={`font-semibold truncate ${isNightMode ? 'text-white' : 'text-slate-900'}`}>
-                    {res.title}
-                  </div>
-                  <div className="font-mono text-[10px] text-[#2563EB] dark:text-[#3B82F6] truncate mt-0.5">
-                    {res.url}
-                  </div>
-                  {res.description && (
-                    <div className="text-[11px] text-[#64748B] dark:text-[#94A3B8] mt-1 line-clamp-2">
-                      {res.description}
+          <section className="pt-6 border-t border-[#E5E7EB] dark:border-[#25324A] space-y-4">
+            <div>
+              <h3 className={`text-base font-bold flex items-center gap-2
+                ${isNightMode ? 'text-white' : 'text-slate-900'}`}>
+                <LinkIcon className="w-4 h-4 text-[#2563EB] dark:text-[#3B82F6]" />
+                <span>Lesson Resources</span>
+              </h3>
+              <p className={`text-xs mt-0.5
+                ${isNightMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                Curated documentation, downloadable reference notes, code repositories, and video guides.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {validResourceLinks.map((res, i) => {
+                const resType = (res.type || 'link').toLowerCase();
+
+                let IconComponent = ExternalLink;
+                let badgeLabel = 'Documentation';
+                let actionText = 'Open Resource';
+
+                if (resType === 'pdf' || resType === 'doc') {
+                  IconComponent = FileText;
+                  badgeLabel = 'PDF Document';
+                  actionText = 'Open PDF';
+                } else if (resType === 'video') {
+                  IconComponent = Video;
+                  badgeLabel = 'Video Tutorial';
+                  actionText = 'Watch Video';
+                } else if (resType === 'github') {
+                  IconComponent = Code2;
+                  badgeLabel = 'GitHub Repository';
+                  actionText = 'View Repository';
+                } else if (resType === 'download' || resType === 'file') {
+                  IconComponent = Download;
+                  badgeLabel = 'Downloadable File';
+                  actionText = 'Download File';
+                }
+
+                return (
+                  <div
+                    key={i}
+                    className={`p-4 rounded-xl border flex flex-col justify-between space-y-3 transition-colors
+                      ${isNightMode
+                        ? 'bg-[#121829] border-[#25324A] hover:border-[#3B82F6]/70'
+                        : 'bg-white border-[#E2E8F0] hover:border-[#2563EB]/70 shadow-xs'
+                      }`}
+                  >
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={`text-[10px] px-2 py-0.5 rounded-md font-semibold tracking-wide uppercase
+                          ${isNightMode
+                            ? 'bg-blue-950/70 text-blue-300 border border-blue-800/40'
+                            : 'bg-blue-50 text-blue-700 border border-blue-200'
+                          }`}
+                        >
+                          {badgeLabel}
+                        </span>
+                        <IconComponent className={`w-4 h-4 flex-shrink-0
+                          ${isNightMode ? 'text-blue-400' : 'text-blue-600'}`} />
+                      </div>
+
+                      <h4 className={`text-sm font-semibold leading-snug line-clamp-2
+                        ${isNightMode ? 'text-white' : 'text-slate-900'}`}>
+                        {res.title}
+                      </h4>
+
+                      {res.description && (
+                        <p className={`text-xs line-clamp-2 leading-relaxed
+                          ${isNightMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                          {res.description}
+                        </p>
+                      )}
                     </div>
-                  )}
-                </a>
-              ))}
+
+                    <div className="pt-2 border-t border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
+                      <span className={`font-mono text-[11px] truncate flex-1
+                        ${isNightMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                        {res.url}
+                      </span>
+
+                      <a
+                        href={res.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold transition-colors flex-shrink-0
+                          ${isNightMode
+                            ? 'bg-blue-600 hover:bg-blue-500 text-white'
+                            : 'bg-blue-600 hover:bg-blue-700 text-white'
+                          }`}
+                      >
+                        <span>{actionText}</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </section>
         )}

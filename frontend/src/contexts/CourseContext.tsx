@@ -31,9 +31,29 @@ export const loadStaticCourseModules = async (courseIdOrSlug: string | number): 
     const mod = await import('@/data/pythonCourseFullData');
     return mod.pythonCourseModules;
   }
-  if (target.includes('java')) {
+  if (target.includes('java-through') || (target.includes('java') && !target.includes('script'))) {
     const mod = await import('@/data/javaCourseFullData');
     return mod.javaCourseModules;
+  }
+  if (target.includes('javascript') || target.includes('js-mastery')) {
+    const mod = await import('@/data/javascriptCourseFullData');
+    return mod.javascriptCourseModules;
+  }
+  if (target.includes('node') || target.includes('nodejs')) {
+    const mod = await import('@/data/nodejsCourseFullData');
+    return mod.nodejsCourseModules;
+  }
+  if (target.includes('data-structures') || target.includes('dsa') || target.includes('algorithm')) {
+    const mod = await import('@/data/dsaCourseFullData');
+    return mod.dsaCourseModules;
+  }
+  if (target.includes('web-development') || target.includes('web-dev')) {
+    const mod = await import('@/data/webDevCourseFullData');
+    return mod.webDevCourseModules;
+  }
+  if (target.includes('database') || target.includes('dbms') || target.includes('sql')) {
+    const mod = await import('@/data/dbmsCourseFullData');
+    return mod.dbmsCourseModules;
   }
   return [];
 };
@@ -65,12 +85,17 @@ export interface PracticeQuestionItem {
   difficulty?: 'Easy' | 'Medium' | 'Hard';
 }
 
+export type ResourceItemType = 'pdf' | 'link' | 'video' | 'github' | 'download' | 'doc' | 'url';
+
 export interface ResourceLinkItem {
   id?: string;
   title: string;
   url: string;
-  type?: 'pdf' | 'doc' | 'github' | 'url' | 'download';
+  type?: ResourceItemType;
   description?: string;
+  displayOrder?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface LearningUnitItem {
@@ -104,6 +129,9 @@ export interface LearningUnitItem {
   assignmentTeacherFeedback?: string;
   practiceLabChallenge?: any;
   resources?: any[];
+  order?: number;
+  orderIndex?: number;
+  estimatedReadMinutes?: number;
 }
 
 export interface TopicItem {
@@ -139,11 +167,16 @@ export interface CourseItem {
   badge?: string;
   tracks?: string;
   thumbnail: string;
+  thumbnailUrl?: string;
+  thumbnailPublicId?: string;
   banner?: string;
   status: 'Published' | 'Draft';
   price?: number;
   description: string;
   shortDescription?: string;
+  learningOutcomes?: string[];
+  tags?: string[];
+  durationHours?: number;
   syllabus: string[];
   modules?: ModuleItem[];
   createdAt?: string;
@@ -557,6 +590,142 @@ const initialDefaultCoursesRaw: CourseItem[] = [
     ],
     createdAt: new Date('2026-08-11').toISOString(),
     modules: []
+  },
+  {
+    id: 'javascript-mastery',
+    title: 'JavaScript',
+    slug: 'javascript',
+    subtitle: '⚡ JavaScript Programming',
+    instructor: 'Kaizen Q Team',
+    role: 'Senior Technical Instructor',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    rating: 5.0,
+    reviews: 140,
+    students: '0',
+    duration: '25 Hours',
+    category: 'Web Development',
+    level: 'Beginner to Intermediate',
+    badge: 'Standard Track',
+    tracks: '10 Modules (25 Hours)',
+    status: 'Published',
+    thumbnail: 'https://images.unsplash.com/photo-1579468118864-1b9ea3c0db4a?auto=format&fit=crop&w=800&q=80',
+    description: 'Learn modern JavaScript including variables, functions, arrays, objects, ES6+, asynchronous programming, promises, modules and browser APIs.',
+    syllabus: [
+      'Module 1: JavaScript Fundamentals & Syntax',
+      'Module 2: Variables, Data Types & Operators',
+      'Module 3: Control Flow & Functions',
+      'Module 4: Arrays & Object Manipulation',
+      'Module 5: DOM & Browser Event Handling',
+      'Module 6: Asynchronous JavaScript & Promises',
+      'Module 7: Modern ES6+ Features & Modules',
+      'Module 8: Object-Oriented JS & Prototypes',
+      'Module 9: Practical JavaScript Projects',
+      'Module 10: JavaScript Interview Mastery'
+    ],
+    createdAt: new Date('2026-08-12').toISOString(),
+    modules: []
+  },
+  {
+    id: 'nodejs-backend-development',
+    title: 'Node.js',
+    slug: 'nodejs',
+    subtitle: '🟢 Node.js Backend Development',
+    instructor: 'Kaizen Q Team',
+    role: 'Senior Technical Instructor',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    rating: 5.0,
+    reviews: 110,
+    students: '0',
+    duration: '28 Hours',
+    category: 'Backend Development',
+    level: 'Intermediate',
+    badge: 'Standard Track',
+    tracks: '10 Modules (28 Hours)',
+    status: 'Published',
+    thumbnail: 'https://images.unsplash.com/photo-1627398242454-45a1465c2479?auto=format&fit=crop&w=800&q=80',
+    description: 'Learn backend development with Node.js, Express, REST APIs, authentication, middleware, databases and production backend patterns.',
+    syllabus: [
+      'Module 1: Introduction to Node.js & V8 Engine',
+      'Module 2: Node Modules, NPM & File System',
+      'Module 3: Asynchronous Programming & Event Loop',
+      'Module 4: Express.js Framework & Routing',
+      'Module 5: Middleware & Request Processing',
+      'Module 6: RESTful API Design & Validation',
+      'Module 7: Database Integration (SQL & MongoDB)',
+      'Module 8: Authentication, Authorization & JWT',
+      'Module 9: Error Handling, Logging & Security',
+      'Module 10: Production Backend Project & Deployment'
+    ],
+    createdAt: new Date('2026-08-13').toISOString(),
+    modules: []
+  },
+  {
+    id: 'data-structures-and-algorithms',
+    title: 'Data Structures & Algorithms',
+    slug: 'data-structures-and-algorithms',
+    subtitle: '🌲 Data Structures & Algorithms',
+    instructor: 'Kaizen Q Team',
+    role: 'Senior Technical Instructor',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    rating: 5.0,
+    reviews: 190,
+    students: '0',
+    duration: '40 Hours',
+    category: 'Computer Science',
+    level: 'Intermediate',
+    badge: 'Standard Track',
+    tracks: '10 Modules (40 Hours)',
+    status: 'Published',
+    thumbnail: 'https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=800&q=80',
+    description: 'Learn arrays, linked lists, stacks, queues, trees, graphs, sorting, searching, recursion and algorithmic problem solving.',
+    syllabus: [
+      'Module 1: Algorithm Analysis & Big-O Notation',
+      'Module 2: Arrays & Two-Pointer Techniques',
+      'Module 3: Linked Lists (Singly & Doubly)',
+      'Module 4: Stacks & Queues',
+      'Module 5: Recursion & Backtracking',
+      'Module 6: Sorting & Searching Algorithms',
+      'Module 7: Binary Trees & BST',
+      'Module 8: Heaps & Priority Queues',
+      'Module 9: Graphs & Graph Traversals',
+      'Module 10: Dynamic Programming & Greedy Algorithms'
+    ],
+    createdAt: new Date('2026-08-14').toISOString(),
+    modules: []
+  },
+  {
+    id: 'web-development-fundamentals',
+    title: 'Web Development',
+    slug: 'web-development',
+    subtitle: '🌐 Full Stack Web Development',
+    instructor: 'Kaizen Q Team',
+    role: 'Senior Technical Instructor',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    rating: 5.0,
+    reviews: 160,
+    students: '0',
+    duration: '30 Hours',
+    category: 'Web Development',
+    level: 'Beginner',
+    badge: 'Standard Track',
+    tracks: '10 Modules (30 Hours)',
+    status: 'Published',
+    thumbnail: 'https://images.unsplash.com/photo-1547658719-da2b51169166?auto=format&fit=crop&w=800&q=80',
+    description: 'Learn HTML, CSS and JavaScript fundamentals and build responsive modern web applications.',
+    syllabus: [
+      'Module 1: Introduction to Web Development',
+      'Module 2: HTML5 Semantic Structure & Forms',
+      'Module 3: CSS3 Styling & Box Model',
+      'Module 4: Responsive Design with Flexbox & Grid',
+      'Module 5: CSS Animations & Modern Layouts',
+      'Module 6: JavaScript for Web Interactivity',
+      'Module 7: Working with Web APIs & Data Fetching',
+      'Module 8: Building a Real-World Website Project',
+      'Module 9: Web Performance & SEO Optimization',
+      'Module 10: Hosting, Deployment & Portfolio Building'
+    ],
+    createdAt: new Date('2026-08-15').toISOString(),
+    modules: []
   }
 ];
 
@@ -749,6 +918,22 @@ const sanitizeCourseList = (list: CourseItem[]): CourseItem[] => {
   }
   if (!map.has('java-through-oops-course-id')) {
     map.set('java-through-oops-course-id', initialDefaultCourses.find(item => item.id === 'java-through-oops-course-id') || initialDefaultCourses[7]);
+  }
+  if (!map.has('javascript-mastery')) {
+    const defaultJs = initialDefaultCourses.find(item => item.id === 'javascript-mastery');
+    if (defaultJs) map.set('javascript-mastery', defaultJs);
+  }
+  if (!map.has('nodejs-backend-development')) {
+    const defaultNode = initialDefaultCourses.find(item => item.id === 'nodejs-backend-development');
+    if (defaultNode) map.set('nodejs-backend-development', defaultNode);
+  }
+  if (!map.has('data-structures-and-algorithms')) {
+    const defaultDsa = initialDefaultCourses.find(item => item.id === 'data-structures-and-algorithms');
+    if (defaultDsa) map.set('data-structures-and-algorithms', defaultDsa);
+  }
+  if (!map.has('web-development-fundamentals')) {
+    const defaultWeb = initialDefaultCourses.find(item => item.id === 'web-development-fundamentals');
+    if (defaultWeb) map.set('web-development-fundamentals', defaultWeb);
   }
 
   return Array.from(map.values()).filter(item => !String(item.title || '').toLowerCase().includes('untitled'));
