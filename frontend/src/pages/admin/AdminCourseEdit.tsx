@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -6,7 +6,7 @@ import { UpdateCourseSchema } from '../../../../shared/validators/course.validat
 import type { UpdateCourseInput } from '../../../../shared/validators/course.validator';
 import { courseService } from '../../services/courseService';
 import { useCourses } from '@/contexts/CourseContext';
-import type { ModuleItem, TopicItem, LearningUnitItem } from '@/contexts/CourseContext';
+import type { ModuleItem, TopicItem, LearningUnitItem, LearningUnitType } from '@/contexts/CourseContext';
 import { LoadingSkeleton } from '../../components/courses/LoadingSkeleton';
 import { CloudinaryUploadZone } from '../../components/admin/CloudinaryUploadZone';
 import { aiAutofillService } from '@/services/aiAutofillService';
@@ -37,6 +37,7 @@ import {
   Bold,
   Italic,
   List,
+  ListOrdered,
   Code2,
   Quote,
   Table,
@@ -45,7 +46,12 @@ import {
   GitBranch,
   Server,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Link as LinkIcon,
+  Minus,
+  Check,
+  Target,
+  Key
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -75,10 +81,9 @@ export const AdminCourseEdit: React.FC = () => {
   const [saveStatus, setSaveStatus] = useState<'saved' | 'unsaved' | 'saving' | 'error'>('saved');
   const [lastSavedTime, setLastSavedTime] = useState<string>('Saved');
 
-  // Cloudinary Media States
+  // Cloudinary Media States (Course Level)
   const [thumbnailPreview, setThumbnailPreview] = useState<string>('');
   const [thumbnailPublicId, setThumbnailPublicId] = useState<string>('');
-
   const [coverPreview, setCoverPreview] = useState<string>('');
   const [coverPublicId, setCoverPublicId] = useState<string>('');
 
@@ -106,13 +111,35 @@ export const AdminCourseEdit: React.FC = () => {
   const [newUnitName, setNewUnitName] = useState('');
   const [showAddUnitModal, setShowAddUnitModal] = useState(false);
 
-  // Content Tab: Markdown Editor State
+  // ── Lesson Content Tab States ─────────────────────────────────────────────
+  const [unitTitle, setUnitTitle] = useState<string>('');
+  const [unitDuration, setUnitDuration] = useState<string>('15 mins');
+  const [unitType, setUnitType] = useState<LearningUnitType>('Reading');
   const [lessonMarkdown, setLessonMarkdown] = useState<string>('');
   const [lessonDescription, setLessonDescription] = useState<string>('');
+  const [learningObjectives, setLearningObjectives] = useState<string[]>([]);
+  const [newObjective, setNewObjective] = useState<string>('');
+  const [keyPoints, setKeyPoints] = useState<string[]>([]);
+  const [newKeyPoint, setNewKeyPoint] = useState<string>('');
   const [previewMode, setPreviewMode] = useState<'split' | 'editor' | 'preview'>('split');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Resources Tab: State
+  // Image Insertion Modal State
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [imageToInsertUrl, setImageToInsertUrl] = useState('');
+  const [imageToInsertPublicId, setImageToInsertPublicId] = useState('');
+  const [imageAltText, setImageAltText] = useState('');
+
+  // Link Insertion Modal State
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [linkText, setLinkText] = useState('');
+  const [linkUrl, setLinkUrl] = useState('');
+
+  // Code Block Insertion Modal State
+  const [showCodeModal, setShowCodeModal] = useState(false);
+  const [codeLanguage, setCodeLanguage] = useState('c');
+
+  // Resources Tab State
   const [unitResources, setUnitResources] = useState<any[]>([]);
   const [showAddResourceModal, setShowAddResourceModal] = useState(false);
   const [editingResourceIndex, setEditingResourceIndex] = useState<number | null>(null);
@@ -122,7 +149,7 @@ export const AdminCourseEdit: React.FC = () => {
   const [resUrl, setResUrl] = useState('');
   const [resDownloadable, setResDownloadable] = useState(true);
 
-  // Settings Tab: State
+  // Settings Tab State
   const [courseStatus, setCourseStatus] = useState<'draft' | 'published' | 'archived'>('published');
   const [courseVisibility, setCourseVisibility] = useState<'public' | 'private' | 'unlisted'>('public');
   const [isFeatured, setIsFeatured] = useState<boolean>(false);
@@ -140,6 +167,12 @@ export const AdminCourseEdit: React.FC = () => {
 
   const watchTitle = watch('title');
 
+  // Mark dirty on any user change
+  const markDirty = () => {
+    setIsDirty(true);
+    setSaveStatus('unsaved');
+  };
+
   // Prevent accidental navigation when there are unsaved changes
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -151,6 +184,18 @@ export const AdminCourseEdit: React.FC = () => {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isDirty]);
+
+  // Keyboard shortcut: Ctrl+S / Cmd+S to Save All Changes
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSaveAll();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [modules, selectedUnit, selectedModId, selectedTopId, lessonMarkdown, lessonDescription, unitTitle, unitDuration, unitType, learningObjectives, keyPoints, unitResources, skillsInput, outcomesInput, courseStatus, courseVisibility, isFeatured]);
 
   // Load Course Data from Service
   useEffect(() => {
@@ -200,9 +245,14 @@ export const AdminCourseEdit: React.FC = () => {
             setSelectedUnit(firstUnit);
             setSelectedModId(firstMod.id);
             setSelectedTopId(firstTop.id);
+            setUnitTitle(firstUnit.title || '');
+            setUnitDuration(firstUnit.duration || '15 mins');
+            setUnitType(firstUnit.type || 'Reading');
             setLessonMarkdown(firstUnit.readingContent || firstUnit.conceptTheory || '');
             setLessonDescription(firstUnit.description || '');
-            setUnitResources(firstUnit.resources || []);
+            setLearningObjectives(firstUnit.learningObjectives || []);
+            setKeyPoints(firstUnit.keyPoints || []);
+            setUnitResources(firstUnit.resources || firstUnit.resourceLinks || []);
           }
 
           setIsDirty(false);
@@ -219,12 +269,6 @@ export const AdminCourseEdit: React.FC = () => {
     };
     fetchCourse();
   }, [id, reset, navigate]);
-
-  // Mark dirty on any user change
-  const markDirty = () => {
-    setIsDirty(true);
-    setSaveStatus('unsaved');
-  };
 
   // AI Autofill Trigger
   const handleAiAutofill = async () => {
@@ -304,8 +348,8 @@ export const AdminCourseEdit: React.FC = () => {
     setExpandedModules((prev) => ({ ...prev, [modId]: !prev[modId] }));
   };
 
-  const handleSelectUnit = (unit: LearningUnitItem, modId: string, topId: string) => {
-    // If current unit has unsaved lesson changes, sync them to local module state
+  // Sync active unit state into local modules hierarchy
+  const syncCurrentUnitToModules = useCallback(() => {
     if (selectedUnit && selectedModId && selectedTopId) {
       setModules((prevMods) =>
         prevMods.map((m) => {
@@ -320,9 +364,16 @@ export const AdminCourseEdit: React.FC = () => {
                   if (u.id !== selectedUnit.id) return u;
                   return {
                     ...u,
+                    title: unitTitle || u.title,
+                    duration: unitDuration || u.duration,
+                    type: unitType || u.type,
                     readingContent: lessonMarkdown,
+                    conceptTheory: lessonMarkdown,
                     description: lessonDescription,
+                    learningObjectives,
+                    keyPoints,
                     resources: unitResources,
+                    resourceLinks: unitResources,
                   };
                 }),
               };
@@ -331,13 +382,22 @@ export const AdminCourseEdit: React.FC = () => {
         })
       );
     }
+  }, [selectedUnit, selectedModId, selectedTopId, unitTitle, unitDuration, unitType, lessonMarkdown, lessonDescription, learningObjectives, keyPoints, unitResources]);
+
+  const handleSelectUnit = (unit: LearningUnitItem, modId: string, topId: string) => {
+    syncCurrentUnitToModules();
 
     setSelectedUnit(unit);
     setSelectedModId(modId);
     setSelectedTopId(topId);
+    setUnitTitle(unit.title || '');
+    setUnitDuration(unit.duration || '15 mins');
+    setUnitType(unit.type || 'Reading');
     setLessonMarkdown(unit.readingContent || unit.conceptTheory || '');
     setLessonDescription(unit.description || '');
-    setUnitResources(unit.resources || []);
+    setLearningObjectives(unit.learningObjectives || []);
+    setKeyPoints(unit.keyPoints || []);
+    setUnitResources(unit.resources || unit.resourceLinks || []);
   };
 
   const handleAddModule = () => {
@@ -460,8 +520,13 @@ export const AdminCourseEdit: React.FC = () => {
     setSelectedUnit(newUnit);
     setSelectedModId(modId);
     setSelectedTopId(topId);
+    setUnitTitle(newUnit.title);
+    setUnitDuration(newUnit.duration);
+    setUnitType(newUnit.type);
     setLessonMarkdown(newUnit.readingContent || '');
     setLessonDescription(newUnit.description || '');
+    setLearningObjectives([]);
+    setKeyPoints([]);
     setUnitResources([]);
     setNewUnitName('');
     setShowAddUnitModal(false);
@@ -536,7 +601,7 @@ export const AdminCourseEdit: React.FC = () => {
   };
 
   // ── Markdown Toolbar Helpers ───────────────────────────────────────────────
-  const insertMarkdown = (syntax: string) => {
+  const insertMarkdown = (syntax: string, customPayload?: string) => {
     const textarea = textareaRef.current;
     if (!textarea) return;
     const start = textarea.selectionStart;
@@ -573,20 +638,40 @@ export const AdminCourseEdit: React.FC = () => {
         prefix = '\n- ';
         placeholder = selected || 'List item';
         break;
+      case 'list-ordered':
+        prefix = '\n1. ';
+        placeholder = selected || 'Numbered item';
+        break;
+      case 'divider':
+        prefix = '\n\n---\n\n';
+        placeholder = '';
+        break;
       case 'code':
-        prefix = '\n```typescript\n';
-        suffix = '\n```\n';
-        placeholder = selected || '// Code snippet here';
+        {
+          const lang = customPayload || 'typescript';
+          prefix = `\n\`\`\`${lang}\n`;
+          suffix = '\n\`\`\`\n';
+          placeholder = selected || `// Write ${lang.toUpperCase()} code here`;
+        }
         break;
       case 'quote':
         prefix = '\n> ';
-        placeholder = selected || 'Key takeaway or quote';
+        placeholder = selected || 'Key takeaway or important note';
         break;
       case 'table':
-        prefix = '\n| Concept | Description | Example |\n|---|---|---|\n| Item 1 | Core summary | `val_1` |\n| Item 2 | Next details | `val_2` |\n';
+        prefix = '\n| Concept | Description | Syntax / Example |\n|---|---|---|\n| Pointer Declaration | Defines a pointer variable | `int *ptr = &val;` |\n| Dereferencing | Accesses value at memory address | `*ptr = 100;` |\n| Memory Address | Location in memory | `&val` |\n';
+        placeholder = '';
+        break;
+      case 'image':
+        prefix = customPayload || `\n![Illustration](https://images.unsplash.com/photo-1516116211227-bbc03e3c6628?auto=format&fit=crop&w=800&q=80)\n`;
+        placeholder = '';
+        break;
+      case 'link':
+        prefix = customPayload || `\n[Reference Link](https://example.com)\n`;
+        placeholder = '';
         break;
       case 'practice-sql':
-        prefix = '\n```practice-sql\n-- @title: SQL Hands-on Lab\nCREATE TABLE learners (id INT, name TEXT);\nINSERT INTO learners VALUES (1, "Bhanu");\nSELECT * FROM learners;\n```\n';
+        prefix = '\n```practice-sql\n-- @title: SQL Hands-on Lab\nCREATE TABLE learners (id INT, name TEXT, score INT);\nINSERT INTO learners VALUES (1, "Bhanu", 95);\nSELECT * FROM learners;\n```\n';
         break;
       case 'practice-terminal':
         prefix = '\n```practice-terminal\n# @title: Linux Terminal Practice\n```\n';
@@ -616,6 +701,72 @@ export const AdminCourseEdit: React.FC = () => {
       textarea.focus();
       textarea.setSelectionRange(start + prefix.length, start + prefix.length + placeholder.length);
     }, 50);
+  };
+
+  // Image Modal Insert Handler
+  const handleInsertCloudinaryImage = () => {
+    if (!imageToInsertUrl.trim()) {
+      toast.error('Please upload or provide an image URL first.');
+      return;
+    }
+    const alt = imageAltText.trim() || 'Diagram';
+    const markdownImg = `\n![${alt}](${imageToInsertUrl.trim()})\n`;
+    insertMarkdown('image', markdownImg);
+    setShowImageModal(false);
+    setImageToInsertUrl('');
+    setImageToInsertPublicId('');
+    setImageAltText('');
+    toast.success('Image inserted into lesson markdown!');
+  };
+
+  // Link Modal Insert Handler
+  const handleInsertLink = () => {
+    if (!linkUrl.trim()) {
+      toast.error('Please provide a URL.');
+      return;
+    }
+    const label = linkText.trim() || linkUrl.trim();
+    const markdownLink = `[${label}](${linkUrl.trim()})`;
+    insertMarkdown('link', markdownLink);
+    setShowLinkModal(false);
+    setLinkText('');
+    setLinkUrl('');
+  };
+
+  // Code Block Modal Insert Handler
+  const handleInsertCodeBlock = () => {
+    insertMarkdown('code', codeLanguage);
+    setShowCodeModal(false);
+  };
+
+  // Learning Objectives Helpers
+  const handleAddObjective = () => {
+    if (!newObjective.trim()) return;
+    const updated = [...learningObjectives, newObjective.trim()];
+    setLearningObjectives(updated);
+    setNewObjective('');
+    markDirty();
+  };
+
+  const handleRemoveObjective = (idx: number) => {
+    const updated = learningObjectives.filter((_, i) => i !== idx);
+    setLearningObjectives(updated);
+    markDirty();
+  };
+
+  // Key Takeaways Helpers
+  const handleAddKeyPoint = () => {
+    if (!newKeyPoint.trim()) return;
+    const updated = [...keyPoints, newKeyPoint.trim()];
+    setKeyPoints(updated);
+    setNewKeyPoint('');
+    markDirty();
+  };
+
+  const handleRemoveKeyPoint = (idx: number) => {
+    const updated = keyPoints.filter((_, i) => i !== idx);
+    setKeyPoints(updated);
+    markDirty();
   };
 
   // ── Resource Manager Helpers ──────────────────────────────────────────────
@@ -660,6 +811,18 @@ export const AdminCourseEdit: React.FC = () => {
     toast.success('Resource removed.');
   };
 
+  const moveResource = (idx: number, direction: 'up' | 'down') => {
+    if (direction === 'up' && idx === 0) return;
+    if (direction === 'down' && idx === unitResources.length - 1) return;
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    const updated = [...unitResources];
+    const temp = updated[idx];
+    updated[idx] = updated[targetIdx];
+    updated[targetIdx] = temp;
+    setUnitResources(updated);
+    markDirty();
+  };
+
   // ── Master Save Handler ───────────────────────────────────────────────────
   const handleSaveAll = async () => {
     if (!id) return;
@@ -671,7 +834,7 @@ export const AdminCourseEdit: React.FC = () => {
 
     setSaveStatus('saving');
 
-    // If a unit is currently active, ensure its in-editor content is baked into the modules array
+    // Make sure active unit values are baked into the latest modules state
     let currentModulesState = [...modules];
     if (selectedUnit && selectedModId && selectedTopId) {
       currentModulesState = currentModulesState.map((m) => {
@@ -686,9 +849,16 @@ export const AdminCourseEdit: React.FC = () => {
                 if (u.id !== selectedUnit.id) return u;
                 return {
                   ...u,
+                  title: unitTitle || u.title,
+                  duration: unitDuration || u.duration,
+                  type: unitType || u.type,
                   readingContent: lessonMarkdown,
+                  conceptTheory: lessonMarkdown,
                   description: lessonDescription,
+                  learningObjectives,
+                  keyPoints,
                   resources: unitResources,
+                  resourceLinks: unitResources,
                 };
               }),
             };
@@ -724,7 +894,7 @@ export const AdminCourseEdit: React.FC = () => {
       setIsDirty(false);
       setSaveStatus('saved');
       setLastSavedTime(new Date().toLocaleTimeString());
-      toast.success('🎉 Course changes saved successfully!');
+      toast.success('🎉 Course and lesson changes saved successfully!');
     } catch (err: any) {
       setSaveStatus('error');
       toast.error(err.message || 'Failed to save course changes.');
@@ -759,7 +929,7 @@ export const AdminCourseEdit: React.FC = () => {
               </span>
               {isDirty ? (
                 <span className="text-[11px] font-bold text-amber-500 dark:text-amber-400 flex items-center gap-1">
-                  <AlertTriangle className="w-3.5 h-3.5" /> Unsaved changes
+                  <AlertTriangle className="w-3.5 h-3.5" /> Unsaved changes (Ctrl+S to save)
                 </span>
               ) : (
                 <span className="text-[11px] font-semibold text-emerald-500 flex items-center gap-1">
@@ -773,7 +943,7 @@ export const AdminCourseEdit: React.FC = () => {
           </div>
         </div>
 
-        {/* Global Save Button */}
+        {/* Global Save & Student View Buttons */}
         <div className="flex items-center gap-3 shrink-0">
           <Link
             to={`/dashboard/course/${id}`}
@@ -811,7 +981,7 @@ export const AdminCourseEdit: React.FC = () => {
           {[
             { id: 'details', label: '1. Course Details', icon: BookOpen },
             { id: 'curriculum', label: `2. Curriculum (${modules.length} Modules)`, icon: Layers },
-            { id: 'content', label: `3. Lesson Content (${selectedUnit?.title ? selectedUnit.title.substring(0, 18) + '...' : 'Select Unit'})`, icon: FileText },
+            { id: 'content', label: `3. Lesson Content (${unitTitle ? unitTitle.substring(0, 18) + '...' : 'Select Unit'})`, icon: FileText },
             { id: 'resources', label: `4. Resources (${unitResources.length})`, icon: Paperclip },
             { id: 'settings', label: '5. Settings & Visibility', icon: Settings },
           ].map((tab) => {
@@ -1271,92 +1441,277 @@ export const AdminCourseEdit: React.FC = () => {
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* TAB 3: LESSON MARKDOWN CONTENT                                         */}
+      {/* TAB 3: PROFESSIONAL LESSON CONTENT STUDIO                              */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'content' && (
-        <div className="space-y-4">
+        <div className="space-y-5">
           {selectedUnit ? (
-            <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl">
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-500">
-                    Editing Unit
-                  </span>
-                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
-                    {selectedUnit.title}
-                  </h3>
+            <div className="space-y-5">
+              
+              {/* Unit Headline & Metadata Form */}
+              <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xs space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <div>
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-500">
+                      Lesson Configuration
+                    </span>
+                    <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+                      {unitTitle || 'Untitled Lesson'}
+                    </h3>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewMode('editor')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-all ${
+                        previewMode === 'editor' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                      }`}
+                    >
+                      Editor Only
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewMode('split')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-all ${
+                        previewMode === 'split' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                      }`}
+                    >
+                      Split View
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewMode('preview')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-all ${
+                        previewMode === 'preview' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                      }`}
+                    >
+                      Student Preview
+                    </button>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPreviewMode('editor')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer ${
-                      previewMode === 'editor' ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-                    }`}
-                  >
-                    Editor
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPreviewMode('split')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer ${
-                      previewMode === 'split' ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-                    }`}
-                  >
-                    Split
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPreviewMode('preview')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer ${
-                      previewMode === 'preview' ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-                    }`}
-                  >
-                    Preview
-                  </button>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="sm:col-span-2 space-y-1">
+                    <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Lesson Title *</label>
+                    <input
+                      type="text"
+                      value={unitTitle}
+                      onChange={(e) => {
+                        setUnitTitle(e.target.value);
+                        markDirty();
+                      }}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-2 px-3 text-xs text-slate-900 dark:text-white focus:outline-hidden font-medium"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Duration</label>
+                      <input
+                        type="text"
+                        value={unitDuration}
+                        onChange={(e) => {
+                          setUnitDuration(e.target.value);
+                          markDirty();
+                        }}
+                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-2 px-3 text-xs text-slate-900 dark:text-white focus:outline-hidden font-medium"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Type</label>
+                      <select
+                        value={unitType}
+                        onChange={(e) => {
+                          setUnitType(e.target.value as any);
+                          markDirty();
+                        }}
+                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-2 px-3 text-xs text-slate-900 dark:text-white focus:outline-hidden font-medium"
+                      >
+                        <option value="Reading">Reading</option>
+                        <option value="Video">Video</option>
+                        <option value="Quiz">Quiz</option>
+                        <option value="Assignment">Assignment</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="sm:col-span-3 space-y-1">
+                    <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Short Summary / Overview</label>
+                    <textarea
+                      rows={2}
+                      value={lessonDescription}
+                      onChange={(e) => {
+                        setLessonDescription(e.target.value);
+                        markDirty();
+                      }}
+                      placeholder="Brief synopsis of what this lesson covers..."
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-2 px-3 text-xs text-slate-900 dark:text-white focus:outline-hidden font-medium"
+                    />
+                  </div>
+                </div>
+
+                {/* Learning Objectives & Key Takeaways Collapsible Sections */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100 dark:border-slate-800">
+                  
+                  {/* Learning Objectives */}
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                      <Target className="w-3.5 h-3.5 text-indigo-500" /> Learning Objectives ({learningObjectives.length})
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newObjective}
+                        onChange={(e) => setNewObjective(e.target.value)}
+                        placeholder="e.g. Understand pointer dereferencing"
+                        className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-1.5 px-3 text-xs text-slate-900 dark:text-white focus:outline-hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddObjective}
+                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {learningObjectives.map((obj, i) => (
+                        <span key={i} className="px-2.5 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 text-[11px] font-medium flex items-center gap-1">
+                          {obj}
+                          <button type="button" onClick={() => handleRemoveObjective(i)} className="text-rose-500 hover:text-rose-600 cursor-pointer">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Key Takeaways */}
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                      <Key className="w-3.5 h-3.5 text-amber-500" /> Key Takeaways ({keyPoints.length})
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newKeyPoint}
+                        onChange={(e) => setNewKeyPoint(e.target.value)}
+                        placeholder="e.g. Always free allocated heap memory"
+                        className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-1.5 px-3 text-xs text-slate-900 dark:text-white focus:outline-hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddKeyPoint}
+                        className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {keyPoints.map((kp, i) => (
+                        <span key={i} className="px-2.5 py-0.5 rounded-lg bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 text-[11px] font-medium flex items-center gap-1">
+                          {kp}
+                          <button type="button" onClick={() => handleRemoveKeyPoint(i)} className="text-rose-500 hover:text-rose-600 cursor-pointer">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
                 </div>
               </div>
 
-              {/* Markdown Toolbar */}
-              <div className="flex flex-wrap items-center gap-1 p-2 bg-slate-900 text-slate-200 border border-slate-800 rounded-xl overflow-x-auto text-xs font-mono">
-                <button type="button" onClick={() => insertMarkdown('bold')} className="p-1.5 hover:bg-slate-800 rounded cursor-pointer" title="Bold"><Bold className="w-3.5 h-3.5" /></button>
-                <button type="button" onClick={() => insertMarkdown('italic')} className="p-1.5 hover:bg-slate-800 rounded cursor-pointer" title="Italic"><Italic className="w-3.5 h-3.5" /></button>
-                <button type="button" onClick={() => insertMarkdown('h1')} className="p-1.5 hover:bg-slate-800 rounded font-bold cursor-pointer" title="H1">H1</button>
-                <button type="button" onClick={() => insertMarkdown('h2')} className="p-1.5 hover:bg-slate-800 rounded font-bold cursor-pointer" title="H2">H2</button>
-                <button type="button" onClick={() => insertMarkdown('h3')} className="p-1.5 hover:bg-slate-800 rounded font-bold cursor-pointer" title="H3">H3</button>
-                <button type="button" onClick={() => insertMarkdown('list')} className="p-1.5 hover:bg-slate-800 rounded cursor-pointer" title="List"><List className="w-3.5 h-3.5" /></button>
-                <button type="button" onClick={() => insertMarkdown('code')} className="p-1.5 hover:bg-slate-800 rounded cursor-pointer" title="Code Block"><Code2 className="w-3.5 h-3.5" /></button>
-                <button type="button" onClick={() => insertMarkdown('quote')} className="p-1.5 hover:bg-slate-800 rounded cursor-pointer" title="Quote"><Quote className="w-3.5 h-3.5" /></button>
-                <button type="button" onClick={() => insertMarkdown('table')} className="p-1.5 hover:bg-slate-800 rounded cursor-pointer" title="Table"><Table className="w-3.5 h-3.5" /></button>
+              {/* ── Markdown Content Toolbar ────────────────────────────────────── */}
+              <div className="p-2 bg-slate-900 border border-slate-800 rounded-2xl flex flex-wrap items-center gap-1 text-slate-200 text-xs font-mono shadow-xs">
+                
+                {/* Headings */}
+                <button type="button" onClick={() => insertMarkdown('h1')} className="px-2.5 py-1.5 hover:bg-slate-800 rounded-lg font-extrabold cursor-pointer" title="Heading 1">H1</button>
+                <button type="button" onClick={() => insertMarkdown('h2')} className="px-2.5 py-1.5 hover:bg-slate-800 rounded-lg font-bold cursor-pointer" title="Heading 2">H2</button>
+                <button type="button" onClick={() => insertMarkdown('h3')} className="px-2.5 py-1.5 hover:bg-slate-800 rounded-lg font-semibold cursor-pointer" title="Heading 3">H3</button>
 
                 <div className="h-4 w-px bg-slate-700 mx-1" />
 
-                {/* Practice Sandbox Templates */}
-                <button type="button" onClick={() => insertMarkdown('practice-sql')} className="px-2 py-1 bg-sky-950 border border-sky-800 text-sky-300 rounded font-bold text-[10px] flex items-center gap-1 cursor-pointer">
-                  <Database className="w-3 h-3" /> SQL
+                {/* Typography */}
+                <button type="button" onClick={() => insertMarkdown('bold')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Bold (**text**)"><Bold className="w-4 h-4" /></button>
+                <button type="button" onClick={() => insertMarkdown('italic')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Italic (*text*)"><Italic className="w-4 h-4" /></button>
+                <button type="button" onClick={() => insertMarkdown('list')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Bullet List (- item)"><List className="w-4 h-4" /></button>
+                <button type="button" onClick={() => insertMarkdown('list-ordered')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Numbered List (1. item)"><ListOrdered className="w-4 h-4" /></button>
+                <button type="button" onClick={() => insertMarkdown('quote')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Blockquote (> text)"><Quote className="w-4 h-4" /></button>
+                <button type="button" onClick={() => insertMarkdown('divider')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Horizontal Divider (---)"><Minus className="w-4 h-4" /></button>
+                <button type="button" onClick={() => insertMarkdown('table')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Table Generator"><Table className="w-4 h-4" /></button>
+
+                <div className="h-4 w-px bg-slate-700 mx-1" />
+
+                {/* Insert Image (Cloudinary) */}
+                <button
+                  type="button"
+                  onClick={() => setShowImageModal(true)}
+                  className="px-2.5 py-1.5 bg-indigo-950 hover:bg-indigo-900 border border-indigo-700 text-indigo-200 rounded-lg font-bold text-[11px] flex items-center gap-1.5 cursor-pointer transition-all"
+                  title="Upload & Insert Cloudinary Image"
+                >
+                  <ImageIcon className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Image</span>
                 </button>
-                <button type="button" onClick={() => insertMarkdown('practice-terminal')} className="px-2 py-1 bg-purple-950 border border-purple-800 text-purple-300 rounded font-bold text-[10px] flex items-center gap-1 cursor-pointer">
-                  <Terminal className="w-3 h-3" /> Terminal
+
+                {/* Insert Link */}
+                <button
+                  type="button"
+                  onClick={() => setShowLinkModal(true)}
+                  className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer"
+                  title="Insert Hyperlink"
+                >
+                  <LinkIcon className="w-4 h-4 text-sky-400" />
                 </button>
-                <button type="button" onClick={() => insertMarkdown('practice-git')} className="px-2 py-1 bg-amber-950 border border-amber-800 text-amber-300 rounded font-bold text-[10px] flex items-center gap-1 cursor-pointer">
-                  <GitBranch className="w-3 h-3" /> Git
+
+                {/* Insert Code Block */}
+                <button
+                  type="button"
+                  onClick={() => setShowCodeModal(true)}
+                  className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-lg font-bold text-[11px] flex items-center gap-1.5 cursor-pointer"
+                  title="Insert Code Block"
+                >
+                  <Code2 className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Code</span>
                 </button>
-                <button type="button" onClick={() => insertMarkdown('practice-code')} className="px-2 py-1 bg-emerald-950 border border-emerald-800 text-emerald-300 rounded font-bold text-[10px] flex items-center gap-1 cursor-pointer">
-                  <Code2 className="w-3 h-3" /> Code
-                </button>
-                <button type="button" onClick={() => insertMarkdown('practice-web')} className="px-2 py-1 bg-blue-950 border border-blue-800 text-blue-300 rounded font-bold text-[10px] flex items-center gap-1 cursor-pointer">
-                  <Eye className="w-3 h-3" /> Web/React
-                </button>
-                <button type="button" onClick={() => insertMarkdown('practice-k8s')} className="px-2 py-1 bg-indigo-950 border border-indigo-800 text-indigo-300 rounded font-bold text-[10px] flex items-center gap-1 cursor-pointer">
-                  <Server className="w-3 h-3" /> K8s
-                </button>
+
+                <div className="h-4 w-px bg-slate-700 mx-1" />
+
+                {/* Interactive Practice Templates */}
+                <div className="flex items-center gap-1">
+                  <button type="button" onClick={() => insertMarkdown('practice-sql')} className="px-2 py-1 bg-sky-950 hover:bg-sky-900 border border-sky-800 text-sky-300 rounded-md font-bold text-[10px] flex items-center gap-1 cursor-pointer">
+                    <Database className="w-3 h-3" /> SQL Lab
+                  </button>
+                  <button type="button" onClick={() => insertMarkdown('practice-terminal')} className="px-2 py-1 bg-purple-950 hover:bg-purple-900 border border-purple-800 text-purple-300 rounded-md font-bold text-[10px] flex items-center gap-1 cursor-pointer">
+                    <Terminal className="w-3 h-3" /> Linux Lab
+                  </button>
+                  <button type="button" onClick={() => insertMarkdown('practice-git')} className="px-2 py-1 bg-amber-950 hover:bg-amber-900 border border-amber-800 text-amber-300 rounded-md font-bold text-[10px] flex items-center gap-1 cursor-pointer">
+                    <GitBranch className="w-3 h-3" /> Git Lab
+                  </button>
+                  <button type="button" onClick={() => insertMarkdown('practice-code')} className="px-2 py-1 bg-emerald-950 hover:bg-emerald-900 border border-emerald-800 text-emerald-300 rounded-md font-bold text-[10px] flex items-center gap-1 cursor-pointer">
+                    <Code2 className="w-3 h-3" /> Runner
+                  </button>
+                  <button type="button" onClick={() => insertMarkdown('practice-web')} className="px-2 py-1 bg-blue-950 hover:bg-blue-900 border border-blue-800 text-blue-300 rounded-md font-bold text-[10px] flex items-center gap-1 cursor-pointer">
+                    <Eye className="w-3 h-3" /> Web
+                  </button>
+                  <button type="button" onClick={() => insertMarkdown('practice-k8s')} className="px-2 py-1 bg-indigo-950 hover:bg-indigo-900 border border-indigo-800 text-indigo-300 rounded-md font-bold text-[10px] flex items-center gap-1 cursor-pointer">
+                    <Server className="w-3 h-3" /> K8s
+                  </button>
+                </div>
+
               </div>
 
-              {/* Editor / Preview Split View */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-h-[500px]">
+              {/* ── Editor / Student Preview Split View ─────────────────────────── */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-h-[550px]">
+                
+                {/* Markdown Textarea */}
                 {(previewMode === 'split' || previewMode === 'editor') && (
-                  <div className={`${previewMode === 'editor' ? 'md:col-span-2' : ''} flex flex-col`}>
+                  <div className={`${previewMode === 'editor' ? 'md:col-span-2' : ''} flex flex-col bg-slate-950 border border-slate-800 rounded-3xl p-4 shadow-sm space-y-2`}>
+                    <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 px-1">
+                      <span>Markdown Editor</span>
+                      <span>{lessonMarkdown.length} characters • {lessonMarkdown.split(/\s+/).filter(Boolean).length} words</span>
+                    </div>
                     <textarea
                       ref={textareaRef}
                       value={lessonMarkdown}
@@ -1364,26 +1719,69 @@ export const AdminCourseEdit: React.FC = () => {
                         setLessonMarkdown(e.target.value);
                         markDirty();
                       }}
-                      className="w-full h-full min-h-[450px] p-4 bg-slate-950 border border-slate-800 rounded-2xl font-mono text-xs text-slate-100 focus:outline-hidden leading-relaxed resize-y"
-                      placeholder="Write rich Markdown notes here..."
+                      className="w-full flex-1 min-h-[480px] p-3 bg-transparent font-mono text-xs text-slate-100 focus:outline-hidden leading-relaxed resize-y"
+                      placeholder="Write your comprehensive Markdown lesson here..."
                       spellCheck={false}
                     />
                   </div>
                 )}
 
+                {/* Real-time Student Preview (Uses exact MarkdownContent renderer) */}
                 {(previewMode === 'split' || previewMode === 'preview') && (
-                  <div className={`${previewMode === 'preview' ? 'md:col-span-2' : ''} p-5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-y-auto max-h-[650px]`}>
-                    <MarkdownContent content={lessonMarkdown} />
+                  <div className={`${previewMode === 'preview' ? 'md:col-span-2' : ''} flex flex-col bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm overflow-y-auto max-h-[720px] space-y-4`}>
+                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2 text-[11px] font-mono text-slate-400">
+                      <span>Student View Live Preview</span>
+                      <span className="text-emerald-500 font-bold">Synchronized</span>
+                    </div>
+
+                    {/* Lesson Header Banner inside preview */}
+                    <div className="space-y-2">
+                      <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                        {unitTitle || 'Lesson Title'}
+                      </h2>
+                      {lessonDescription && (
+                        <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed italic">
+                          {lessonDescription}
+                        </p>
+                      )}
+                      {learningObjectives.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {learningObjectives.map((obj, i) => (
+                            <span key={i} className="px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[10px] font-semibold">
+                              🎯 {obj}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                      <MarkdownContent content={lessonMarkdown} />
+                    </div>
+
+                    {keyPoints.length > 0 && (
+                      <div className="mt-6 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 space-y-2">
+                        <h4 className="text-xs font-bold flex items-center gap-1.5">
+                          <Key className="w-4 h-4 text-amber-500" /> Key Takeaways
+                        </h4>
+                        <ul className="list-disc pl-5 text-xs space-y-1">
+                          {keyPoints.map((kp, i) => (
+                            <li key={i}>{kp}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 )}
+
               </div>
             </div>
           ) : (
             <div className="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl space-y-3">
               <FileText className="w-12 h-12 text-slate-400 mx-auto" />
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">No Unit Selected</h3>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">No Lesson Selected</h3>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                Please select a learning unit from the Curriculum tab to edit its lesson notes and markdown content.
+                Please select a learning unit from the Curriculum tab to begin editing its title, markdown content, and resources.
               </p>
               <button
                 type="button"
@@ -1408,7 +1806,7 @@ export const AdminCourseEdit: React.FC = () => {
                 Downloadable & External Resources
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Attach PDFs, lab workbooks, GitHub repositories, and links to {selectedUnit?.title ? `"${selectedUnit.title}"` : 'the selected unit'}.
+                Attach PDFs, lab workbooks, GitHub repositories, and links to {unitTitle ? `"${unitTitle}"` : 'the selected unit'}.
               </p>
             </div>
 
@@ -1442,14 +1840,19 @@ export const AdminCourseEdit: React.FC = () => {
                 unitResources.map((res, idx) => (
                   <div
                     key={res.id || idx}
-                    className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4 shadow-xs"
+                    className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4 shadow-xs"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400">
+                      <div className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400">
                         {res.type === 'github' ? <GitFork className="w-4 h-4" /> : res.type === 'video' ? <Video className="w-4 h-4" /> : <Paperclip className="w-4 h-4" />}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{res.title}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{res.title}</p>
+                          <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                            {res.type}
+                          </span>
+                        </div>
                         <a
                           href={res.url}
                           target="_blank"
@@ -1462,7 +1865,25 @@ export const AdminCourseEdit: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => moveResource(idx, 'up')}
+                        disabled={idx === 0}
+                        className="p-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 disabled:opacity-20 cursor-pointer"
+                        title="Move Up"
+                      >
+                        <ArrowUp className="w-3 h-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveResource(idx, 'down')}
+                        disabled={idx === unitResources.length - 1}
+                        className="p-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 disabled:opacity-20 cursor-pointer"
+                        title="Move Down"
+                      >
+                        <ArrowDown className="w-3 h-3" />
+                      </button>
                       <button
                         type="button"
                         onClick={() => {
@@ -1665,9 +2086,187 @@ export const AdminCourseEdit: React.FC = () => {
         </div>
       )}
 
+      {/* ── Insert Cloudinary Image Modal ─────────────────────────────────── */}
+      {showImageModal && (
+        <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="font-heading font-extrabold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                <ImageIcon className="w-5 h-5 text-indigo-500" /> Insert Image into Lesson
+              </h3>
+              <button type="button" onClick={() => setShowImageModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">Upload via Cloudinary (JPG, PNG, WEBP)</label>
+                <CloudinaryUploadZone
+                  currentImageUrl={imageToInsertUrl}
+                  currentPublicId={imageToInsertPublicId}
+                  folder={`kaizenq/courses/${id || 'course'}/lessons/${selectedUnit?.id || 'unit'}`}
+                  onUploadSuccess={(res) => {
+                    setImageToInsertUrl(res.secureUrl);
+                    setImageToInsertPublicId(res.publicId);
+                  }}
+                  onImageRemove={() => {
+                    setImageToInsertUrl('');
+                    setImageToInsertPublicId('');
+                  }}
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">Image Alt / Caption Text</label>
+                <input
+                  type="text"
+                  value={imageAltText}
+                  onChange={(e) => setImageAltText(e.target.value)}
+                  placeholder="e.g. Memory Layout of Pointers Diagram"
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 text-xs text-slate-900 dark:text-white focus:outline-hidden"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowImageModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleInsertCloudinaryImage}
+                disabled={!imageToInsertUrl}
+                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+              >
+                <Check className="w-4 h-4" />
+                <span>Insert into Lesson</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Insert Link Modal ─────────────────────────────────────────────── */}
+      {showLinkModal && (
+        <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <h3 className="font-heading font-extrabold text-base text-slate-900 dark:text-white flex items-center gap-2">
+              <LinkIcon className="w-5 h-5 text-sky-500" /> Insert Link
+            </h3>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">Display Text</label>
+                <input
+                  type="text"
+                  value={linkText}
+                  onChange={(e) => setLinkText(e.target.value)}
+                  placeholder="e.g. Official Documentation"
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 text-xs text-slate-900 dark:text-white focus:outline-hidden"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">URL *</label>
+                <input
+                  type="url"
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 text-xs text-slate-900 dark:text-white focus:outline-hidden"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowLinkModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleInsertLink}
+                className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold cursor-pointer"
+              >
+                Insert Link
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Insert Code Block Modal ───────────────────────────────────────── */}
+      {showCodeModal && (
+        <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <h3 className="font-heading font-extrabold text-base text-slate-900 dark:text-white flex items-center gap-2">
+              <Code2 className="w-5 h-5 text-amber-500" /> Insert Code Example
+            </h3>
+            
+            <div className="space-y-3">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">Select Programming Language</label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: 'c', label: 'C' },
+                  { id: 'cpp', label: 'C++' },
+                  { id: 'java', label: 'Java' },
+                  { id: 'python', label: 'Python' },
+                  { id: 'javascript', label: 'JavaScript' },
+                  { id: 'typescript', label: 'TypeScript' },
+                  { id: 'html', label: 'HTML' },
+                  { id: 'css', label: 'CSS' },
+                  { id: 'sql', label: 'SQL' },
+                  { id: 'bash', label: 'Bash / Shell' },
+                  { id: 'json', label: 'JSON' },
+                ].map((lang) => (
+                  <button
+                    key={lang.id}
+                    type="button"
+                    onClick={() => setCodeLanguage(lang.id)}
+                    className={`p-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                      codeLanguage === lang.id
+                        ? 'bg-amber-500 text-slate-950 border-amber-400 font-extrabold'
+                        : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300'
+                    }`}
+                  >
+                    {lang.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowCodeModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleInsertCodeBlock}
+                className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold cursor-pointer"
+              >
+                Insert Code Block
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Add / Edit Resource Modal ─────────────────────────────────────── */}
       {showAddResourceModal && (
-        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
             <h3 className="font-heading font-extrabold text-base text-slate-900 dark:text-white">
               {editingResourceIndex !== null ? 'Edit Resource' : 'Add Resource'}
