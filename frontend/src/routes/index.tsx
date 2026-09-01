@@ -76,6 +76,7 @@ const AdminUsers = lazyLoad(() => import('@/pages/admin/AdminUsers'), 'AdminUser
 const AdminUserProfile = lazyLoad(() => import('@/pages/admin/AdminUserProfile'), 'AdminUserProfile');
 const AdminCourseDetails = lazyLoad(() => import('@/pages/admin/AdminCourseDetails'), 'AdminCourseDetails');
 const AdminContentManagement = lazyLoad(() => import('@/pages/admin/AdminContentManagement'), 'AdminContentManagement');
+const AdminContentStudio = lazyLoad(() => import('@/pages/admin/AdminContentStudio'), 'AdminContentStudio');
 const AdminBulkImport = lazyLoad(() => import('@/pages/admin/AdminBulkImport'), 'AdminBulkImport');
 const LiveClassroomDashboard = lazyLoad(() => import('@/pages/liveClassroom/LiveClassroomDashboard'), 'LiveClassroomDashboard');
 const AdminLiveClassroom = lazyLoad(() => import('@/pages/liveClassroom/AdminLiveClassroom'), 'AdminLiveClassroom');
@@ -249,6 +250,27 @@ const router = createBrowserRouter([
         element: <PlaceholderPage title="Settings" subtitle="Administrative configuration, platform settings, and preferences are coming soon." />,
       },
     ],
+  },
+  // Dedicated Full-screen Course Content Studio (Distraction-free workspace outside DashboardLayout)
+  {
+    path: '/admin/course-content/:courseId?',
+    element: (
+      <DeveloperGate>
+        <AdminRoute allowInstructor={true}>
+          <AdminContentStudio />
+        </AdminRoute>
+      </DeveloperGate>
+    ),
+  },
+  {
+    path: '/admin/content/:courseId?',
+    element: (
+      <DeveloperGate>
+        <AdminRoute allowInstructor={true}>
+          <AdminContentStudio />
+        </AdminRoute>
+      </DeveloperGate>
+    ),
   },
   // Dedicated Full-screen Protected Live Classroom routes
   {
