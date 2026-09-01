@@ -1581,8 +1581,8 @@ export const AdminContentStudio: React.FC = () => {
                         label="Topic Header Image"
                         heightClass="h-36"
                         onUploadSuccess={(res) => {
-                          handleInputChange('topicImageUrl', res.secure_url);
-                          handleInputChange('topicImagePublicId', res.public_id);
+                          handleInputChange('topicImageUrl', res.secureUrl);
+                          handleInputChange('topicImagePublicId', res.publicId);
                           toast.success('Topic image uploaded and linked!');
                         }}
                         onImageRemove={() => {

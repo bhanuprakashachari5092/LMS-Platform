@@ -14,9 +14,49 @@ import {
   FileText,
   ExternalLink,
   Video,
-  Download
+  Download,
+  Terminal,
+  Database,
+  GitBranch,
+  Code as CodeIcon,
+  Server,
+  Cloud,
+  Layers,
+  Cpu,
+  ShieldCheck,
+  BookOpen
 } from 'lucide-react';
 import { MarkdownContent } from './MarkdownContent';
+
+const getThemeColorClass = (color?: string | null) => {
+  switch (color) {
+    case 'indigo': return 'text-indigo-400 border-indigo-500/40 bg-indigo-500/10';
+    case 'sky': return 'text-sky-400 border-sky-500/40 bg-sky-500/10';
+    case 'emerald': return 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10';
+    case 'amber': return 'text-amber-400 border-amber-500/40 bg-amber-500/10';
+    case 'purple': return 'text-purple-400 border-purple-500/40 bg-purple-500/10';
+    case 'rose': return 'text-rose-400 border-rose-500/40 bg-rose-500/10';
+    case 'cyan': return 'text-cyan-400 border-cyan-500/40 bg-cyan-500/10';
+    case 'slate': return 'text-slate-400 border-slate-500/40 bg-slate-500/10';
+    default: return 'text-slate-400 border-slate-700 bg-slate-800/60';
+  }
+};
+
+const getThemeIconComp = (iconName?: string | null) => {
+  switch (iconName) {
+    case 'terminal': return Terminal;
+    case 'database': return Database;
+    case 'git-branch': return GitBranch;
+    case 'code': return CodeIcon;
+    case 'server': return Server;
+    case 'cloud': return Cloud;
+    case 'layers': return Layers;
+    case 'cpu': return Cpu;
+    case 'shield': return ShieldCheck;
+    case 'book-open': return BookOpen;
+    default: return null;
+  }
+};
 
 interface LessonContentPanelProps {
   lessonTitle: string;
@@ -157,11 +197,20 @@ export const LessonContentPanel: React.FC<LessonContentPanelProps> = ({
 
         {/* ── 1. Unit Title & Short Description ───────────────────────────────── */}
         <div className="space-y-3 pb-2 border-b border-[#E5E7EB] dark:border-[#25324A]">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <span className={`text-xs font-semibold uppercase tracking-wider
               ${isNightMode ? 'text-slate-500' : 'text-slate-400'}`}>
               Unit {lessonIndex + 1} of {totalLessons}
             </span>
+            {themeColor && (
+              <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border flex items-center gap-1.5 ${getThemeColorClass(themeColor)}`}>
+                {(() => {
+                  const IconComp = getThemeIconComp(themeIcon);
+                  return IconComp ? <IconComp className="w-3 h-3" /> : null;
+                })()}
+                <span className="capitalize">{themeColor}</span>
+              </span>
+            )}
             <span className={`text-xs ${isNightMode ? 'text-slate-700' : 'text-slate-300'}`}>•</span>
             <span className={`text-xs flex items-center gap-1 font-medium
               ${isNightMode ? 'text-slate-400' : 'text-slate-500'}`}>
