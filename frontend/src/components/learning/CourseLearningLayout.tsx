@@ -16,6 +16,7 @@ import type { ModuleData } from './ModuleAccordion';
 import { CertificatePreviewModal } from '../courses/CertificatePreviewModal';
 import { CertificateService } from '@/services/achievementService';
 import { CourseActionConfirmModal } from '../courses/CourseActionConfirmModal';
+import { QuizPlayer } from '../quiz/QuizPlayer';
 
 const AITutorDrawer = lazy(() => import('./AITutorDrawer').then(m => ({ default: m.AITutorDrawer })));
 
@@ -259,6 +260,18 @@ export const CourseLearningLayout: React.FC<CourseLearningLayoutProps> = ({
 
   // ── Sidebar state ──────────────────────────────────────────────────────
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // ── Assessment / Quiz Mode ─────────────────────────────────────────────
+  const [activeViewMode, setActiveViewMode] = useState<'content' | 'quiz'>('content');
+
+  useEffect(() => {
+    const current = allLessons.find((l) => String(l.id) === String(selectedLessonId)) as any;
+    if (current?.type === 'Quiz' || current?.type === 'quiz' || current?.isQuiz) {
+      setActiveViewMode('quiz');
+    } else {
+      setActiveViewMode('content');
+    }
+  }, [selectedLessonId, allLessons]);
 
   // ── AI Tutor state ─────────────────────────────────────────────────────
   const [isAITutorOpen, setIsAITutorOpen] = useState(false);
@@ -718,28 +731,59 @@ export const CourseLearningLayout: React.FC<CourseLearningLayoutProps> = ({
           className={`flex-1 overflow-y-auto overscroll-contain
             ${isNightMode ? 'bg-slate-950' : 'bg-white'}`}
         >
-          <LessonContentPanel
-            lessonTitle={activeLessonFull.title}
-            lessonContent={activeLessonFull.content}
-            shortDescription={activeLessonFull.shortDescription}
-            topicImageUrl={activeLessonFull.topicImageUrl}
-            themeColor={activeLessonFull.themeColor}
-            themeIcon={activeLessonFull.themeIcon}
-            lessonIndex={activeIndex >= 0 ? activeIndex : 0}
-            totalLessons={allLessons.length}
-            isCompleted={isCompleted}
-            hasPrevLesson={hasPrevLesson}
-            hasNextLesson={hasNextLesson}
-            onPrevLesson={handlePrevLesson}
-            onNextLesson={handleNextLesson}
-            onMarkComplete={handleMarkComplete}
-            isNightMode={isNightMode}
-            learningObjectives={activeLessonFull.learningObjectives}
-            codeExamples={activeLessonFull.codeExamples}
-            keyPoints={activeLessonFull.keyPoints}
-            practiceQuestions={activeLessonFull.practiceQuestions}
-            resourceLinks={activeLessonFull.resourceLinks}
-          />
+          {activeViewMode === 'quiz' ? (
+            <div className="p-6 sm:p-8 max-w-4xl mx-auto space-y-6">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  Course Assessment
+                </span>
+                {!(currentLessonData as any)?.type || (currentLessonData as any)?.type !== 'Quiz' ? (
+                  <button
+                    type="button"
+                    onClick={() => setActiveViewMode('content')}
+                    className="px-3 py-1.5 rounded-xl border text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                  >
+                    ← Back to Reading
+                  </button>
+                ) : null}
+              </div>
+
+              <QuizPlayer
+                lessonId={String(selectedLessonId)}
+                courseId={String(courseId)}
+                courseTitle={courseTitle}
+                isNightMode={isNightMode}
+                onComplete={(attempt) => {
+                  if (attempt.passed) {
+                    handleMarkComplete();
+                  }
+                }}
+              />
+            </div>
+          ) : (
+            <LessonContentPanel
+              lessonTitle={activeLessonFull.title}
+              lessonContent={activeLessonFull.content}
+              shortDescription={activeLessonFull.shortDescription}
+              topicImageUrl={activeLessonFull.topicImageUrl}
+              themeColor={activeLessonFull.themeColor}
+              themeIcon={activeLessonFull.themeIcon}
+              lessonIndex={activeIndex >= 0 ? activeIndex : 0}
+              totalLessons={allLessons.length}
+              isCompleted={isCompleted}
+              hasPrevLesson={hasPrevLesson}
+              hasNextLesson={hasNextLesson}
+              onPrevLesson={handlePrevLesson}
+              onNextLesson={handleNextLesson}
+              onMarkComplete={handleMarkComplete}
+              isNightMode={isNightMode}
+              learningObjectives={activeLessonFull.learningObjectives}
+              codeExamples={activeLessonFull.codeExamples}
+              keyPoints={activeLessonFull.keyPoints}
+              practiceQuestions={activeLessonFull.practiceQuestions}
+              resourceLinks={activeLessonFull.resourceLinks}
+            />
+          )}
 
           {/* Course completion card */}
           {isCourseFullyCompleted && (

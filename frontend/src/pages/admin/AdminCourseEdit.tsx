@@ -11,6 +11,7 @@ import { LoadingSkeleton } from '../../components/courses/LoadingSkeleton';
 import { CloudinaryUploadZone } from '../../components/admin/CloudinaryUploadZone';
 import { aiAutofillService } from '@/services/aiAutofillService';
 import { MarkdownContent } from '@/components/learning/MarkdownContent';
+import { AdminQuizManager } from '@/components/admin/AdminQuizManager';
 import {
   ArrowLeft,
   Loader2,
@@ -51,11 +52,12 @@ import {
   Minus,
   Check,
   Target,
-  Key
+  Key,
+  Award
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-export type CourseTab = 'details' | 'curriculum' | 'content' | 'resources' | 'settings';
+export type CourseTab = 'details' | 'curriculum' | 'content' | 'resources' | 'assessment' | 'settings';
 
 export const AdminCourseEdit: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -983,7 +985,8 @@ export const AdminCourseEdit: React.FC = () => {
             { id: 'curriculum', label: `2. Curriculum (${modules.length} Modules)`, icon: Layers },
             { id: 'content', label: `3. Lesson Content (${unitTitle ? unitTitle.substring(0, 18) + '...' : 'Select Unit'})`, icon: FileText },
             { id: 'resources', label: `4. Resources (${unitResources.length})`, icon: Paperclip },
-            { id: 'settings', label: '5. Settings & Visibility', icon: Settings },
+            { id: 'assessment', label: '5. Quiz / Assessment', icon: Award },
+            { id: 'settings', label: '6. Settings & Visibility', icon: Settings },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -1924,7 +1927,19 @@ export const AdminCourseEdit: React.FC = () => {
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* TAB 5: COURSE SETTINGS & VISIBILITY                                    */}
+      {/* TAB 5: QUIZ & ASSESSMENT MANAGEMENT                                    */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'assessment' && (
+        <AdminQuizManager
+          courseId={id || ''}
+          courseTitle={watchTitle}
+          lessonId={selectedUnit?.id}
+          unitTitle={unitTitle}
+        />
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {/* TAB 6: COURSE SETTINGS & VISIBILITY                                    */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'settings' && (
         <div className="space-y-6">
