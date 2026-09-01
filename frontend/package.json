@@ -29,6 +29,7 @@
     "remark-gfm": "^4.0.1",
     "socket.io-client": "^4.8.3",
     "sonner": "^2.0.7",
+    "sql.js": "^1.14.2",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -36,6 +37,7 @@
     "@types/node": "^24.13.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "@types/sql.js": "^1.4.11",
     "@vitejs/plugin-react": "^6.0.3",
     "autoprefixer": "^10.5.4",
     "eslint-config-prettier": "^10.1.8",

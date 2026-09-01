@@ -487,6 +487,9 @@ export const AdminContentStudio: React.FC = () => {
       case 'table':
         prefix = '\n| Concept | Description | Example |\n|---|---|---|\n| Item 1 | Core overview | `example_1` |\n| Item 2 | Advanced details | `example_2` |\n';
         break;
+      case 'practice-sql':
+        prefix = '\n```practice-sql\n-- @title: Hands-on SQL Playground\n-- @schema\nCREATE TABLE students (\n  id INTEGER PRIMARY KEY,\n  name TEXT,\n  track TEXT,\n  gpa REAL\n);\nINSERT INTO students VALUES (1, \'Bhanu Prakash\', \'React & Web\', 3.9);\nINSERT INTO students VALUES (2, \'Ananya Reddy\', \'Cloud & DevOps\', 3.8);\nINSERT INTO students VALUES (3, \'Aarav Sharma\', \'Python & AI\', 3.95);\n\n-- @query\nSELECT name, track, gpa FROM students WHERE gpa >= 3.85 ORDER BY gpa DESC;\n```\n';
+        break;
       case 'hr':
         prefix = '\n---\n';
         break;
@@ -1432,6 +1435,14 @@ export const AdminContentStudio: React.FC = () => {
                           title="Insert Markdown Table"
                         >
                           <Table className="w-3.5 h-3.5" /> Table
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => insertMarkdown('practice-sql')}
+                          className="px-2.5 py-1 bg-sky-950/80 hover:bg-sky-900 text-sky-300 border border-sky-700/60 rounded-md font-bold text-[11px] transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs"
+                          title="Insert Interactive SQL Playground (WebAssembly)"
+                        >
+                          <Database className="w-3.5 h-3.5 text-sky-400" /> SQL Practice
                         </button>
                         <button
                           type="button"

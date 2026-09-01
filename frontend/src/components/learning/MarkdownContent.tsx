@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import { Copy, Check, Lightbulb, Info } from 'lucide-react';
+import { SqlPlayground } from './practice/SqlPlayground';
 
 interface MarkdownContentProps {
   content: string;
@@ -122,8 +123,52 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, isNig
 
             // Extract language from className
             const langClass = codeElement?.props?.className || '';
-            const langMatch = langClass.match(/language-(\w+)/);
-            const language = langMatch ? langMatch[1] : 'code';
+            const langMatch = langClass.match(/language-([\w-]+)/);
+            const language = (langMatch ? langMatch[1] : 'code').toLowerCase();
+
+            // ── Interactive Practice: SQL Playground ──────────────────────
+            if (language === 'practice-sql' || language === 'sql-playground' || language === 'practice-dbms') {
+              let schema = '';
+              let query = '';
+              let customTitle = 'Interactive SQL Playground';
+              let customDescription = 'Write and execute real SQL queries against the in-memory SQLite database.';
+
+              const text = rawCode.trim();
+
+              const titleMatch = text.match(/--\s*@title:\s*(.+)/i);
+              if (titleMatch) customTitle = titleMatch[1].trim();
+
+              const descMatch = text.match(/--\s*@desc(?:ription)?:\s*(.+)/i);
+              if (descMatch) customDescription = descMatch[1].trim();
+
+              if (text.includes('-- @schema') && text.includes('-- @query')) {
+                const parts = text.split(/--\s*@query/i);
+                schema = parts[0].replace(/--\s*@schema/i, '').trim();
+                query = parts[1]?.trim() || '';
+              } else if (text.includes('-- @schema')) {
+                schema = text.replace(/--\s*@schema/i, '').trim();
+              } else if (text.includes('-- @query')) {
+                query = text.replace(/--\s*@query/i, '').trim();
+              } else {
+                if (/CREATE\s+TABLE/i.test(text)) {
+                  schema = text;
+                  const tableName = text.match(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-zA-Z0-9_]+)/i)?.[1];
+                  query = tableName ? `SELECT * FROM ${tableName} LIMIT 10;` : '';
+                } else {
+                  query = text;
+                }
+              }
+
+              return (
+                <SqlPlayground
+                  title={customTitle}
+                  description={customDescription}
+                  initialSchema={schema || undefined}
+                  initialQuery={query || undefined}
+                  isNightMode={isNightMode}
+                />
+              );
+            }
 
             return (
               <div className="my-6 rounded-xl overflow-hidden border border-slate-700/50 shadow-lg relative group">
