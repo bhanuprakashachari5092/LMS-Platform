@@ -51,7 +51,7 @@ export const DiscussionCenter: React.FC<DiscussionCenterProps> = ({
   const currentUser = useMemo(() => {
     return {
       uid: userProfile?.uid || user?.uid || 'default_student',
-      fullName: userProfile?.name || userProfile?.fullName || user?.displayName || 'Student User',
+      fullName: (userProfile?.name && userProfile.name !== 'Student User' ? userProfile.name : '') || userProfile?.fullName || user?.displayName || userProfile?.githubUsername || (user?.email ? user.email.split('@')[0] : 'Learner'),
       photoURL: userProfile?.photoURL || user?.photoURL || '',
       role: userProfile?.role || 'student', // 'student' | 'instructor' | 'admin'
     };

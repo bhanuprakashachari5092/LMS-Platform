@@ -95,7 +95,7 @@ export const CourseView: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const studentAvatar = userProfile?.photoURL || user?.photoURL || undefined;
-  const studentName = userProfile?.name || user?.displayName || userProfile?.githubUsername || 'Student User';
+  const studentName = (userProfile?.name && userProfile.name !== 'Student User' ? userProfile.name : '') || userProfile?.fullName || user?.displayName || userProfile?.githubUsername || (user?.email ? user.email.split('@')[0] : 'Learner');
   const idOrSlug = (courseId || slug || '').trim();
   const { getCourseById, refreshCourses } = useCourses();
   const dynamicCourse = getCourseById(idOrSlug);

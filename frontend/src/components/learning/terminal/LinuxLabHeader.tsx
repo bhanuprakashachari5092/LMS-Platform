@@ -46,7 +46,7 @@ export const LinuxLabHeader: React.FC<LinuxLabHeaderProps> = ({
     return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const studentName = propStudentName || userProfile?.name || user?.displayName || 'Student User';
+  const studentName = (propStudentName && propStudentName !== 'Student User' ? propStudentName : '') || (userProfile?.name && userProfile.name !== 'Student User' ? userProfile.name : '') || userProfile?.fullName || user?.displayName || userProfile?.githubUsername || 'Learner';
   const studentAvatar = propStudentAvatar || userProfile?.photoURL || user?.photoURL;
 
   return (

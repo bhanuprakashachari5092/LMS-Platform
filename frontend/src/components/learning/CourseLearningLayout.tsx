@@ -71,9 +71,9 @@ export const CourseLearningLayout: React.FC<CourseLearningLayoutProps> = ({
   const isAdmin = userProfile?.role === 'admin';
   const studentUid = user?.uid || userProfile?.uid || 'default_student';
   const userAvatar = propAvatar || userProfile?.photoURL || user?.photoURL || undefined;
-  const userName = propName && propName !== 'Student'
+  const userName = propName && propName !== 'Student' && propName !== 'Student User'
     ? propName
-    : (user?.displayName || userProfile?.name || userProfile?.githubUsername || 'Student User');
+    : ((userProfile?.name && userProfile.name !== 'Student User' ? userProfile.name : '') || userProfile?.fullName || user?.displayName || userProfile?.githubUsername || (user?.email ? user.email.split('@')[0] : 'Learner'));
 
   const handleBackToOverview = useCallback(() => {
     if (onBackToCourseDetails) {

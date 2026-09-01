@@ -17,7 +17,7 @@ import {
   linkWithCredential,
   sendPasswordResetEmail,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, collection } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, collection } from 'firebase/firestore';
 import { auth, db } from '@/firebase';
 import type { UserProfile, UserRole } from '@/types/user';
 import { API_BASE_URL } from '@/config/api';
@@ -28,12 +28,16 @@ const syncStudent = async (profile: UserProfile) => {
     const studentRef = doc(db, 'students', profile.uid);
     const photoURL = profile.photoURL || profile.profilePhoto || (profile.githubUsername ? `https://github.com/${profile.githubUsername}.png?size=200` : '');
     const isGithub = profile.provider === 'github.com' || profile.providerId === 'github.com' || Boolean(profile.githubUsername) || (typeof photoURL === 'string' && photoURL.includes('github'));
+    const resolvedName = profile.fullName && profile.fullName !== 'Student User' 
+      ? profile.fullName 
+      : (profile.name && profile.name !== 'Student User' ? profile.name : (profile.githubUsername || 'Student'));
 
     await setDoc(studentRef, {
       ...profile,
       id: profile.uid,
       uid: profile.uid,
-      name: profile.fullName || profile.name || 'Student',
+      name: resolvedName,
+      fullName: resolvedName,
       email: profile.email,
       photoURL,
       profilePhoto: photoURL,
@@ -59,7 +63,8 @@ const syncStudent = async (profile: UserProfile) => {
           ...profile,
           id: profile.uid,
           uid: profile.uid,
-          name: profile.fullName || profile.name || 'Student',
+          name: resolvedName,
+          fullName: resolvedName,
           photoURL,
           profilePhoto: photoURL,
           provider: isGithub ? 'github.com' : 'password',
@@ -98,6 +103,9 @@ const syncInstructor = async (profile: UserProfile) => {
       status: profile.status || 'pending',
       approved: profile.approved || false,
       appliedDate: profile.createdAt || new Date().toISOString(),
+      department: 'Computer Science & System Architecture',
+      experience: 'Verified',
+      qualification: 'Staff Lecturer',
       updatedAt: new Date().toISOString(),
     }, { merge: true });
   } catch (e) {
@@ -135,16 +143,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const fetchUserProfile = async (
     firebaseUser: User,
     githubHandle?: string,
-    initialRole?: UserRole
+    initialRole?: UserRole,
+    githubDisplayName?: string
   ): Promise<UserProfile | null> => {
     const isGithub =
       firebaseUser.providerData.some((p) => p.providerId === 'github.com') ||
-      firebaseUser.photoURL?.includes('githubusercontent');
+      firebaseUser.photoURL?.includes('githubusercontent') ||
+      Boolean(githubHandle);
 
     const calculatedUsername =
       githubHandle ||
       (firebaseUser as any).reloadUserInfo?.screenName ||
-      (isGithub ? firebaseUser.email?.split('@')[0] : undefined);
+      (isGithub && firebaseUser.email ? firebaseUser.email.split('@')[0] : undefined);
 
     const isAdmin =
       firebaseUser.email?.toLowerCase().includes('admin') ||
@@ -154,9 +164,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const storedRole = typeof window !== 'undefined' ? sessionStorage.getItem('kaizenq_signup_role') as UserRole : undefined;
     const targetRole: UserRole = isAdmin ? 'admin' : (initialRole || storedRole || 'student');
 
-    console.log(`[FIRESTORE AUDIT] fetchUserProfile called | initialRole: ${initialRole} | storedRole: ${storedRole} | targetRole: ${targetRole}`);
+    console.log(`[FIRESTORE AUDIT] fetchUserProfile called | initialRole: ${initialRole} | storedRole: ${storedRole} | targetRole: ${targetRole} | githubHandle: ${githubHandle}`);
 
-    const calculatedName = firebaseUser.displayName || (isAdmin ? 'Administrator' : 'Student User');
+    // Automatic name discovery: GitHub Display Name -> Firebase displayName -> GitHub Username -> Email prefix
+    const candidateName =
+      (githubDisplayName && githubDisplayName.trim()) ||
+      (firebaseUser.displayName && firebaseUser.displayName !== 'Student User' && firebaseUser.displayName.trim()) ||
+      calculatedUsername ||
+      (firebaseUser.email ? firebaseUser.email.split('@')[0] : '');
+
+    const calculatedName = candidateName || (isAdmin ? 'Administrator' : 'Learner');
     const baseProfileData: Partial<UserProfile> = {
       uid: firebaseUser.uid,
       fullName: calculatedName,
@@ -206,9 +223,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const resolvedPhotoURL = data.photoURL || firebaseUser.photoURL || (resolvedGithubUsername ? `https://github.com/${resolvedGithubUsername}.png?size=200` : null);
         const isGithubUser = isGithub || data.provider === 'github.com' || data.providerId === 'github.com' || Boolean(resolvedGithubUsername);
 
+        // Check if existing profile in DB has generic placeholder "Student User" or empty name
+        const hasGenericName = !data.name || data.name === 'Student User' || !data.fullName || data.fullName === 'Student User';
+        const resolvedName = (hasGenericName && candidateName) ? candidateName : (data.name && data.name !== 'Student User' ? data.name : (candidateName || 'Student'));
+        const resolvedFullName = (hasGenericName && candidateName) ? candidateName : (data.fullName && data.fullName !== 'Student User' ? data.fullName : resolvedName);
+
         const profileData: UserProfile = {
           ...data,
           ...baseProfileData,
+          name: resolvedName,
+          fullName: resolvedFullName,
           role: finalRole,
           approved: isApproved,
           status: currentStatus,
@@ -225,6 +249,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           profilePhoto: resolvedPhotoURL,
           lastLogin: new Date().toISOString(),
         };
+
+        // If the database had a generic name or missing GitHub username, automatically update Firestore so it's permanently stored!
+        if (hasGenericName && candidateName && db) {
+          updateDoc(userRef, {
+            name: resolvedName,
+            fullName: resolvedFullName,
+            githubUsername: resolvedGithubUsername,
+            github: profileData.github,
+            photoURL: resolvedPhotoURL,
+            profilePhoto: resolvedPhotoURL,
+            updatedAt: new Date().toISOString(),
+          }).catch((err) => console.warn('[AUTH REPAIR] Notice updating user record:', err));
+        }
 
         if (finalRole === 'student') {
           await syncStudent(profileData);
@@ -696,12 +733,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
           const linkResult = await linkWithPopup(auth.currentUser, provider);
           const additionalInfo = getAdditionalUserInfo(linkResult);
-          const githubUsername = additionalInfo?.username || (linkResult.user as any).reloadUserInfo?.screenName;
+          const ghProfile = additionalInfo?.profile as Record<string, any> | undefined;
+          const githubUsername = additionalInfo?.username || ghProfile?.login || (linkResult.user as any).reloadUserInfo?.screenName;
+          const githubDisplayName = ghProfile?.name || linkResult.user.displayName || (ghProfile?.login ? ghProfile.login : githubUsername);
+
           if (import.meta.env.DEV) {
-            console.log('✅ [AUTH AUDIT] linkWithPopup succeeded! GitHub handle:', githubUsername);
+            console.log('✅ [AUTH AUDIT] linkWithPopup succeeded! GitHub handle:', githubUsername, 'Name:', githubDisplayName);
           }
 
-          const profile = await fetchUserProfile(linkResult.user, githubUsername, targetRole);
+          const profile = await fetchUserProfile(linkResult.user, githubUsername, targetRole, githubDisplayName);
           return profile;
         } catch (linkErr: any) {
           if (import.meta.env.DEV) {
@@ -720,17 +760,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         const result = await signInWithPopup(auth, provider);
         const additionalInfo = getAdditionalUserInfo(result);
-        const githubUsername = additionalInfo?.username || (result.user as any).reloadUserInfo?.screenName;
+        const ghProfile = additionalInfo?.profile as Record<string, any> | undefined;
+        const githubUsername = additionalInfo?.username || ghProfile?.login || (result.user as any).reloadUserInfo?.screenName;
+        const githubDisplayName = ghProfile?.name || result.user.displayName || (ghProfile?.login ? ghProfile.login : githubUsername);
 
         if (import.meta.env.DEV) {
           console.log('✅ [AUTH AUDIT] GitHub OAuth sign-in succeeded:', {
             uid: result.user.uid,
             email: result.user.email,
             githubUsername,
+            githubDisplayName,
           });
         }
 
-        const profile = await fetchUserProfile(result.user, githubUsername, targetRole);
+        const profile = await fetchUserProfile(result.user, githubUsername, targetRole, githubDisplayName);
         if (profile) {
           const cleanEmail = (result.user.email || '').toLowerCase().trim();
           const isAdminEmail = cleanEmail === 'admin@gmail.com' || cleanEmail.startsWith('admin@');

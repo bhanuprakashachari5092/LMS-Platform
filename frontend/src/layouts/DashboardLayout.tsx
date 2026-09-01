@@ -433,12 +433,12 @@ export const DashboardLayout: React.FC = () => {
               />
             ) : (
               <div className="w-9 h-9 rounded-xl bg-linear-to-br from-blue-600 to-cyan-500 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-sm">
-                {(userProfile?.name || user?.displayName || 'S').charAt(0).toUpperCase()}
+                {((userProfile?.name && userProfile.name !== 'Student User' ? userProfile.name : '') || userProfile?.fullName || user?.displayName || userProfile?.githubUsername || (user?.email ? user.email.split('@')[0] : 'S')).charAt(0).toUpperCase()}
               </div>
             )}
             <div className="min-w-0 flex-1">
               <span className="font-heading font-bold text-xs text-slate-900 dark:text-white block truncate leading-tight">
-                {userProfile?.name || user?.displayName || 'Student User'}
+                {(userProfile?.name && userProfile.name !== 'Student User' ? userProfile.name : '') || userProfile?.fullName || user?.displayName || userProfile?.githubUsername || (user?.email ? user.email.split('@')[0] : 'Learner')}
               </span>
               <span className="text-[10px] font-medium text-blue-600 dark:text-cyan-400 capitalize block truncate">
                 {userProfile?.role || 'student'} • KaizenQ
@@ -718,7 +718,7 @@ export const DashboardLayout: React.FC = () => {
                   </div>
                 )}
                 <span className="hidden sm:inline font-semibold text-xs text-slate-800 dark:text-zinc-200 truncate max-w-24">
-                  {userProfile?.name || user?.displayName || 'Student'}
+                  {(userProfile?.name && userProfile.name !== 'Student User' ? userProfile.name : '') || userProfile?.fullName || user?.displayName || userProfile?.githubUsername || 'Student'}
                 </span>
                 <ChevronDown className="w-3 h-3 text-slate-400" />
               </button>
@@ -727,7 +727,7 @@ export const DashboardLayout: React.FC = () => {
                 <div className="absolute right-0 mt-2 w-52 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-2xl shadow-2xl p-2 z-50 space-y-1">
                   <div className="px-3 py-2 border-b border-slate-100 dark:border-zinc-800">
                     <span className="block font-bold text-xs text-slate-900 dark:text-zinc-100 truncate">
-                      {userProfile?.name || user?.displayName || 'Student User'}
+                      {(userProfile?.name && userProfile.name !== 'Student User' ? userProfile.name : '') || userProfile?.fullName || user?.displayName || userProfile?.githubUsername || 'Learner'}
                     </span>
                     <span className="block text-[10px] text-slate-500 dark:text-zinc-500 truncate">
                       {userProfile?.email || user?.email}

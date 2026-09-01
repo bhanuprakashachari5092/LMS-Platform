@@ -114,7 +114,6 @@ class StudentService {
   private normalizeStudentData(data: any): StudentUser {
     const email = data.email || '';
     const id = data.id || data.uid || `st_${Date.now()}`;
-    const name = data.name || data.fullName || data.displayName || email.split('@')[0] || 'Student User';
     
     // Extract GitHub user handle from various possible fields
     const rawGithubUser =
@@ -131,6 +130,13 @@ class StudentService {
       (typeof data.photoURL === 'string' && data.photoURL.includes('github'));
 
     const calculatedUsername = rawGithubUser || (isGithub && email.includes('@') ? email.split('@')[0].toLowerCase().replace(/[^a-z0-9_-]/g, '') : undefined);
+
+    const name =
+      (data.fullName && data.fullName !== 'Student User' ? data.fullName : '') ||
+      (data.name && data.name !== 'Student User' ? data.name : '') ||
+      (data.displayName && data.displayName !== 'Student User' ? data.displayName : '') ||
+      calculatedUsername ||
+      (email ? email.split('@')[0] : 'Learner');
     
     const photoURL =
       data.photoURL ||
