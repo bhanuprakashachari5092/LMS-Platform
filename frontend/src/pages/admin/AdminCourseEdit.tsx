@@ -12,6 +12,7 @@ import { CloudinaryUploadZone } from '../../components/admin/CloudinaryUploadZon
 import { aiAutofillService } from '@/services/aiAutofillService';
 import { MarkdownContent } from '@/components/learning/MarkdownContent';
 import { AdminQuizManager } from '@/components/admin/AdminQuizManager';
+import { MermaidDiagram } from '@/components/learning/MermaidDiagram';
 import {
   ArrowLeft,
   Loader2,
@@ -45,7 +46,6 @@ import {
   Terminal,
   Database,
   GitBranch,
-  Server,
   ArrowUp,
   ArrowDown,
   Link as LinkIcon,
@@ -53,7 +53,9 @@ import {
   Check,
   Target,
   Key,
-  Award
+  Award,
+  Workflow,
+  CheckSquare
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -140,6 +142,13 @@ export const AdminCourseEdit: React.FC = () => {
   // Code Block Insertion Modal State
   const [showCodeModal, setShowCodeModal] = useState(false);
   const [codeLanguage, setCodeLanguage] = useState('c');
+
+  // Flowchart & Architecture Diagram Builder Modal State
+  const [showFlowchartModal, setShowFlowchartModal] = useState(false);
+  const [flowchartType, setFlowchartType] = useState<string>('decision');
+  const [flowchartMermaidCode, setFlowchartMermaidCode] = useState<string>(
+    'flowchart TD\n  Start([🚀 Start]) --> Validate{Is Input Valid?}\n  Validate -- Yes --> Process[⚙️ Process Execution]\n  Validate -- No --> HandleError[⚠️ Log Error & Retry]\n  HandleError --> Start\n  Process --> Result[/📤 Return Result/]\n  Result --> End([✅ Complete])'
+  );
 
   // Resources Tab State
   const [unitResources, setUnitResources] = useState<any[]>([]);
@@ -644,6 +653,33 @@ export const AdminCourseEdit: React.FC = () => {
         prefix = '\n1. ';
         placeholder = selected || 'Numbered item';
         break;
+      case 'step-list':
+        prefix = '\n1. **Step 1: Setup Environment** — Prepare your local toolchain.\n2. **Step 2: Core Implementation** — Execute the primary algorithm logic.\n3. **Step 3: Verification & Testing** — Validate outputs against edge cases.\n';
+        placeholder = '';
+        break;
+      case 'checklist':
+        prefix = '\n- [ ] Conceptual review completed\n- [ ] Run hands-on simulator lab\n- [ ] Examine boundary and performance constraints\n- [ ] Submit module assessment\n';
+        placeholder = '';
+        break;
+      case 'pros-cons':
+        prefix = '\n| Approach / Design | ✅ Advantages (Pros) | ❌ Tradeoffs / Cons |\n|---|---|---|\n| Solution A | High performance, low latency | Greater memory overhead |\n| Solution B | Compact footprint | Slightly higher execution time |\n';
+        placeholder = '';
+        break;
+      case 'callout-tip':
+        prefix = '\n> **Tip**: ';
+        placeholder = selected || 'Key practical insight or efficiency suggestion.';
+        suffix = '\n';
+        break;
+      case 'callout-note':
+        prefix = '\n> **Note**: ';
+        placeholder = selected || 'Important background context or architectural rule.';
+        suffix = '\n';
+        break;
+      case 'callout-warning':
+        prefix = '\n> **Warning**: ';
+        placeholder = selected || 'Potential pitfall, memory leak, or breaking change to avoid.';
+        suffix = '\n';
+        break;
       case 'divider':
         prefix = '\n\n---\n\n';
         placeholder = '';
@@ -670,6 +706,10 @@ export const AdminCourseEdit: React.FC = () => {
         break;
       case 'link':
         prefix = customPayload || `\n[Reference Link](https://example.com)\n`;
+        placeholder = '';
+        break;
+      case 'flowchart':
+        prefix = `\n\`\`\`mermaid\n${customPayload || 'flowchart TD\n  Start([Start]) --> Process[Execute Process] --> End([Done])'}\n\`\`\`\n`;
         placeholder = '';
         break;
       case 'practice-sql':
@@ -703,6 +743,51 @@ export const AdminCourseEdit: React.FC = () => {
       textarea.focus();
       textarea.setSelectionRange(start + prefix.length, start + prefix.length + placeholder.length);
     }, 50);
+  };
+
+  // Flowchart Template Selector Handler
+  const handleSelectFlowchartTemplate = (type: string) => {
+    setFlowchartType(type);
+    switch (type) {
+      case 'decision':
+        setFlowchartMermaidCode(
+          'flowchart TD\n  Start([🚀 Start]) --> Validate{Is Input Valid?}\n  Validate -- Yes --> Process[⚙️ Process Execution]\n  Validate -- No --> HandleError[⚠️ Log Error & Retry]\n  HandleError --> Start\n  Process --> Result[/📤 Return Result/]\n  Result --> End([✅ Complete])'
+        );
+        break;
+      case 'architecture':
+        setFlowchartMermaidCode(
+          'flowchart LR\n  Client[💻 Web Client] --> Gateway[⚡ API Gateway]\n  Gateway --> Auth[🔐 Auth Service]\n  Gateway --> NodeAPI[📦 Express Core API]\n  NodeAPI --> DB[(🗄️ Cloud Firestore)]\n  NodeAPI --> Storage[(☁️ Cloudinary Media)]\n  NodeAPI --> Cache[(⚡ Redis Cache)]'
+        );
+        break;
+      case 'sequence':
+        setFlowchartMermaidCode(
+          'sequenceDiagram\n  autonumber\n  actor Student as 🧑‍🎓 Student Learner\n  participant Web as 💻 Frontend Client\n  participant API as ⚡ Backend Server\n  participant DB as 🗄️ Firestore Database\n\n  Student->>Web: Click Start Quiz\n  Web->>API: POST /api/quizzes/:id/start\n  API->>DB: Check Max Attempts & Init\n  DB-->>API: Attempt Document\n  API-->>Web: 200 OK (Sanitized Questions)\n  Web-->>Student: Display Live Quiz & Timer'
+        );
+        break;
+      case 'roadmap':
+        setFlowchartMermaidCode(
+          'flowchart TD\n  Step1[1️⃣ Foundations & Syntax Theory] --> Step2[2️⃣ Interactive Lab & Live Simulator]\n  Step2 --> Step3[3️⃣ Real-world Coding Exercises]\n  Step3 --> Step4[4️⃣ Comprehensive Assessment Quiz]\n  Step4 --> Step5([🎓 Verified Certificate Issued])'
+        );
+        break;
+      case 'mindmap':
+        setFlowchartMermaidCode(
+          'mindmap\n  root((Core Topic Concepts))\n    Theoretical Foundations\n      Core Principles\n      System Architecture\n    Practical Implementations\n      Code Examples\n      Edge Case Handling\n    Performance & Scaling\n      Memory Optimization\n      Time Complexity'
+        );
+        break;
+      case 'state':
+        setFlowchartMermaidCode(
+          'stateDiagram-v2\n  [*] --> Draft: Content Created\n  Draft --> Review: Submit for Review\n  Review --> Published: Approve Lesson\n  Review --> Draft: Request Revisions\n  Published --> Archived: Deprecate Lesson\n  Archived --> [*]'
+        );
+        break;
+      default:
+        break;
+    }
+  };
+
+  const handleInsertFlowchart = () => {
+    insertMarkdown('flowchart', flowchartMermaidCode.trim());
+    setShowFlowchartModal(false);
+    toast.success('Flowchart diagram inserted into lesson!');
   };
 
   // Image Modal Insert Handler
@@ -1425,7 +1510,7 @@ export const AdminCourseEdit: React.FC = () => {
                                       }}
                                       className="p-1 text-rose-500 hover:text-rose-600 cursor-pointer"
                                     >
-                                      <Trash2 className="w-3 h-3" />
+                                      <Trash2 className="w-3.5 h-3.5" />
                                     </button>
                                   </div>
                                 </div>
@@ -1630,35 +1715,59 @@ export const AdminCourseEdit: React.FC = () => {
               <div className="p-2 bg-slate-900 border border-slate-800 rounded-2xl flex flex-wrap items-center gap-1 text-slate-200 text-xs font-mono shadow-xs">
                 
                 {/* Headings */}
-                <button type="button" onClick={() => insertMarkdown('h1')} className="px-2.5 py-1.5 hover:bg-slate-800 rounded-lg font-extrabold cursor-pointer" title="Heading 1">H1</button>
-                <button type="button" onClick={() => insertMarkdown('h2')} className="px-2.5 py-1.5 hover:bg-slate-800 rounded-lg font-bold cursor-pointer" title="Heading 2">H2</button>
-                <button type="button" onClick={() => insertMarkdown('h3')} className="px-2.5 py-1.5 hover:bg-slate-800 rounded-lg font-semibold cursor-pointer" title="Heading 3">H3</button>
+                <button type="button" onClick={() => insertMarkdown('h1')} className="px-2 py-1 hover:bg-slate-800 rounded-lg font-extrabold cursor-pointer" title="Heading 1">H1</button>
+                <button type="button" onClick={() => insertMarkdown('h2')} className="px-2 py-1 hover:bg-slate-800 rounded-lg font-bold cursor-pointer" title="Heading 2">H2</button>
+                <button type="button" onClick={() => insertMarkdown('h3')} className="px-2 py-1 hover:bg-slate-800 rounded-lg font-semibold cursor-pointer" title="Heading 3">H3</button>
 
                 <div className="h-4 w-px bg-slate-700 mx-1" />
 
                 {/* Typography */}
                 <button type="button" onClick={() => insertMarkdown('bold')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Bold (**text**)"><Bold className="w-4 h-4" /></button>
                 <button type="button" onClick={() => insertMarkdown('italic')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Italic (*text*)"><Italic className="w-4 h-4" /></button>
-                <button type="button" onClick={() => insertMarkdown('list')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Bullet List (- item)"><List className="w-4 h-4" /></button>
-                <button type="button" onClick={() => insertMarkdown('list-ordered')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Numbered List (1. item)"><ListOrdered className="w-4 h-4" /></button>
                 <button type="button" onClick={() => insertMarkdown('quote')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Blockquote (> text)"><Quote className="w-4 h-4" /></button>
                 <button type="button" onClick={() => insertMarkdown('divider')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Horizontal Divider (---)"><Minus className="w-4 h-4" /></button>
-                <button type="button" onClick={() => insertMarkdown('table')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Table Generator"><Table className="w-4 h-4" /></button>
 
                 <div className="h-4 w-px bg-slate-700 mx-1" />
 
-                {/* Insert Image (Cloudinary) */}
+                {/* Lists & Ordering Tools */}
+                <button type="button" onClick={() => insertMarkdown('list')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Bullet List (- item)"><List className="w-4 h-4" /></button>
+                <button type="button" onClick={() => insertMarkdown('list-ordered')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Numbered List (1. item)"><ListOrdered className="w-4 h-4" /></button>
+                <button type="button" onClick={() => insertMarkdown('step-list')} className="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg font-bold text-[10px] flex items-center gap-1 cursor-pointer" title="Step-by-Step Process List">
+                  <ListOrdered className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Steps</span>
+                </button>
+                <button type="button" onClick={() => insertMarkdown('checklist')} className="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg font-bold text-[10px] flex items-center gap-1 cursor-pointer" title="Task Checklist">
+                  <CheckSquare className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Checklist</span>
+                </button>
+                <button type="button" onClick={() => insertMarkdown('pros-cons')} className="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg font-bold text-[10px] flex items-center gap-1 cursor-pointer" title="Pros & Cons Table">
+                  <span>⚖️ Pros/Cons</span>
+                </button>
+
+                <div className="h-4 w-px bg-slate-700 mx-1" />
+
+                {/* Flowchart & Architecture Diagram Builder */}
+                <button
+                  type="button"
+                  onClick={() => setShowFlowchartModal(true)}
+                  className="px-2.5 py-1.5 bg-gradient-to-r from-indigo-900 to-purple-900 hover:from-indigo-800 hover:to-purple-800 border border-indigo-500/50 text-indigo-200 rounded-lg font-bold text-[11px] flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
+                  title="Create Content Flowchart / Architecture Diagram"
+                >
+                  <Workflow className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Flowchart Builder</span>
+                </button>
+
+                {/* Tables & Images */}
+                <button type="button" onClick={() => insertMarkdown('table')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Table Generator"><Table className="w-4 h-4" /></button>
                 <button
                   type="button"
                   onClick={() => setShowImageModal(true)}
-                  className="px-2.5 py-1.5 bg-indigo-950 hover:bg-indigo-900 border border-indigo-700 text-indigo-200 rounded-lg font-bold text-[11px] flex items-center gap-1.5 cursor-pointer transition-all"
+                  className="px-2 py-1.5 bg-indigo-950 hover:bg-indigo-900 border border-indigo-700 text-indigo-200 rounded-lg font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-all"
                   title="Upload & Insert Cloudinary Image"
                 >
                   <ImageIcon className="w-3.5 h-3.5 text-indigo-400" />
                   <span>Image</span>
                 </button>
-
-                {/* Insert Link */}
                 <button
                   type="button"
                   onClick={() => setShowLinkModal(true)}
@@ -1667,12 +1776,10 @@ export const AdminCourseEdit: React.FC = () => {
                 >
                   <LinkIcon className="w-4 h-4 text-sky-400" />
                 </button>
-
-                {/* Insert Code Block */}
                 <button
                   type="button"
                   onClick={() => setShowCodeModal(true)}
-                  className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-lg font-bold text-[11px] flex items-center gap-1.5 cursor-pointer"
+                  className="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-lg font-bold text-[11px] flex items-center gap-1 cursor-pointer"
                   title="Insert Code Block"
                 >
                   <Code2 className="w-3.5 h-3.5 text-amber-400" />
@@ -1681,25 +1788,29 @@ export const AdminCourseEdit: React.FC = () => {
 
                 <div className="h-4 w-px bg-slate-700 mx-1" />
 
+                {/* Callout Boxes */}
+                <button type="button" onClick={() => insertMarkdown('callout-tip')} className="p-1 hover:bg-slate-800 rounded text-emerald-400 font-bold text-[10px]" title="Insert Tip Callout">💡 Tip</button>
+                <button type="button" onClick={() => insertMarkdown('callout-note')} className="p-1 hover:bg-slate-800 rounded text-sky-400 font-bold text-[10px]" title="Insert Note Callout">ℹ️ Note</button>
+                <button type="button" onClick={() => insertMarkdown('callout-warning')} className="p-1 hover:bg-slate-800 rounded text-amber-400 font-bold text-[10px]" title="Insert Warning Callout">⚠️ Warn</button>
+
+                <div className="h-4 w-px bg-slate-700 mx-1" />
+
                 {/* Interactive Practice Templates */}
                 <div className="flex items-center gap-1">
                   <button type="button" onClick={() => insertMarkdown('practice-sql')} className="px-2 py-1 bg-sky-950 hover:bg-sky-900 border border-sky-800 text-sky-300 rounded-md font-bold text-[10px] flex items-center gap-1 cursor-pointer">
-                    <Database className="w-3 h-3" /> SQL Lab
+                    <Database className="w-3 h-3" /> SQL
                   </button>
                   <button type="button" onClick={() => insertMarkdown('practice-terminal')} className="px-2 py-1 bg-purple-950 hover:bg-purple-900 border border-purple-800 text-purple-300 rounded-md font-bold text-[10px] flex items-center gap-1 cursor-pointer">
-                    <Terminal className="w-3 h-3" /> Linux Lab
+                    <Terminal className="w-3 h-3" /> Linux
                   </button>
                   <button type="button" onClick={() => insertMarkdown('practice-git')} className="px-2 py-1 bg-amber-950 hover:bg-amber-900 border border-amber-800 text-amber-300 rounded-md font-bold text-[10px] flex items-center gap-1 cursor-pointer">
-                    <GitBranch className="w-3 h-3" /> Git Lab
+                    <GitBranch className="w-3 h-3" /> Git
                   </button>
                   <button type="button" onClick={() => insertMarkdown('practice-code')} className="px-2 py-1 bg-emerald-950 hover:bg-emerald-900 border border-emerald-800 text-emerald-300 rounded-md font-bold text-[10px] flex items-center gap-1 cursor-pointer">
                     <Code2 className="w-3 h-3" /> Runner
                   </button>
                   <button type="button" onClick={() => insertMarkdown('practice-web')} className="px-2 py-1 bg-blue-950 hover:bg-blue-900 border border-blue-800 text-blue-300 rounded-md font-bold text-[10px] flex items-center gap-1 cursor-pointer">
                     <Eye className="w-3 h-3" /> Web
-                  </button>
-                  <button type="button" onClick={() => insertMarkdown('practice-k8s')} className="px-2 py-1 bg-indigo-950 hover:bg-indigo-900 border border-indigo-800 text-indigo-300 rounded-md font-bold text-[10px] flex items-center gap-1 cursor-pointer">
-                    <Server className="w-3 h-3" /> K8s
                   </button>
                 </div>
 
@@ -1723,7 +1834,7 @@ export const AdminCourseEdit: React.FC = () => {
                         markDirty();
                       }}
                       className="w-full flex-1 min-h-[480px] p-3 bg-transparent font-mono text-xs text-slate-100 focus:outline-hidden leading-relaxed resize-y"
-                      placeholder="Write your comprehensive Markdown lesson here..."
+                      placeholder="Write your comprehensive Markdown lesson here with flowcharts, diagrams, code blocks, and steps..."
                       spellCheck={false}
                     />
                   </div>
@@ -1907,7 +2018,7 @@ export const AdminCourseEdit: React.FC = () => {
                         onClick={() => handleDeleteResource(idx)}
                         className="p-1 text-rose-500 hover:text-rose-600 cursor-pointer"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
@@ -1997,6 +2108,88 @@ export const AdminCourseEdit: React.FC = () => {
                   </span>
                 </label>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Flowchart & Diagram Builder Modal ─────────────────────────────── */}
+      {showFlowchartModal && (
+        <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-2xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="font-heading font-extrabold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                <Workflow className="w-5 h-5 text-indigo-500" /> Content Flowchart & Diagram Builder
+              </h3>
+              <button type="button" onClick={() => setShowFlowchartModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Diagram Template Selector */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">Select Flowchart Template</label>
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                {[
+                  { id: 'decision', label: 'Decision Flow' },
+                  { id: 'architecture', label: 'Architecture' },
+                  { id: 'sequence', label: 'Sequence' },
+                  { id: 'roadmap', label: 'Roadmap' },
+                  { id: 'mindmap', label: 'Mindmap' },
+                  { id: 'state', label: 'State Machine' },
+                ].map((tpl) => (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    onClick={() => handleSelectFlowchartTemplate(tpl.id)}
+                    className={`p-2 rounded-xl border text-[11px] font-bold text-center transition-all cursor-pointer ${
+                      flowchartType === tpl.id
+                        ? 'bg-indigo-600 text-white border-indigo-600 font-extrabold shadow-xs'
+                        : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300'
+                    }`}
+                  >
+                    {tpl.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Mermaid Code Editor */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">Mermaid Diagram Code</label>
+              <textarea
+                rows={5}
+                value={flowchartMermaidCode}
+                onChange={(e) => setFlowchartMermaidCode(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-indigo-200 font-mono focus:outline-hidden leading-relaxed"
+                spellCheck={false}
+              />
+            </div>
+
+            {/* Real-time Flowchart Diagram Preview */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">Interactive Visual Preview</label>
+              <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800 max-h-56 overflow-y-auto">
+                <MermaidDiagram chart={flowchartMermaidCode} isNightMode={true} />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowFlowchartModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleInsertFlowchart}
+                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md"
+              >
+                <Check className="w-4 h-4" />
+                <span>Insert Flowchart into Lesson</span>
+              </button>
             </div>
           </div>
         </div>

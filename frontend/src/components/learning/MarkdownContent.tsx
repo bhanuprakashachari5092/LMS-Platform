@@ -9,6 +9,7 @@ import { GitSandboxSimulator } from './practice/GitSandboxSimulator';
 import { CodeEditorRunner } from './practice/CodeEditorRunner';
 import { WebReactPlayground } from './practice/WebReactPlayground';
 import { KubernetesSimulator } from './practice/KubernetesSimulator';
+import { MermaidDiagram } from './MermaidDiagram';
 
 interface MarkdownContentProps {
   content: string;
@@ -130,6 +131,16 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, isNig
             const langClass = codeElement?.props?.className || '';
             const langMatch = langClass.match(/language-([\w-]+)/);
             const language = (langMatch ? langMatch[1] : 'code').toLowerCase();
+
+            // ── Interactive Diagram & Flowcharts: Mermaid.js ─────────────
+            if (language === 'mermaid' || language === 'flowchart' || language === 'sequence' || language === 'mindmap' || language === 'diagram') {
+              return (
+                <MermaidDiagram
+                  chart={rawCode}
+                  isNightMode={isNightMode}
+                />
+              );
+            }
 
             // ── Interactive Practice: SQL Playground ──────────────────────
             if (language === 'practice-sql' || language === 'sql-playground' || language === 'practice-dbms') {
