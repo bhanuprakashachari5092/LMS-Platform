@@ -180,9 +180,10 @@ export interface CourseItem {
   totalLessons?: number;
   totalDurationMinutes?: number;
   updatedAt?: string;
+  createdAt?: string;
+  created?: string;
   syllabus: string[];
   modules?: ModuleItem[];
-  created?: string;
 }
 
 
