@@ -46,12 +46,7 @@ export const CloudinaryUploadZone: React.FC<CloudinaryUploadZoneProps> = ({
     setUploadProgress(10);
 
     try {
-      // 2. If an existing image has a Cloudinary publicId, request cleanup in background
-      if (currentPublicId) {
-        cloudinaryService.deleteImage(currentPublicId).catch(() => {});
-      }
-
-      // 3. Upload to Cloudinary with progress
+      // Upload to Cloudinary with progress
       const result = await cloudinaryService.uploadImage(file, folder, (percent) => {
         setUploadProgress(percent);
       });

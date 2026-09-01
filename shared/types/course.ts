@@ -167,6 +167,9 @@ export interface ICourse {
   thumbnailUrl?: string;
   thumbnailPublicId?: string;
   banner?: string;
+  coverImage?: string;
+  coverImageUrl?: string;
+  coverImagePublicId?: string;
   category: string;
   level: CourseLevel;
   difficulty?: 'Beginner' | 'Intermediate' | 'Advanced';
