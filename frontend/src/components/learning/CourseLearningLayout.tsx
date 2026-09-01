@@ -109,6 +109,9 @@ export const CourseLearningLayout: React.FC<CourseLearningLayoutProps> = ({
                   keyPoints: u.keyPoints,
                   practiceQuestions: u.practiceQuestions,
                   resourceLinks: u.resourceLinks,
+                  topicImageUrl: u.topicImageUrl || top.topicImageUrl || mod.topicImageUrl || null,
+                  themeColor: u.themeColor || top.themeColor || mod.themeColor || null,
+                  themeIcon: u.themeIcon || top.themeIcon || mod.themeIcon || null,
                 });
               }
             });
@@ -130,6 +133,9 @@ export const CourseLearningLayout: React.FC<CourseLearningLayoutProps> = ({
               keyPoints: l.keyPoints,
               practiceQuestions: l.practiceQuestions,
               resourceLinks: l.resourceLinks,
+              topicImageUrl: l.topicImageUrl || mod.topicImageUrl || null,
+              themeColor: l.themeColor || mod.themeColor || null,
+              themeIcon: l.themeIcon || mod.themeIcon || null,
             });
           }
         });
@@ -343,6 +349,9 @@ export const CourseLearningLayout: React.FC<CourseLearningLayoutProps> = ({
     keyPoints?: string[];
     practiceQuestions?: any[];
     resourceLinks?: any[];
+    topicImageUrl?: string | null;
+    themeColor?: string | null;
+    themeIcon?: string | null;
   } => {
     if (!currentLessonData) {
       return {
@@ -355,6 +364,9 @@ export const CourseLearningLayout: React.FC<CourseLearningLayoutProps> = ({
         keyPoints: (allLessons[0] as any)?.keyPoints,
         practiceQuestions: (allLessons[0] as any)?.practiceQuestions,
         resourceLinks: normalizeResources(allLessons[0]),
+        topicImageUrl: (allLessons[0] as any)?.topicImageUrl || null,
+        themeColor: (allLessons[0] as any)?.themeColor || null,
+        themeIcon: (allLessons[0] as any)?.themeIcon || null,
       };
     }
 
@@ -372,6 +384,9 @@ export const CourseLearningLayout: React.FC<CourseLearningLayoutProps> = ({
       keyPoints: currentAny.keyPoints,
       practiceQuestions: currentAny.practiceQuestions,
       resourceLinks: normalizeResources(currentAny),
+      topicImageUrl: currentAny.topicImageUrl || null,
+      themeColor: currentAny.themeColor || null,
+      themeIcon: currentAny.themeIcon || null,
     };
   }, [currentLessonData, allLessons]);
 
@@ -707,6 +722,9 @@ export const CourseLearningLayout: React.FC<CourseLearningLayoutProps> = ({
             lessonTitle={activeLessonFull.title}
             lessonContent={activeLessonFull.content}
             shortDescription={activeLessonFull.shortDescription}
+            topicImageUrl={activeLessonFull.topicImageUrl}
+            themeColor={activeLessonFull.themeColor}
+            themeIcon={activeLessonFull.themeIcon}
             lessonIndex={activeIndex >= 0 ? activeIndex : 0}
             totalLessons={allLessons.length}
             isCompleted={isCompleted}

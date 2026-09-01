@@ -117,6 +117,10 @@ export interface ILessonItem {
   assignment?: IAssignmentItem | null;
   assignmentId?: string | null;
   isPublished: boolean;
+  topicImageUrl?: string | null;
+  topicImagePublicId?: string | null;
+  themeColor?: string | null;
+  themeIcon?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -130,6 +134,10 @@ export interface IModuleItem {
   estimatedDuration: string;
   learningObjectives: string[];
   lessons: ILessonItem[];
+  topicImageUrl?: string | null;
+  topicImagePublicId?: string | null;
+  themeColor?: string | null;
+  themeIcon?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }

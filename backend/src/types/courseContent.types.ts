@@ -19,6 +19,10 @@ export interface CourseLessonDoc {
   videoUrl?: string;
   published?: boolean;
   isFree?: boolean;
+  topicImageUrl?: string | null;
+  topicImagePublicId?: string | null;
+  themeColor?: string | null;
+  themeIcon?: string | null;
   resources?: {
     id: string;
     title: string;
@@ -41,6 +45,10 @@ export interface CourseModuleDoc {
   duration?: string;
   published?: boolean;
   lessonsCount?: number;
+  topicImageUrl?: string | null;
+  topicImagePublicId?: string | null;
+  themeColor?: string | null;
+  themeIcon?: string | null;
   topics?: CourseTopic[];
   createdAt?: string | Date;
   updatedAt?: string | Date;
@@ -51,6 +59,10 @@ export interface CourseTopic {
   title: string;
   description?: string;
   estimatedDuration?: string;
+  topicImageUrl?: string | null;
+  topicImagePublicId?: string | null;
+  themeColor?: string | null;
+  themeIcon?: string | null;
   learningUnits?: CourseLearningUnit[];
 }
 
@@ -62,6 +74,10 @@ export interface CourseLearningUnit {
   type: string;
   readingContent?: string;
   videoUrl?: string;
+  topicImageUrl?: string | null;
+  topicImagePublicId?: string | null;
+  themeColor?: string | null;
+  themeIcon?: string | null;
 }
 
 export interface CourseContentSummary {

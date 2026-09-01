@@ -31,6 +31,9 @@ interface LessonContentPanelProps {
   onNextLesson: () => void;
   onMarkComplete: () => void;
   isNightMode?: boolean;
+  topicImageUrl?: string | null;
+  themeColor?: string | null;
+  themeIcon?: string | null;
   learningObjectives?: string[];
   codeExamples?: Array<{
     title?: string;
@@ -90,6 +93,9 @@ export const LessonContentPanel: React.FC<LessonContentPanelProps> = ({
   onNextLesson,
   onMarkComplete,
   isNightMode = false,
+  topicImageUrl,
+  themeColor,
+  themeIcon,
   learningObjectives,
   codeExamples,
   keyPoints,
@@ -134,6 +140,21 @@ export const LessonContentPanel: React.FC<LessonContentPanelProps> = ({
     <article className="flex-1 min-w-0 flex flex-col">
       <div className="flex-1 px-5 sm:px-8 lg:px-12 py-8 max-w-[54rem] mx-auto w-full space-y-8">
         
+        {/* ── 0. Topic / Module Banner Image ─────────────────────────────────── */}
+        {topicImageUrl && (
+          <div className="relative w-full h-44 sm:h-52 md:h-60 rounded-2xl overflow-hidden mb-6 border border-slate-200 dark:border-slate-800 shadow-md">
+            <img
+              src={topicImageUrl}
+              alt={lessonTitle}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLElement).style.display = 'none';
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent" />
+          </div>
+        )}
+
         {/* ── 1. Unit Title & Short Description ───────────────────────────────── */}
         <div className="space-y-3 pb-2 border-b border-[#E5E7EB] dark:border-[#25324A]">
           <div className="flex items-center gap-3">

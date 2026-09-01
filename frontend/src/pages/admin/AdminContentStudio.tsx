@@ -30,7 +30,18 @@ import {
   Paperclip,
   CheckSquare,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  Palette,
+  ImageIcon,
+  Terminal,
+  Database,
+  GitBranch,
+  Code2,
+  Server,
+  Cloud,
+  Cpu,
+  ShieldCheck,
+  Check
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ResourceItem } from '@/services/contentManagementService';
@@ -38,6 +49,48 @@ import { sanitizeAdminInput, sanitizeMarkdownContent } from '@/utils/adminDataSa
 import { MarkdownContent } from '@/components/learning/MarkdownContent';
 import { aiAutofillService } from '@/services/aiAutofillService';
 import { courseService } from '@/services/courseService';
+import { CloudinaryUploadZone } from '@/components/admin/CloudinaryUploadZone';
+import { cloudinaryService } from '@/services/cloudinaryService';
+
+export const THEME_COLOR_PRESETS = [
+  { id: 'indigo', name: 'Indigo Brand', hex: '#6366f1', bgClass: 'bg-indigo-500', textClass: 'text-indigo-400', borderClass: 'border-indigo-500' },
+  { id: 'sky', name: 'Sky Cyan', hex: '#0ea5e9', bgClass: 'bg-sky-500', textClass: 'text-sky-400', borderClass: 'border-sky-500' },
+  { id: 'emerald', name: 'Emerald Green', hex: '#10b981', bgClass: 'bg-emerald-500', textClass: 'text-emerald-400', borderClass: 'border-emerald-500' },
+  { id: 'amber', name: 'Amber Gold', hex: '#f59e0b', bgClass: 'bg-amber-500', textClass: 'text-amber-400', borderClass: 'border-amber-500' },
+  { id: 'purple', name: 'Purple AI', hex: '#a855f7', bgClass: 'bg-purple-500', textClass: 'text-purple-400', borderClass: 'border-purple-500' },
+  { id: 'rose', name: 'Rose Red', hex: '#f43f5e', bgClass: 'bg-rose-500', textClass: 'text-rose-400', borderClass: 'border-rose-500' },
+  { id: 'cyan', name: 'Teal Cyan', hex: '#06b6d4', bgClass: 'bg-cyan-500', textClass: 'text-cyan-400', borderClass: 'border-cyan-500' },
+  { id: 'slate', name: 'Slate Neutral', hex: '#64748b', bgClass: 'bg-slate-500', textClass: 'text-slate-400', borderClass: 'border-slate-500' },
+];
+
+export const THEME_ICON_OPTIONS = [
+  { id: 'terminal', label: 'Terminal', icon: Terminal },
+  { id: 'database', label: 'Database', icon: Database },
+  { id: 'git-branch', label: 'Git Branch', icon: GitBranch },
+  { id: 'code', label: 'Code', icon: Code2 },
+  { id: 'server', label: 'Server', icon: Server },
+  { id: 'cloud', label: 'Cloud', icon: Cloud },
+  { id: 'layers', label: 'Architecture', icon: Layers },
+  { id: 'cpu', label: 'Hardware/CPU', icon: Cpu },
+  { id: 'shield', label: 'Security', icon: ShieldCheck },
+  { id: 'book-open', label: 'Foundations', icon: BookOpen },
+];
+
+export function getThemeIconComponent(iconName?: string | null) {
+  switch (iconName) {
+    case 'terminal': return Terminal;
+    case 'database': return Database;
+    case 'git-branch': return GitBranch;
+    case 'code': return Code2;
+    case 'server': return Server;
+    case 'cloud': return Cloud;
+    case 'layers': return Layers;
+    case 'cpu': return Cpu;
+    case 'shield': return ShieldCheck;
+    case 'book-open': return BookOpen;
+    default: return null;
+  }
+}
 
 // Calculate estimated reading time (~200 words per minute)
 function calculateEstimatedReadMinutes(text?: string): number {
@@ -1034,6 +1087,8 @@ export const AdminContentStudio: React.FC = () => {
                                 const isSelected = selectedLesson?.id === unit.id;
                                 const readMins = calculateEstimatedReadMinutes(unit.readingContent);
                                 const isDragOverThis = dragOverLessonId === unit.id;
+                                const UnitThemeIcon = getThemeIconComponent(unit.themeIcon);
+                                const presetTheme = THEME_COLOR_PRESETS.find(p => p.id === unit.themeColor);
 
                                 return (
                                   <div
@@ -1060,10 +1115,17 @@ export const AdminContentStudio: React.FC = () => {
                                       <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded shrink-0 ${isSelected ? 'bg-indigo-700 text-indigo-100' : 'bg-slate-800 text-slate-400'}`}>
                                         #{unit.order || uIdx + 1}
                                       </span>
+                                      {unit.themeColor && (
+                                        <span className={`w-2 h-2 rounded-full shrink-0 ${presetTheme?.bgClass || 'bg-indigo-400'}`} title={`Theme: ${unit.themeColor}`} />
+                                      )}
+                                      {UnitThemeIcon && (
+                                        <UnitThemeIcon className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-indigo-200' : 'text-slate-400'}`} />
+                                      )}
                                       <div className="min-w-0">
                                         <h5 className="font-bold text-xs truncate">{unit.title}</h5>
                                         <div className="flex items-center gap-1.5 text-[10px] opacity-75 mt-0.5">
                                           <span>📖 ~{readMins}m</span>
+                                          {unit.topicImageUrl && <span title="Has Topic Image">🖼️</span>}
                                         </div>
                                       </div>
                                     </div>
@@ -1432,6 +1494,7 @@ export const AdminContentStudio: React.FC = () => {
               {/* TAB 2: DETAILS & MODULE PLACEMENT */}
               {activeTab === 'overview' && (
                 <div className="flex-1 overflow-y-auto p-6 max-w-3xl mx-auto w-full space-y-6">
+                  {/* Lesson Specifications */}
                   <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-5">
                     <h3 className="font-extrabold text-sm text-white flex items-center gap-2 border-b border-slate-800 pb-3">
                       <BookOpen className="w-4 h-4 text-indigo-400" /> Lesson Specifications
@@ -1481,6 +1544,142 @@ export const AdminContentStudio: React.FC = () => {
                           onChange={(e) => handleInputChange('description', e.target.value)}
                           className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl px-3.5 py-2.5 text-xs focus:outline-hidden focus:border-indigo-500"
                         />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Topic Appearance & Theming Card */}
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                      <div className="flex items-center gap-2">
+                        <Palette className="w-4 h-4 text-purple-400" />
+                        <h3 className="font-extrabold text-sm text-white">Topic Appearance & Visual Identity</h3>
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-400 bg-slate-950 px-2 py-0.5 rounded-md border border-slate-800">
+                        Optional
+                      </span>
+                    </div>
+
+                    {/* 1. Image Upload via Cloudinary */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                          <ImageIcon className="w-3.5 h-3.5 text-sky-400" /> Topic / Header Banner Image
+                        </label>
+                        {selectedLesson.topicImageUrl && (
+                          <span className="text-[10px] text-sky-400 font-semibold">Cloudinary Optimized (f_auto, q_auto)</span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        Upload a visual banner image for this topic. It displays at the top of the lesson reader for students.
+                      </p>
+
+                      <CloudinaryUploadZone
+                        currentImageUrl={selectedLesson.topicImageUrl}
+                        currentPublicId={selectedLesson.topicImagePublicId}
+                        folder="kaizenq/topic-images"
+                        label="Topic Header Image"
+                        heightClass="h-36"
+                        onUploadSuccess={(res) => {
+                          handleInputChange('topicImageUrl', res.secure_url);
+                          handleInputChange('topicImagePublicId', res.public_id);
+                          toast.success('Topic image uploaded and linked!');
+                        }}
+                        onImageRemove={() => {
+                          if (selectedLesson.topicImagePublicId) {
+                            cloudinaryService.deleteImage(selectedLesson.topicImagePublicId).catch(() => {});
+                          }
+                          handleInputChange('topicImageUrl', null);
+                          handleInputChange('topicImagePublicId', null);
+                          toast.info('Topic image removed.');
+                        }}
+                      />
+                    </div>
+
+                    {/* 2. Theme Accent Color Picker */}
+                    <div className="space-y-3 pt-2 border-t border-slate-800/80">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                          <Palette className="w-3.5 h-3.5 text-indigo-400" /> Theme Accent Color
+                        </label>
+                        {selectedLesson.themeColor && (
+                          <button
+                            type="button"
+                            onClick={() => handleInputChange('themeColor', null)}
+                            className="text-[11px] text-slate-400 hover:text-rose-400 underline cursor-pointer"
+                          >
+                            Reset to default
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        Select a curated accent color to distinguish this topic/module in the student curriculum outline.
+                      </p>
+
+                      <div className="flex flex-wrap gap-2.5 pt-1">
+                        {THEME_COLOR_PRESETS.map((preset) => {
+                          const isSelected = selectedLesson.themeColor === preset.id;
+                          return (
+                            <button
+                              key={preset.id}
+                              type="button"
+                              onClick={() => handleInputChange('themeColor', preset.id)}
+                              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                                isSelected
+                                  ? `${preset.borderClass} bg-slate-800 text-white ring-2 ring-indigo-500/40 shadow-md`
+                                  : 'border-slate-800 bg-slate-950/60 text-slate-300 hover:bg-slate-800 hover:border-slate-700'
+                              }`}
+                            >
+                              <span className={`w-3.5 h-3.5 rounded-full ${preset.bgClass} flex items-center justify-center`}>
+                                {isSelected && <Check className="w-2.5 h-2.5 text-white stroke-[3]" />}
+                              </span>
+                              <span>{preset.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* 3. Theme Icon Picker */}
+                    <div className="space-y-3 pt-2 border-t border-slate-800/80">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Topic Icon
+                        </label>
+                        {selectedLesson.themeIcon && (
+                          <button
+                            type="button"
+                            onClick={() => handleInputChange('themeIcon', null)}
+                            className="text-[11px] text-slate-400 hover:text-rose-400 underline cursor-pointer"
+                          >
+                            Clear icon
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        Pick an icon that best represents this topic's domain (CLI, database, architecture, etc.).
+                      </p>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1">
+                        {THEME_ICON_OPTIONS.map((item) => {
+                          const IconComponent = item.icon;
+                          const isSelected = selectedLesson.themeIcon === item.id;
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => handleInputChange('themeIcon', item.id)}
+                              className={`flex items-center gap-2 p-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'border-indigo-500 bg-indigo-950/70 text-indigo-300 ring-2 ring-indigo-500/30'
+                                  : 'border-slate-800 bg-slate-950/60 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                              }`}
+                            >
+                              <IconComponent className={`w-4 h-4 shrink-0 ${isSelected ? 'text-indigo-400' : 'text-slate-500'}`} />
+                              <span className="truncate">{item.label}</span>
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>

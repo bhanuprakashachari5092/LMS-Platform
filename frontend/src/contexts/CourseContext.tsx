@@ -132,6 +132,10 @@ export interface LearningUnitItem {
   order?: number;
   orderIndex?: number;
   estimatedReadMinutes?: number;
+  topicImageUrl?: string | null;
+  topicImagePublicId?: string | null;
+  themeColor?: string | null;
+  themeIcon?: string | null;
 }
 
 export interface TopicItem {
@@ -140,6 +144,10 @@ export interface TopicItem {
   description: string;
   estimatedDuration: string;
   learningUnits: LearningUnitItem[];
+  topicImageUrl?: string | null;
+  topicImagePublicId?: string | null;
+  themeColor?: string | null;
+  themeIcon?: string | null;
 }
 
 export interface ModuleItem {
@@ -148,6 +156,10 @@ export interface ModuleItem {
   description: string;
   duration: string;
   topics: TopicItem[];
+  topicImageUrl?: string | null;
+  topicImagePublicId?: string | null;
+  themeColor?: string | null;
+  themeIcon?: string | null;
 }
 
 export interface CourseItem {

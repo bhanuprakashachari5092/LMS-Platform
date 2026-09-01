@@ -4,10 +4,13 @@ import { toast } from 'sonner';
 import { cloudinaryService, type CloudinaryUploadResponse } from '@/services/cloudinaryService';
 
 interface CloudinaryUploadZoneProps {
-  currentImageUrl?: string;
-  currentPublicId?: string;
+  currentImageUrl?: string | null;
+  currentPublicId?: string | null;
   onUploadSuccess: (result: CloudinaryUploadResponse) => void;
   onImageRemove?: () => void;
+  folder?: string;
+  label?: string;
+  heightClass?: string;
   className?: string;
 }
 
@@ -16,6 +19,9 @@ export const CloudinaryUploadZone: React.FC<CloudinaryUploadZoneProps> = ({
   currentPublicId,
   onUploadSuccess,
   onImageRemove,
+  folder = 'kaizenq/course-thumbnails',
+  label = 'Upload Image',
+  heightClass = 'h-44',
   className = ''
 }) => {
   const [isDragging, setIsDragging] = useState(false);
@@ -46,12 +52,12 @@ export const CloudinaryUploadZone: React.FC<CloudinaryUploadZoneProps> = ({
       }
 
       // 3. Upload to Cloudinary with progress
-      const result = await cloudinaryService.uploadImage(file, 'kaizenq/course-thumbnails', (percent) => {
+      const result = await cloudinaryService.uploadImage(file, folder, (percent) => {
         setUploadProgress(percent);
       });
 
       onUploadSuccess(result);
-      toast.success('Thumbnail uploaded and optimized via Cloudinary!');
+      toast.success('Image uploaded and optimized via Cloudinary!');
     } catch (err: any) {
       toast.error(err.message || 'Failed to upload image. Please try again.');
     } finally {
@@ -99,8 +105,8 @@ export const CloudinaryUploadZone: React.FC<CloudinaryUploadZoneProps> = ({
         <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 group">
           <img
             src={currentImageUrl}
-            alt="Course Thumbnail"
-            className="w-full h-44 object-cover group-hover:scale-102 transition-transform duration-300"
+            alt={label}
+            className={`w-full ${heightClass} object-cover group-hover:scale-102 transition-transform duration-300`}
             onError={(e) => {
               (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1618401471353-b98aedd07871?auto=format&fit=crop&w=1200&q=80';
             }}
