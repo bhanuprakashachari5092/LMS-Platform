@@ -13,6 +13,8 @@ import { aiAutofillService } from '@/services/aiAutofillService';
 import { MarkdownContent } from '@/components/learning/MarkdownContent';
 import { AdminQuizManager } from '@/components/admin/AdminQuizManager';
 import { MermaidDiagram } from '@/components/learning/MermaidDiagram';
+import { ContentBlockArranger } from '@/components/admin/ContentBlockArranger';
+import { Reorder } from 'framer-motion';
 import {
   ArrowLeft,
   Loader2,
@@ -55,7 +57,9 @@ import {
   Key,
   Award,
   Workflow,
-  CheckSquare
+  CheckSquare,
+  GripVertical,
+  Columns2
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -126,6 +130,10 @@ export const AdminCourseEdit: React.FC = () => {
   const [keyPoints, setKeyPoints] = useState<string[]>([]);
   const [newKeyPoint, setNewKeyPoint] = useState<string>('');
   const [previewMode, setPreviewMode] = useState<'split' | 'editor' | 'preview'>('split');
+  const [contentMode, setContentMode] = useState<'arranger' | 'raw'>('arranger');
+  const [splitRatio, setSplitRatio] = useState<number>(50); // 50% left, 50% right
+  const isResizingRef = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Image Insertion Modal State
@@ -195,6 +203,30 @@ export const AdminCourseEdit: React.FC = () => {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isDirty]);
+
+  // Draggable Splitter Mouse Move Listeners
+  const handleStartResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizingRef.current = true;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (!isResizingRef.current || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const offsetX = moveEvent.clientX - rect.left;
+      const totalWidth = rect.width;
+      const newRatio = Math.max(25, Math.min(75, Math.round((offsetX / totalWidth) * 100)));
+      setSplitRatio(newRatio);
+    };
+
+    const handleMouseUp = () => {
+      isResizingRef.current = false;
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  };
 
   // Keyboard shortcut: Ctrl+S / Cmd+S to Save All Changes
   useEffect(() => {
@@ -1339,7 +1371,7 @@ export const AdminCourseEdit: React.FC = () => {
                 Curriculum Structure
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Organize Course Modules, Topics, and Learning Units with reordering tools.
+                Organize Course Modules, Topics, and Learning Units with smooth drag handles.
               </p>
             </div>
 
@@ -1353,17 +1385,29 @@ export const AdminCourseEdit: React.FC = () => {
             </button>
           </div>
 
-          <div className="space-y-4">
+          <Reorder.Group
+            axis="y"
+            values={modules}
+            onReorder={(newMods) => {
+              setModules(newMods);
+              markDirty();
+            }}
+            className="space-y-4"
+          >
             {modules.map((mod, modIdx) => {
               const isExpanded = expandedModules[mod.id] ?? true;
               return (
-                <div
+                <Reorder.Item
                   key={mod.id}
+                  value={mod}
                   className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs"
                 >
                   {/* Module Header Bar */}
                   <div className="p-4 bg-slate-50 dark:bg-slate-950/80 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
+                      <div className="cursor-grab active:cursor-grabbing p-1 rounded-md hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400">
+                        <GripVertical className="w-4 h-4" />
+                      </div>
                       <button
                         type="button"
                         onClick={() => toggleModuleExpand(mod.id)}
@@ -1444,13 +1488,33 @@ export const AdminCourseEdit: React.FC = () => {
                             </button>
                           </div>
 
-                          {/* Unit Cards List */}
-                          <div className="space-y-2">
+                          {/* Unit Cards List with Drag & Reorder */}
+                          <Reorder.Group
+                            axis="y"
+                            values={top.learningUnits || []}
+                            onReorder={(newUnits) => {
+                              setModules((prev) =>
+                                prev.map((m) => {
+                                  if (m.id !== mod.id) return m;
+                                  return {
+                                    ...m,
+                                    topics: (m.topics || []).map((t) => {
+                                      if (t.id !== top.id) return t;
+                                      return { ...t, learningUnits: newUnits };
+                                    }),
+                                  };
+                                })
+                              );
+                              markDirty();
+                            }}
+                            className="space-y-2"
+                          >
                             {(top.learningUnits || []).map((unit, uIdx) => {
                               const isSelected = selectedUnit?.id === unit.id;
                               return (
-                                <div
+                                <Reorder.Item
                                   key={unit.id}
+                                  value={unit}
                                   onClick={() => handleSelectUnit(unit, mod.id, top.id)}
                                   className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition-all cursor-pointer ${
                                     isSelected
@@ -1459,6 +1523,9 @@ export const AdminCourseEdit: React.FC = () => {
                                   }`}
                                 >
                                   <div className="flex items-center gap-3 min-w-0">
+                                    <div className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-200">
+                                      <GripVertical className="w-4 h-4" />
+                                    </div>
                                     <FileCode className="w-4 h-4 text-indigo-500 shrink-0" />
                                     <div className="min-w-0">
                                       <p className="text-xs font-bold truncate">{unit.title}</p>
@@ -1513,18 +1580,18 @@ export const AdminCourseEdit: React.FC = () => {
                                       <Trash2 className="w-3.5 h-3.5" />
                                     </button>
                                   </div>
-                                </div>
+                                </Reorder.Item>
                               );
                             })}
-                          </div>
+                          </Reorder.Group>
                         </div>
                       ))}
                     </div>
                   )}
-                </div>
+                </Reorder.Item>
               );
             })}
-          </div>
+          </Reorder.Group>
         </div>
       )}
 
@@ -1548,34 +1615,65 @@ export const AdminCourseEdit: React.FC = () => {
                     </h3>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setPreviewMode('editor')}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-all ${
-                        previewMode === 'editor' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
-                      }`}
-                    >
-                      Editor Only
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPreviewMode('split')}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-all ${
-                        previewMode === 'split' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
-                      }`}
-                    >
-                      Split View
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPreviewMode('preview')}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-all ${
-                        previewMode === 'preview' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
-                      }`}
-                    >
-                      Student Preview
-                    </button>
+                  {/* Mode & Split View Toggles */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    
+                    {/* Content Editor Mode Toggle */}
+                    <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex items-center gap-1 text-xs font-bold">
+                      <button
+                        type="button"
+                        onClick={() => setContentMode('arranger')}
+                        className={`px-3 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                          contentMode === 'arranger' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        <GripVertical className="w-3.5 h-3.5" />
+                        <span>Drag & Set Blocks</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setContentMode('raw')}
+                        className={`px-3 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                          contentMode === 'raw' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        <Code2 className="w-3.5 h-3.5" />
+                        <span>Raw Markdown</span>
+                      </button>
+                    </div>
+
+                    {/* Split View Toggle */}
+                    <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex items-center gap-1 text-xs font-bold">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewMode('editor')}
+                        className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                          previewMode === 'editor' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        Editor
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewMode('split')}
+                        className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                          previewMode === 'split' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        <Columns2 className="w-3.5 h-3.5" />
+                        <span>Split</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewMode('preview')}
+                        className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                          previewMode === 'preview' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        Preview
+                      </button>
+                    </div>
+
                   </div>
                 </div>
 
@@ -1711,138 +1809,174 @@ export const AdminCourseEdit: React.FC = () => {
                 </div>
               </div>
 
-              {/* ── Markdown Content Toolbar ────────────────────────────────────── */}
-              <div className="p-2 bg-slate-900 border border-slate-800 rounded-2xl flex flex-wrap items-center gap-1 text-slate-200 text-xs font-mono shadow-xs">
-                
-                {/* Headings */}
-                <button type="button" onClick={() => insertMarkdown('h1')} className="px-2 py-1 hover:bg-slate-800 rounded-lg font-extrabold cursor-pointer" title="Heading 1">H1</button>
-                <button type="button" onClick={() => insertMarkdown('h2')} className="px-2 py-1 hover:bg-slate-800 rounded-lg font-bold cursor-pointer" title="Heading 2">H2</button>
-                <button type="button" onClick={() => insertMarkdown('h3')} className="px-2 py-1 hover:bg-slate-800 rounded-lg font-semibold cursor-pointer" title="Heading 3">H3</button>
+              {/* ── Markdown Content Toolbar (Active in Raw Markdown Mode) ─────── */}
+              {contentMode === 'raw' && (
+                <div className="p-2 bg-slate-900 border border-slate-800 rounded-2xl flex flex-wrap items-center gap-1 text-slate-200 text-xs font-mono shadow-xs">
+                  
+                  {/* Headings */}
+                  <button type="button" onClick={() => insertMarkdown('h1')} className="px-2 py-1 hover:bg-slate-800 rounded-lg font-extrabold cursor-pointer" title="Heading 1">H1</button>
+                  <button type="button" onClick={() => insertMarkdown('h2')} className="px-2 py-1 hover:bg-slate-800 rounded-lg font-bold cursor-pointer" title="Heading 2">H2</button>
+                  <button type="button" onClick={() => insertMarkdown('h3')} className="px-2 py-1 hover:bg-slate-800 rounded-lg font-semibold cursor-pointer" title="Heading 3">H3</button>
 
-                <div className="h-4 w-px bg-slate-700 mx-1" />
+                  <div className="h-4 w-px bg-slate-700 mx-1" />
 
-                {/* Typography */}
-                <button type="button" onClick={() => insertMarkdown('bold')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Bold (**text**)"><Bold className="w-4 h-4" /></button>
-                <button type="button" onClick={() => insertMarkdown('italic')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Italic (*text*)"><Italic className="w-4 h-4" /></button>
-                <button type="button" onClick={() => insertMarkdown('quote')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Blockquote (> text)"><Quote className="w-4 h-4" /></button>
-                <button type="button" onClick={() => insertMarkdown('divider')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Horizontal Divider (---)"><Minus className="w-4 h-4" /></button>
+                  {/* Typography */}
+                  <button type="button" onClick={() => insertMarkdown('bold')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Bold (**text**)"><Bold className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => insertMarkdown('italic')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Italic (*text*)"><Italic className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => insertMarkdown('quote')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Blockquote (> text)"><Quote className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => insertMarkdown('divider')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Horizontal Divider (---)"><Minus className="w-4 h-4" /></button>
 
-                <div className="h-4 w-px bg-slate-700 mx-1" />
+                  <div className="h-4 w-px bg-slate-700 mx-1" />
 
-                {/* Lists & Ordering Tools */}
-                <button type="button" onClick={() => insertMarkdown('list')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Bullet List (- item)"><List className="w-4 h-4" /></button>
-                <button type="button" onClick={() => insertMarkdown('list-ordered')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Numbered List (1. item)"><ListOrdered className="w-4 h-4" /></button>
-                <button type="button" onClick={() => insertMarkdown('step-list')} className="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg font-bold text-[10px] flex items-center gap-1 cursor-pointer" title="Step-by-Step Process List">
-                  <ListOrdered className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>Steps</span>
-                </button>
-                <button type="button" onClick={() => insertMarkdown('checklist')} className="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg font-bold text-[10px] flex items-center gap-1 cursor-pointer" title="Task Checklist">
-                  <CheckSquare className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Checklist</span>
-                </button>
-                <button type="button" onClick={() => insertMarkdown('pros-cons')} className="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg font-bold text-[10px] flex items-center gap-1 cursor-pointer" title="Pros & Cons Table">
-                  <span>⚖️ Pros/Cons</span>
-                </button>
-
-                <div className="h-4 w-px bg-slate-700 mx-1" />
-
-                {/* Flowchart & Architecture Diagram Builder */}
-                <button
-                  type="button"
-                  onClick={() => setShowFlowchartModal(true)}
-                  className="px-2.5 py-1.5 bg-gradient-to-r from-indigo-900 to-purple-900 hover:from-indigo-800 hover:to-purple-800 border border-indigo-500/50 text-indigo-200 rounded-lg font-bold text-[11px] flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
-                  title="Create Content Flowchart / Architecture Diagram"
-                >
-                  <Workflow className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>Flowchart Builder</span>
-                </button>
-
-                {/* Tables & Images */}
-                <button type="button" onClick={() => insertMarkdown('table')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Table Generator"><Table className="w-4 h-4" /></button>
-                <button
-                  type="button"
-                  onClick={() => setShowImageModal(true)}
-                  className="px-2 py-1.5 bg-indigo-950 hover:bg-indigo-900 border border-indigo-700 text-indigo-200 rounded-lg font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-all"
-                  title="Upload & Insert Cloudinary Image"
-                >
-                  <ImageIcon className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>Image</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowLinkModal(true)}
-                  className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer"
-                  title="Insert Hyperlink"
-                >
-                  <LinkIcon className="w-4 h-4 text-sky-400" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowCodeModal(true)}
-                  className="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-lg font-bold text-[11px] flex items-center gap-1 cursor-pointer"
-                  title="Insert Code Block"
-                >
-                  <Code2 className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Code</span>
-                </button>
-
-                <div className="h-4 w-px bg-slate-700 mx-1" />
-
-                {/* Callout Boxes */}
-                <button type="button" onClick={() => insertMarkdown('callout-tip')} className="p-1 hover:bg-slate-800 rounded text-emerald-400 font-bold text-[10px]" title="Insert Tip Callout">💡 Tip</button>
-                <button type="button" onClick={() => insertMarkdown('callout-note')} className="p-1 hover:bg-slate-800 rounded text-sky-400 font-bold text-[10px]" title="Insert Note Callout">ℹ️ Note</button>
-                <button type="button" onClick={() => insertMarkdown('callout-warning')} className="p-1 hover:bg-slate-800 rounded text-amber-400 font-bold text-[10px]" title="Insert Warning Callout">⚠️ Warn</button>
-
-                <div className="h-4 w-px bg-slate-700 mx-1" />
-
-                {/* Interactive Practice Templates */}
-                <div className="flex items-center gap-1">
-                  <button type="button" onClick={() => insertMarkdown('practice-sql')} className="px-2 py-1 bg-sky-950 hover:bg-sky-900 border border-sky-800 text-sky-300 rounded-md font-bold text-[10px] flex items-center gap-1 cursor-pointer">
-                    <Database className="w-3 h-3" /> SQL
+                  {/* Lists & Ordering Tools */}
+                  <button type="button" onClick={() => insertMarkdown('list')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Bullet List (- item)"><List className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => insertMarkdown('list-ordered')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Numbered List (1. item)"><ListOrdered className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => insertMarkdown('step-list')} className="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg font-bold text-[10px] flex items-center gap-1 cursor-pointer" title="Step-by-Step Process List">
+                    <ListOrdered className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Steps</span>
                   </button>
-                  <button type="button" onClick={() => insertMarkdown('practice-terminal')} className="px-2 py-1 bg-purple-950 hover:bg-purple-900 border border-purple-800 text-purple-300 rounded-md font-bold text-[10px] flex items-center gap-1 cursor-pointer">
-                    <Terminal className="w-3 h-3" /> Linux
+                  <button type="button" onClick={() => insertMarkdown('checklist')} className="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg font-bold text-[10px] flex items-center gap-1 cursor-pointer" title="Task Checklist">
+                    <CheckSquare className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Checklist</span>
                   </button>
-                  <button type="button" onClick={() => insertMarkdown('practice-git')} className="px-2 py-1 bg-amber-950 hover:bg-amber-900 border border-amber-800 text-amber-300 rounded-md font-bold text-[10px] flex items-center gap-1 cursor-pointer">
-                    <GitBranch className="w-3 h-3" /> Git
+                  <button type="button" onClick={() => insertMarkdown('pros-cons')} className="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg font-bold text-[10px] flex items-center gap-1 cursor-pointer" title="Pros & Cons Table">
+                    <span>⚖️ Pros/Cons</span>
                   </button>
-                  <button type="button" onClick={() => insertMarkdown('practice-code')} className="px-2 py-1 bg-emerald-950 hover:bg-emerald-900 border border-emerald-800 text-emerald-300 rounded-md font-bold text-[10px] flex items-center gap-1 cursor-pointer">
-                    <Code2 className="w-3 h-3" /> Runner
+
+                  <div className="h-4 w-px bg-slate-700 mx-1" />
+
+                  {/* Flowchart & Architecture Diagram Builder */}
+                  <button
+                    type="button"
+                    onClick={() => setShowFlowchartModal(true)}
+                    className="px-2.5 py-1.5 bg-gradient-to-r from-indigo-900 to-purple-900 hover:from-indigo-800 hover:to-purple-800 border border-indigo-500/50 text-indigo-200 rounded-lg font-bold text-[11px] flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
+                    title="Create Content Flowchart / Architecture Diagram"
+                  >
+                    <Workflow className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Flowchart Builder</span>
                   </button>
-                  <button type="button" onClick={() => insertMarkdown('practice-web')} className="px-2 py-1 bg-blue-950 hover:bg-blue-900 border border-blue-800 text-blue-300 rounded-md font-bold text-[10px] flex items-center gap-1 cursor-pointer">
-                    <Eye className="w-3 h-3" /> Web
+
+                  {/* Tables & Images */}
+                  <button type="button" onClick={() => insertMarkdown('table')} className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer" title="Table Generator"><Table className="w-4 h-4" /></button>
+                  <button
+                    type="button"
+                    onClick={() => setShowImageModal(true)}
+                    className="px-2 py-1.5 bg-indigo-950 hover:bg-indigo-900 border border-indigo-700 text-indigo-200 rounded-lg font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-all"
+                    title="Upload & Insert Cloudinary Image"
+                  >
+                    <ImageIcon className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Image</span>
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowLinkModal(true)}
+                    className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer"
+                    title="Insert Hyperlink"
+                  >
+                    <LinkIcon className="w-4 h-4 text-sky-400" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowCodeModal(true)}
+                    className="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-lg font-bold text-[11px] flex items-center gap-1 cursor-pointer"
+                    title="Insert Code Block"
+                  >
+                    <Code2 className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Code</span>
+                  </button>
+
+                  <div className="h-4 w-px bg-slate-700 mx-1" />
+
+                  {/* Callout Boxes */}
+                  <button type="button" onClick={() => insertMarkdown('callout-tip')} className="p-1 hover:bg-slate-800 rounded text-emerald-400 font-bold text-[10px]" title="Insert Tip Callout">💡 Tip</button>
+                  <button type="button" onClick={() => insertMarkdown('callout-note')} className="p-1 hover:bg-slate-800 rounded text-sky-400 font-bold text-[10px]" title="Insert Note Callout">ℹ️ Note</button>
+                  <button type="button" onClick={() => insertMarkdown('callout-warning')} className="p-1 hover:bg-slate-800 rounded text-amber-400 font-bold text-[10px]" title="Insert Warning Callout">⚠️ Warn</button>
+
+                  <div className="h-4 w-px bg-slate-700 mx-1" />
+
+                  {/* Interactive Practice Templates */}
+                  <div className="flex items-center gap-1">
+                    <button type="button" onClick={() => insertMarkdown('practice-sql')} className="px-2 py-1 bg-sky-950 hover:bg-sky-900 border border-sky-800 text-sky-300 rounded-md font-bold text-[10px] flex items-center gap-1 cursor-pointer">
+                      <Database className="w-3 h-3" /> SQL
+                    </button>
+                    <button type="button" onClick={() => insertMarkdown('practice-terminal')} className="px-2 py-1 bg-purple-950 hover:bg-purple-900 border border-purple-800 text-purple-300 rounded-md font-bold text-[10px] flex items-center gap-1 cursor-pointer">
+                      <Terminal className="w-3 h-3" /> Linux
+                    </button>
+                    <button type="button" onClick={() => insertMarkdown('practice-git')} className="px-2 py-1 bg-amber-950 hover:bg-amber-900 border border-amber-800 text-amber-300 rounded-md font-bold text-[10px] flex items-center gap-1 cursor-pointer">
+                      <GitBranch className="w-3 h-3" /> Git
+                    </button>
+                    <button type="button" onClick={() => insertMarkdown('practice-code')} className="px-2 py-1 bg-emerald-950 hover:bg-emerald-900 border border-emerald-800 text-emerald-300 rounded-md font-bold text-[10px] flex items-center gap-1 cursor-pointer">
+                      <Code2 className="w-3 h-3" /> Runner
+                    </button>
+                    <button type="button" onClick={() => insertMarkdown('practice-web')} className="px-2 py-1 bg-blue-950 hover:bg-blue-900 border border-blue-800 text-blue-300 rounded-md font-bold text-[10px] flex items-center gap-1 cursor-pointer">
+                      <Eye className="w-3 h-3" /> Web
+                    </button>
+                  </div>
+
                 </div>
+              )}
 
-              </div>
-
-              {/* ── Editor / Student Preview Split View ─────────────────────────── */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-h-[550px]">
+              {/* ── Editor / Student Preview Draggable & Resizable Split View ─────── */}
+              <div ref={containerRef} className="flex flex-col md:flex-row gap-3 min-h-[550px] relative items-stretch">
                 
-                {/* Markdown Textarea */}
+                {/* Left Side: Drag & Set Block Arranger OR Raw Markdown Editor */}
                 {(previewMode === 'split' || previewMode === 'editor') && (
-                  <div className={`${previewMode === 'editor' ? 'md:col-span-2' : ''} flex flex-col bg-slate-950 border border-slate-800 rounded-3xl p-4 shadow-sm space-y-2`}>
-                    <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 px-1">
-                      <span>Markdown Editor</span>
-                      <span>{lessonMarkdown.length} characters • {lessonMarkdown.split(/\s+/).filter(Boolean).length} words</span>
-                    </div>
-                    <textarea
-                      ref={textareaRef}
-                      value={lessonMarkdown}
-                      onChange={(e) => {
-                        setLessonMarkdown(e.target.value);
-                        markDirty();
-                      }}
-                      className="w-full flex-1 min-h-[480px] p-3 bg-transparent font-mono text-xs text-slate-100 focus:outline-hidden leading-relaxed resize-y"
-                      placeholder="Write your comprehensive Markdown lesson here with flowcharts, diagrams, code blocks, and steps..."
-                      spellCheck={false}
-                    />
+                  <div
+                    style={{
+                      width: previewMode === 'split' ? `${splitRatio}%` : '100%',
+                    }}
+                    className="flex flex-col min-w-[280px] transition-[width] duration-75"
+                  >
+                    {contentMode === 'arranger' ? (
+                      <ContentBlockArranger
+                        markdown={lessonMarkdown}
+                        onChange={(newMd) => {
+                          setLessonMarkdown(newMd);
+                          markDirty();
+                        }}
+                        isNightMode={true}
+                      />
+                    ) : (
+                      <div className="flex flex-col bg-slate-950 border border-slate-800 rounded-3xl p-4 shadow-sm space-y-2 h-full">
+                        <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 px-1">
+                          <span>Raw Markdown Editor</span>
+                          <span>{lessonMarkdown.length} characters • {lessonMarkdown.split(/\s+/).filter(Boolean).length} words</span>
+                        </div>
+                        <textarea
+                          ref={textareaRef}
+                          value={lessonMarkdown}
+                          onChange={(e) => {
+                            setLessonMarkdown(e.target.value);
+                            markDirty();
+                          }}
+                          className="w-full flex-1 min-h-[480px] p-3 bg-transparent font-mono text-xs text-slate-100 focus:outline-hidden leading-relaxed resize-y"
+                          placeholder="Write your comprehensive Markdown lesson here..."
+                          spellCheck={false}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* Real-time Student Preview (Uses exact MarkdownContent renderer) */}
+                {/* Draggable Divider Splitter Handle */}
+                {previewMode === 'split' && (
+                  <div
+                    onMouseDown={handleStartResize}
+                    className="hidden md:flex w-2.5 hover:w-3.5 bg-slate-800/80 hover:bg-indigo-600 rounded-full cursor-col-resize transition-all items-center justify-center select-none shrink-0 group"
+                    title="Drag left or right to adjust layout width"
+                  >
+                    <div className="w-0.5 h-8 bg-slate-500 group-hover:bg-white rounded transition-colors" />
+                  </div>
+                )}
+
+                {/* Right Side: Real-time Student Preview (Synchronized with MarkdownContent) */}
                 {(previewMode === 'split' || previewMode === 'preview') && (
-                  <div className={`${previewMode === 'preview' ? 'md:col-span-2' : ''} flex flex-col bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm overflow-y-auto max-h-[720px] space-y-4`}>
+                  <div
+                    style={{
+                      width: previewMode === 'split' ? `${100 - splitRatio}%` : '100%',
+                    }}
+                    className="flex flex-col bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm overflow-y-auto max-h-[780px] space-y-4 min-w-[280px] transition-[width] duration-75"
+                  >
                     <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2 text-[11px] font-mono text-slate-400">
                       <span>Student View Live Preview</span>
                       <span className="text-emerald-500 font-bold">Synchronized</span>
@@ -1987,7 +2121,7 @@ export const AdminCourseEdit: React.FC = () => {
                         className="p-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 disabled:opacity-20 cursor-pointer"
                         title="Move Up"
                       >
-                        <ArrowUp className="w-3 h-3" />
+                        <ArrowUp className="w-3.5 h-3.5" />
                       </button>
                       <button
                         type="button"
@@ -1996,7 +2130,7 @@ export const AdminCourseEdit: React.FC = () => {
                         className="p-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 disabled:opacity-20 cursor-pointer"
                         title="Move Down"
                       >
-                        <ArrowDown className="w-3 h-3" />
+                        <ArrowDown className="w-3.5 h-3.5" />
                       </button>
                       <button
                         type="button"
