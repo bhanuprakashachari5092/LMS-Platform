@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Star,
@@ -16,9 +16,12 @@ import {
   Clock,
   Sparkles,
   Code,
-  GraduationCap
+  GraduationCap,
+  Radio,
+  Video,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { liveClassService, type LiveClass, normalizeLiveClassStatus } from '@/services/liveClassService';
 
 export interface CourseDetailsProps {
   course: {
@@ -104,6 +107,25 @@ export const CourseDetailsPage: React.FC<CourseDetailsProps> = ({
   const allLessons = useMemo(() => {
     return (course.modules || []).flatMap((m) => m.lessons || []);
   }, [course.modules]);
+
+  const [courseLiveClasses, setCourseLiveClasses] = useState<LiveClass[]>([]);
+
+  useEffect(() => {
+    const unsub = liveClassService.subscribeLiveClasses((all) => {
+      const matched = all.filter((c) => {
+        const cId = String(course.id).toLowerCase();
+        const cTitle = course.title.toLowerCase();
+        const targetCId = String(c.courseId || '').toLowerCase();
+        const targetCName = (c.courseName || '').toLowerCase();
+        return (
+          (targetCId && (targetCId === cId || targetCId.includes(cId) || cId.includes(targetCId))) ||
+          (targetCName && (targetCName === cTitle || targetCName.includes(cTitle) || cTitle.includes(targetCName)))
+        );
+      });
+      setCourseLiveClasses(matched);
+    });
+    return () => unsub();
+  }, [course.id, course.title]);
 
   const totalLessonsCount = allLessons.length;
 
@@ -373,6 +395,115 @@ export const CourseDetailsPage: React.FC<CourseDetailsProps> = ({
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
             <div className="lg:col-span-8 space-y-10">
               
+              {/* Course-associated Upcoming Live Classes Banner */}
+              {courseLiveClasses.length > 0 && (
+                <section className="p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50/50 dark:from-blue-950/30 dark:to-indigo-950/20 border border-blue-200/80 dark:border-blue-800/60 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2.5">
+                      <span className="p-2 rounded-xl bg-blue-600/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-300/40 dark:border-blue-700/50">
+                        <Radio className="w-4 h-4 animate-pulse text-blue-600 dark:text-blue-400" />
+                      </span>
+                      <div>
+                        <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">
+                          Live Interactive Classes
+                        </h3>
+                        <p className="text-xs text-slate-600 dark:text-slate-400">
+                          Scheduled live coding sessions with your mentor
+                        </p>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700">
+                      {courseLiveClasses.length} {courseLiveClasses.length === 1 ? 'SESSION' : 'SESSIONS'}
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {courseLiveClasses.map((cls) => {
+                      const normalized = normalizeLiveClassStatus(cls.status);
+                      const isLive = normalized === 'live';
+                      const isCompleted = normalized === 'completed';
+                      const isCancelled = normalized === 'cancelled';
+
+                      let dateFormatted = 'Upcoming';
+                      try {
+                        const d = new Date(cls.startTime || cls.scheduledAt || '');
+                        dateFormatted = d.toLocaleDateString(undefined, {
+                          weekday: 'short',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        });
+                      } catch {
+                        dateFormatted = 'Scheduled';
+                      }
+
+                      return (
+                        <div
+                          key={cls.id}
+                          className="p-4 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs"
+                        >
+                          <div className="space-y-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                                  isLive
+                                    ? 'bg-rose-600 text-white animate-pulse'
+                                    : isCompleted
+                                    ? 'bg-slate-700 text-slate-200'
+                                    : isCancelled
+                                    ? 'bg-red-950 text-red-400 border border-red-800'
+                                    : 'bg-blue-600 text-white'
+                                }`}
+                              >
+                                {isLive ? '🔴 LIVE NOW' : isCompleted ? '✓ COMPLETED' : isCancelled ? 'CANCELLED' : 'UPCOMING'}
+                              </span>
+                              <span className="text-xs font-semibold text-slate-500 dark:text-zinc-400 flex items-center gap-1">
+                                <Clock className="w-3.5 h-3.5" />
+                                <span>{dateFormatted}</span>
+                              </span>
+                            </div>
+                            <h4 className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                              {cls.title}
+                            </h4>
+                            <p className="text-xs text-slate-500 dark:text-zinc-400">
+                              Instructor: <strong className="text-slate-700 dark:text-zinc-300">{cls.instructorName}</strong>
+                            </p>
+                          </div>
+
+                          <div className="shrink-0 flex items-center gap-2">
+                            {isCancelled ? (
+                              <span className="px-3 py-1.5 rounded-lg text-xs font-bold text-red-500 bg-red-500/10">
+                                Cancelled
+                              </span>
+                            ) : isCompleted ? (
+                              <button
+                                onClick={() => navigate(`/student/live-class/${cls.id}`)}
+                                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-all cursor-pointer"
+                              >
+                                View Recording
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => navigate(`/student/live-class/${cls.id}`)}
+                                className={`px-4 py-2 rounded-xl text-xs font-bold text-white transition-all cursor-pointer flex items-center gap-1.5 ${
+                                  isLive
+                                    ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/30 animate-pulse'
+                                    : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20'
+                                }`}
+                              >
+                                <Video className="w-3.5 h-3.5 text-white" />
+                                <span>{isLive ? 'Join Live Class' : 'Enter Classroom'}</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
+
               {/* Introduction section */}
               <section className="space-y-4">
                 <h2 className="text-xl font-bold text-[#111827] dark:text-white">

@@ -78,6 +78,19 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Live Classes Collection
+    match /liveClasses/{classId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isInstructor();
+      allow update, delete: if isAdmin() || isAssignedInstructor(resource.data) || resource.data.createdBy == request.auth.uid;
+
+      // Subcollections: attendance, chats, polls, questions, notes
+      match /{subcollection}/{docId} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated();
+      }
+    }
+
     // =========================================================================
     // 2. CURRICULUM, COURSES, MODULES & LESSONS (HIERARCHICAL & FLAT)
     // =========================================================================

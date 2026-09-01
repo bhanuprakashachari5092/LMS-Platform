@@ -1,6 +1,9 @@
 import { io, Socket } from 'socket.io-client';
 
 const getSocketUrl = (): string => {
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return window.location.origin;
+  }
   const envUrl = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL;
   if (envUrl) {
     return envUrl.replace(/\/api\/?$/, '');
