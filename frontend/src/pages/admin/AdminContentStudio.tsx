@@ -490,6 +490,21 @@ export const AdminContentStudio: React.FC = () => {
       case 'practice-sql':
         prefix = '\n```practice-sql\n-- @title: Hands-on SQL Playground\n-- @schema\nCREATE TABLE students (\n  id INTEGER PRIMARY KEY,\n  name TEXT,\n  track TEXT,\n  gpa REAL\n);\nINSERT INTO students VALUES (1, \'Bhanu Prakash\', \'React & Web\', 3.9);\nINSERT INTO students VALUES (2, \'Ananya Reddy\', \'Cloud & DevOps\', 3.8);\nINSERT INTO students VALUES (3, \'Aarav Sharma\', \'Python & AI\', 3.95);\n\n-- @query\nSELECT name, track, gpa FROM students WHERE gpa >= 3.85 ORDER BY gpa DESC;\n```\n';
         break;
+      case 'practice-terminal':
+        prefix = '\n```practice-terminal\n# @title: Linux Terminal Practice\n# @scenario: Inspect /var/log/syslog and verify file permissions using ls -la\n```\n';
+        break;
+      case 'practice-git':
+        prefix = '\n```practice-git\n# @title: Interactive Git Sandbox\n```\n';
+        break;
+      case 'practice-code':
+        prefix = '\n```practice-python\n# Write and execute real Python / C / Java code\ndef solve():\n    print("Hello from KaizenQ Code Studio!")\n\nsolve()\n```\n';
+        break;
+      case 'practice-web':
+        prefix = '\n```practice-web\n<!DOCTYPE html>\n<html>\n<head>\n  <style>\n    body { font-family: sans-serif; background: #0f172a; color: #38bdf8; padding: 20px; }\n    .btn { background: #0284c7; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; }\n  </style>\n</head>\n<body>\n  <h2>Interactive Web Component</h2>\n  <button class="btn" onclick="alert(\'Action triggered!\')">Click Me</button>\n</body>\n</html>\n```\n';
+        break;
+      case 'practice-k8s':
+        prefix = '\n```practice-k8s\n# Interactive Kubernetes Simulator\n# Try: kubectl get pods, kubectl get services\n```\n';
+        break;
       case 'hr':
         prefix = '\n---\n';
         break;
@@ -1439,10 +1454,50 @@ export const AdminContentStudio: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => insertMarkdown('practice-sql')}
-                          className="px-2.5 py-1 bg-sky-950/80 hover:bg-sky-900 text-sky-300 border border-sky-700/60 rounded-md font-bold text-[11px] transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs"
-                          title="Insert Interactive SQL Playground (WebAssembly)"
+                          className="px-2.5 py-1 bg-sky-950/80 hover:bg-sky-900 text-sky-300 border border-sky-700/60 rounded-md font-bold text-[11px] transition-colors cursor-pointer flex items-center gap-1 shadow-xs"
+                          title="Insert Interactive SQL Playground (SQLite WASM)"
                         >
-                          <Database className="w-3.5 h-3.5 text-sky-400" /> SQL Practice
+                          <Database className="w-3.5 h-3.5 text-sky-400" /> SQL
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => insertMarkdown('practice-terminal')}
+                          className="px-2.5 py-1 bg-purple-950/80 hover:bg-purple-900 text-purple-300 border border-purple-700/60 rounded-md font-bold text-[11px] transition-colors cursor-pointer flex items-center gap-1 shadow-xs"
+                          title="Insert Linux Bash Terminal Simulator"
+                        >
+                          <Terminal className="w-3.5 h-3.5 text-purple-400" /> Terminal
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => insertMarkdown('practice-git')}
+                          className="px-2.5 py-1 bg-amber-950/80 hover:bg-amber-900 text-amber-300 border border-amber-700/60 rounded-md font-bold text-[11px] transition-colors cursor-pointer flex items-center gap-1 shadow-xs"
+                          title="Insert Git Sandbox & Visualizer"
+                        >
+                          <GitBranch className="w-3.5 h-3.5 text-amber-400" /> Git
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => insertMarkdown('practice-code')}
+                          className="px-2.5 py-1 bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/60 rounded-md font-bold text-[11px] transition-colors cursor-pointer flex items-center gap-1 shadow-xs"
+                          title="Insert Code Runner (Python/C/Java/DSA)"
+                        >
+                          <Code2 className="w-3.5 h-3.5 text-emerald-400" /> Code
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => insertMarkdown('practice-web')}
+                          className="px-2.5 py-1 bg-blue-950/80 hover:bg-blue-900 text-blue-300 border border-blue-700/60 rounded-md font-bold text-[11px] transition-colors cursor-pointer flex items-center gap-1 shadow-xs"
+                          title="Insert Web & React Live Preview"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-blue-400" /> Web/React
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => insertMarkdown('practice-k8s')}
+                          className="px-2.5 py-1 bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 border border-indigo-700/60 rounded-md font-bold text-[11px] transition-colors cursor-pointer flex items-center gap-1 shadow-xs"
+                          title="Insert Kubernetes Simulator"
+                        >
+                          <Server className="w-3.5 h-3.5 text-indigo-400" /> K8s
                         </button>
                         <button
                           type="button"

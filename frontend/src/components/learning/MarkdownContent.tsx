@@ -4,6 +4,11 @@ import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import { Copy, Check, Lightbulb, Info } from 'lucide-react';
 import { SqlPlayground } from './practice/SqlPlayground';
+import { LinuxTerminalSimulator } from './practice/LinuxTerminalSimulator';
+import { GitSandboxSimulator } from './practice/GitSandboxSimulator';
+import { CodeEditorRunner } from './practice/CodeEditorRunner';
+import { WebReactPlayground } from './practice/WebReactPlayground';
+import { KubernetesSimulator } from './practice/KubernetesSimulator';
 
 interface MarkdownContentProps {
   content: string;
@@ -168,6 +173,66 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, isNig
                   isNightMode={isNightMode}
                 />
               );
+            }
+
+            // ── Interactive Practice: Linux Terminal Simulator ────────────
+            if (language === 'practice-terminal' || language === 'practice-linux' || language === 'practice-bash') {
+              const text = rawCode.trim();
+              let scenario = '';
+              const titleMatch = text.match(/#\s*@title:\s*(.+)/i);
+              const title = titleMatch ? titleMatch[1].trim() : 'Linux Terminal Simulator';
+              const scenarioMatch = text.match(/#\s*@scenario:\s*(.+)/i);
+              if (scenarioMatch) scenario = scenarioMatch[1].trim();
+
+              return (
+                <LinuxTerminalSimulator
+                  title={title}
+                  initialScenario={scenario || undefined}
+                />
+              );
+            }
+
+            // ── Interactive Practice: Git Sandbox ─────────────────────────
+            if (language === 'practice-git' || language === 'git-sandbox') {
+              const text = rawCode.trim();
+              const titleMatch = text.match(/#\s*@title:\s*(.+)/i);
+              const title = titleMatch ? titleMatch[1].trim() : 'Interactive Git Sandbox';
+
+              return <GitSandboxSimulator title={title} />;
+            }
+
+            // ── Interactive Practice: Code Editor & Compiler (C, Python, Java, DSA) ──
+            if (
+              language === 'practice-code' ||
+              language === 'practice-c' ||
+              language === 'practice-python' ||
+              language === 'practice-java' ||
+              language === 'practice-cpp' ||
+              language === 'practice-dsa'
+            ) {
+              const text = rawCode.trim();
+              const detectedLang: 'c' | 'python' | 'java' | 'cpp' | 'javascript' =
+                language === 'practice-c' ? 'c' :
+                language === 'practice-java' ? 'java' :
+                language === 'practice-cpp' ? 'cpp' :
+                'python';
+
+              return (
+                <CodeEditorRunner
+                  language={detectedLang}
+                  initialCode={text || undefined}
+                />
+              );
+            }
+
+            // ── Interactive Practice: Web & React Live Playground ─────────
+            if (language === 'practice-web' || language === 'practice-react' || language === 'web-playground') {
+              return <WebReactPlayground initialHtml={rawCode.trim() || undefined} />;
+            }
+
+            // ── Interactive Practice: Kubernetes Simulator ────────────────
+            if (language === 'practice-k8s' || language === 'practice-kubernetes' || language === 'k8s-sim') {
+              return <KubernetesSimulator />;
             }
 
             return (

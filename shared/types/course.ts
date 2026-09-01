@@ -204,6 +204,7 @@ export interface ICourse {
   aiGenerated?: boolean;
   aiPrompt?: string;
   aiMetadata?: Record<string, any>;
+  practiceType?: 'sql' | 'terminal' | 'git' | 'code-c' | 'code-python' | 'code-java' | 'sandpack' | 'k8s-sim' | null;
   progress?: number; // Enrollment completion percentage (0-100)
   isEnrolled?: boolean; // Whether current student is enrolled
   createdBy?: string;
