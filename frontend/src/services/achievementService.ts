@@ -1,5 +1,18 @@
 import { toast } from 'sonner';
 import { studentService, type StudentUser } from './studentService';
+import { db } from './firebase';
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  collection,
+  query,
+  orderBy,
+  limit,
+  onSnapshot,
+  getDocs,
+} from 'firebase/firestore';
 
 // ================= TYPES & INTERFACES =================
 
@@ -275,6 +288,66 @@ export class XPService {
     // Auto-check badges when XP updates
     const badgeService = new BadgeService();
     badgeService.checkAndAwardBadges(userId);
+
+    // Sync directly to Firestore in real-time
+    if (db && userId && userId !== 'default_student') {
+      try {
+        let profileName = 'Student Scholar';
+        let profileEmail = '';
+        let profilePhoto = '';
+        let profileTrack = 'React & Full-Stack Web';
+        let profileCollege = 'Shaivika AI Foundation';
+        let profileBranch = 'Computer Science & AI';
+        let profileGithub = '';
+
+        try {
+          const userRaw = localStorage.getItem('shaivika_user');
+          if (userRaw) {
+            const u = JSON.parse(userRaw);
+            profileName = u.fullName || u.name || u.displayName || profileName;
+            profileEmail = u.email || '';
+            profilePhoto = u.photoURL || u.profilePhoto || '';
+            profileTrack = u.track || profileTrack;
+            profileCollege = u.college || profileCollege;
+            profileBranch = u.branch || profileBranch;
+            profileGithub = u.githubUsername || u.github || '';
+          }
+        } catch {}
+
+        const streakState = new AchievementService().getStreaks(userId);
+        const badgeCount = badgeService.getEarnedBadges(userId).length;
+
+        const payload = {
+          id: userId,
+          uid: userId,
+          name: profileName,
+          displayName: profileName,
+          email: profileEmail,
+          avatarUrl: profilePhoto || (profileGithub ? `https://github.com/${profileGithub}.png?size=200` : `https://ui-avatars.com/api/?name=${encodeURIComponent(profileName)}&background=0284c7&color=fff&bold=true`),
+          photoURL: profilePhoto,
+          githubUsername: profileGithub,
+          githubUrl: profileGithub ? `https://github.com/${profileGithub}` : '',
+          college: profileCollege,
+          branch: profileBranch,
+          track: profileTrack,
+          xp: updatedXp,
+          xpTotal: updatedXp,
+          streak: streakState.dailyStreak,
+          currentStreak: streakState.dailyStreak,
+          level: newLevel,
+          levelTitle: getLevelTitle(newLevel),
+          badgesCount: badgeCount,
+          lastActive: new Date().toISOString(),
+          lastActiveDate: streakState.lastActiveDate,
+          updatedAt: new Date().toISOString(),
+        };
+
+        setDoc(doc(db, 'leaderboard', userId), payload, { merge: true }).catch(() => {});
+        setDoc(doc(db, 'users', userId), { xp: updatedXp, xpTotal: updatedXp, level: newLevel, levelTitle: getLevelTitle(newLevel), updatedAt: new Date().toISOString() }, { merge: true }).catch(() => {});
+      } catch (err) {
+        console.warn('Leaderboard Firestore sync notice:', err);
+      }
+    }
 
     return updatedXp;
   }
@@ -880,6 +953,55 @@ export class LeaderboardService {
   }
 
   async getLeaderboardAsync(filter: 'global' | 'course' | 'weekly' | 'monthly', userId = 'default_student'): Promise<LeaderboardEntry[]> {
+    if (db) {
+      try {
+        const q = query(collection(db, 'leaderboard'), orderBy('xp', 'desc'), limit(50));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const directEntries: LeaderboardEntry[] = [];
+          snap.forEach((docSnap) => {
+            const data = docSnap.data();
+            const rawXp = typeof data.xp === 'number' ? data.xp : (data.xpTotal || 350);
+            let effectiveXp = rawXp;
+            if (filter === 'weekly') effectiveXp = Math.max(80, Math.round(rawXp * 0.35));
+            else if (filter === 'monthly') effectiveXp = Math.max(180, Math.round(rawXp * 0.70));
+            else if (filter === 'course') effectiveXp = Math.max(120, Math.round(rawXp * 0.55));
+
+            const isCurrent = docSnap.id === userId || (data.uid && data.uid === userId);
+            const level = getLevelForXP(rawXp);
+
+            directEntries.push({
+              id: docSnap.id,
+              name: data.name || data.displayName || 'Scholar',
+              avatarUrl: data.avatarUrl || data.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name || 'Scholar')}&background=0284c7&color=fff&bold=true`,
+              githubUsername: data.githubUsername,
+              githubUrl: data.githubUrl,
+              college: data.college || 'Shaivika AI Foundation',
+              branch: data.branch || data.track || 'AI & Software Engineering',
+              track: data.track || 'React & Full-Stack Web',
+              xp: effectiveXp,
+              badgesCount: data.badgesCount || 1,
+              badges: data.badges || [],
+              coursesCompleted: data.coursesCompleted || 0,
+              streak: data.streak || data.currentStreak || 1,
+              level,
+              levelTitle: data.levelTitle || getLevelTitle(level),
+              rank: 0,
+              rankChange: 0,
+              isCurrentUser: isCurrent,
+            });
+          });
+
+          if (directEntries.length > 0) {
+            directEntries.sort((a, b) => b.xp - a.xp);
+            return directEntries.map((item, idx) => ({ ...item, rank: idx + 1 }));
+          }
+        }
+      } catch (err) {
+        console.warn('Leaderboard direct getDocs notice:', err);
+      }
+    }
+
     const students = await studentService.fetchFirestoreStudentsDirectly();
     return this.calculateCohortFromStudents(students, filter, userId);
   }
@@ -892,7 +1014,7 @@ export class LeaderboardService {
     userId = 'default_student',
     callback: (entries: LeaderboardEntry[]) => void
   ): () => void {
-    // 1. Initial calculate from current local dataset
+    // 1. Initial calculation from current local dataset
     const initialList = this.getLeaderboard(filter, userId);
     callback(initialList);
 
@@ -908,24 +1030,83 @@ export class LeaderboardService {
       window.addEventListener('storage', handleLocalEvent);
     }
 
-    // 3. Connect to live studentService Firestore snapshot listener
+    let unsubFirestoreLeaderboard: (() => void) | null = null;
+
+    // 3. Direct Firestore real-time onSnapshot listener on 'leaderboard' collection
+    if (db) {
+      try {
+        const q = query(collection(db, 'leaderboard'), orderBy('xp', 'desc'), limit(50));
+        unsubFirestoreLeaderboard = onSnapshot(q, (snapshot) => {
+          if (!snapshot.empty) {
+            const liveList: LeaderboardEntry[] = [];
+            snapshot.forEach((docSnap) => {
+              const data = docSnap.data();
+              const rawXp = typeof data.xp === 'number' ? data.xp : (data.xpTotal || 350);
+              let effectiveXp = rawXp;
+              if (filter === 'weekly') effectiveXp = Math.max(80, Math.round(rawXp * 0.35));
+              else if (filter === 'monthly') effectiveXp = Math.max(180, Math.round(rawXp * 0.70));
+              else if (filter === 'course') effectiveXp = Math.max(120, Math.round(rawXp * 0.55));
+
+              const isCurrent = docSnap.id === userId || (data.uid && data.uid === userId);
+              const level = getLevelForXP(rawXp);
+
+              liveList.push({
+                id: docSnap.id,
+                name: data.name || data.displayName || 'Scholar',
+                avatarUrl: data.avatarUrl || data.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name || 'Scholar')}&background=0284c7&color=fff&bold=true`,
+                githubUsername: data.githubUsername,
+                githubUrl: data.githubUrl,
+                college: data.college || 'Shaivika AI Foundation',
+                branch: data.branch || data.track || 'AI & Software Engineering',
+                track: data.track || 'React & Full-Stack Web',
+                xp: effectiveXp,
+                badgesCount: data.badgesCount || 1,
+                badges: data.badges || [],
+                coursesCompleted: data.coursesCompleted || 0,
+                streak: data.streak || data.currentStreak || 1,
+                level,
+                levelTitle: data.levelTitle || getLevelTitle(level),
+                rank: 0,
+                rankChange: 0,
+                isCurrentUser: isCurrent,
+              });
+            });
+
+            if (liveList.length > 0) {
+              liveList.sort((a, b) => b.xp - a.xp);
+              const ranked = liveList.map((item, idx) => ({ ...item, rank: idx + 1 }));
+              callback(ranked);
+            }
+          }
+        }, (err) => {
+          console.warn('Leaderboard onSnapshot notice:', err);
+        });
+      } catch (e) {
+        console.warn('Leaderboard onSnapshot listener init notice:', e);
+      }
+    }
+
+    // 4. Connect to live studentService Firestore snapshot listener as fallback / supplement
     const unsubStudents = studentService.subscribeToStudents((students) => {
       const computed = this.calculateCohortFromStudents(students, filter, userId);
       callback(computed);
     });
 
-    // 4. Periodic background sync heartbeat (every 20s)
+    // 5. Background sync heartbeat (every 30s)
     const interval = setInterval(() => {
       this.getLeaderboardAsync(filter, userId).then((fresh) => {
         if (fresh && fresh.length > 0) callback(fresh);
       });
-    }, 20000);
+    }, 30000);
 
     return () => {
       if (typeof window !== 'undefined') {
         window.removeEventListener('shaivika_xp_updated', handleLocalEvent);
         window.removeEventListener('shaivika_student_updated', handleLocalEvent);
         window.removeEventListener('storage', handleLocalEvent);
+      }
+      if (unsubFirestoreLeaderboard) {
+        unsubFirestoreLeaderboard();
       }
       unsubStudents();
       clearInterval(interval);

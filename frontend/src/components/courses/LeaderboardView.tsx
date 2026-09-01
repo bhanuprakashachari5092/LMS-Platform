@@ -19,8 +19,18 @@ import {
   ShieldCheck,
   Medal,
 } from 'lucide-react';
-import { LeaderboardService, type LeaderboardEntry } from '../../services/achievementService';
+import {
+  LeaderboardService,
+  XPService,
+  AchievementService,
+  BadgeService,
+  getLevelForXP,
+  getLevelTitle,
+  type LeaderboardEntry
+} from '../../services/achievementService';
 import { useAuth } from '@/contexts/AuthContext';
+import { db } from '@/services/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 
 const GithubIcon: React.FC<{ className?: string }> = ({ className = 'w-3.5 h-3.5' }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -90,6 +100,53 @@ export const LeaderboardView: React.FC = () => {
   const [lastSyncTime, setLastSyncTime] = useState<string>('Just now');
   const [selectedScholar, setSelectedScholar] = useState<LeaderboardEntry | null>(null);
   const [showConfetti, setShowConfetti] = useState<boolean>(false);
+
+  // Sync current user's profile and live XP to leaderboard collection in Firestore on mount
+  useEffect(() => {
+    if (user?.uid) {
+      const xpService = new XPService();
+      const currentXp = xpService.getXPPoints(user.uid);
+      const statService = new AchievementService();
+      const streakState = statService.getStreaks(user.uid);
+      const badgeCount = new BadgeService().getEarnedBadges(user.uid).length;
+      const level = getLevelForXP(currentXp);
+
+      const name = userProfile?.fullName || userProfile?.name || user?.displayName || 'Scholar';
+      const photo = userProfile?.photoURL || user?.photoURL || '';
+      const github = (userProfile as any)?.githubUsername || (userProfile as any)?.github || '';
+
+      if (db) {
+        setDoc(
+          doc(db, 'leaderboard', user.uid),
+          {
+            id: user.uid,
+            uid: user.uid,
+            name,
+            displayName: name,
+            email: user.email || '',
+            avatarUrl: photo || (github ? `https://github.com/${github}.png?size=200` : `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0284c7&color=fff&bold=true`),
+            photoURL: photo,
+            githubUsername: github,
+            githubUrl: github ? `https://github.com/${github}` : '',
+            college: (userProfile as any)?.college || 'Shaivika AI Foundation',
+            branch: (userProfile as any)?.branch || 'Computer Science & AI',
+            track: (userProfile as any)?.track || 'React & Full-Stack Web',
+            xp: currentXp,
+            xpTotal: currentXp,
+            streak: streakState.dailyStreak,
+            currentStreak: streakState.dailyStreak,
+            level,
+            levelTitle: getLevelTitle(level),
+            badgesCount: badgeCount,
+            lastActive: new Date().toISOString(),
+            lastActiveDate: streakState.lastActiveDate,
+            updatedAt: new Date().toISOString()
+          },
+          { merge: true }
+        ).catch(() => {});
+      }
+    }
+  }, [user, userProfile]);
 
   // Real-time live subscription
   useEffect(() => {

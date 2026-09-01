@@ -71,6 +71,13 @@ service cloud.firestore {
       allow update, delete: if isAdmin() || isOwner(instructorId);
     }
 
+    // Leaderboard Collection (Live Student Standings & XP)
+    match /leaderboard/{userId} {
+      allow read: if true; // Public live rankings
+      allow create, update: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      allow delete: if isAdmin();
+    }
+
     // =========================================================================
     // 2. CURRICULUM, COURSES, MODULES & LESSONS (HIERARCHICAL & FLAT)
     // =========================================================================

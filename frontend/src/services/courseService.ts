@@ -1094,6 +1094,20 @@ class CourseService {
     const current = this.getUserXPPoints(userId);
     const updated = current + points;
     localStorage.setItem(`${this.pointsKey}_${userId}`, String(updated));
+    localStorage.setItem('shaivika_user_xp_' + userId, String(updated));
+    
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('shaivika_xp_updated', { detail: { xp: updated, userId, points } }));
+    }
+
+    // Direct Firestore Leaderboard sync
+    if (db && userId && userId !== 'default_student') {
+      try {
+        setDoc(doc(db, 'leaderboard', userId), { xp: updated, xpTotal: updated, updatedAt: new Date().toISOString() }, { merge: true }).catch(() => {});
+        setDoc(doc(db, 'users', userId), { xp: updated, xpTotal: updated, updatedAt: new Date().toISOString() }, { merge: true }).catch(() => {});
+      } catch (e) {}
+    }
+
     return updated;
   }
 
@@ -1120,6 +1134,10 @@ class CourseService {
     const current = this.getXPClaimLogs(userId);
     const updated = [claim, ...current];
     localStorage.setItem(`${this.xpClaimsKey}_${userId}`, JSON.stringify(updated));
+
+    if (typeof claim.xp === 'number' && claim.xp > 0) {
+      this.addXPPoints(claim.xp, userId);
+    }
     return updated;
   }
 
