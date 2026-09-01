@@ -3,9 +3,7 @@ import { studentService, type StudentUser } from './studentService';
 import { db } from './firebase';
 import {
   doc,
-  getDoc,
   setDoc,
-  updateDoc,
   collection,
   query,
   orderBy,
