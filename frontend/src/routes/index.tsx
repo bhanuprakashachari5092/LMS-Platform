@@ -124,6 +124,7 @@ const router = createBrowserRouter([
       { index: true, element: <LandingPage /> },
       { path: 'courses', element: <CoursesList /> },
       { path: 'course/:slug', element: <CourseView /> },
+      { path: 'courses/:slug', element: <CourseView /> },
       { path: 'verify-certificate', element: <VerifyCertificate /> },
       { path: 'verify-certificate/:verificationId', element: <VerifyCertificate /> },
       { path: 'lms', element: <LmsHub /> },
