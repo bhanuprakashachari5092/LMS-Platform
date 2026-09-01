@@ -177,9 +177,12 @@ export interface CourseItem {
   learningOutcomes?: string[];
   tags?: string[];
   durationHours?: number;
+  totalLessons?: number;
+  totalDurationMinutes?: number;
+  updatedAt?: string;
   syllabus: string[];
   modules?: ModuleItem[];
-  createdAt?: string;
+  created?: string;
 }
 
 

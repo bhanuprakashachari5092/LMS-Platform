@@ -9,6 +9,8 @@ const controller = new LessonController();
 router.get('/:id', controller.getLessonById);
 
 // Admin-only endpoints
+router.post('/batch-reorder', verifyFirebaseToken, requireRole('admin'), controller.batchReorder);
+router.delete('/modules/:id', verifyFirebaseToken, requireRole('admin'), controller.deleteModule);
 router.post('/', verifyFirebaseToken, requireRole('admin'), controller.saveLesson);
 router.put('/:id', verifyFirebaseToken, requireRole('admin'), controller.saveLesson);
 router.delete('/:id', verifyFirebaseToken, requireRole('admin'), controller.deleteLesson);

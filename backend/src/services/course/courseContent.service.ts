@@ -169,6 +169,41 @@ export class CourseContentService {
   }
 
   /**
+   * Recalculates totalLessons and durationHours across all modules in this course and updates the course document.
+   */
+  async syncCourseStats(courseId: string): Promise<void> {
+    try {
+      const modulesSnapshot = await db.collection('courses').doc(courseId).collection('modules').get();
+      let totalLessons = 0;
+      let totalReadMinutes = 0;
+
+      for (const modDoc of modulesSnapshot.docs) {
+        const lessonsSnap = await modDoc.ref.collection('lessons').get();
+        totalLessons += lessonsSnap.size;
+        lessonsSnap.forEach((lDoc) => {
+          const lData = lDoc.data();
+          const readMin = lData.estimatedReadMinutes || lData.durationMinutes || 15;
+          totalReadMinutes += Number(readMin) || 15;
+        });
+      }
+
+      const durationHours = Math.max(1, Math.round(totalReadMinutes / 60));
+
+      await db.collection('courses').doc(courseId).set(
+        toDocument({
+          totalLessons,
+          durationHours,
+          totalDurationMinutes: totalReadMinutes,
+          updatedAt: new Date(),
+        }),
+        { merge: true }
+      );
+    } catch (err) {
+      console.warn(`Could not sync course stats for ${courseId}:`, err);
+    }
+  }
+
+  /**
    * Creates or updates a module document in Firestore.
    * Canonical write target: courses/{courseId}/modules/{moduleId}
    */
@@ -186,10 +221,11 @@ export class CourseContentService {
     await db.collection('courses').doc(courseId).collection('modules').doc(moduleDoc.id).set(cleanDoc, { merge: true });
 
     this.invalidateCache(`modules:${courseId}`);
+    await this.syncCourseStats(courseId);
   }
 
   /**
-   * Creates or updates a lesson document in Firestore.
+   * Creates or updates a lesson document in Firestore with atomic parent stats sync.
    * Canonical write target: courses/{courseId}/modules/{moduleId}/lessons/{lessonId}
    */
   async saveLesson(courseId: string, moduleId: string, lessonDoc: CourseLessonDoc): Promise<void> {
@@ -215,30 +251,120 @@ export class CourseContentService {
 
     this.invalidateCache(`lessons:${courseId}:${moduleId}`);
     this.invalidateCache(`lesson:${courseId}:${moduleId}:${lessonDoc.id}`);
+
+    // Synchronize parent course metadata
+    await this.syncCourseStats(courseId);
   }
 
   /**
-   * Deletes a canonical lesson and clears cache.
+   * Atomic batched reorder for all affected lessons.
+   */
+  async batchReorderLessons(
+    courseId: string,
+    updates: Array<{ lessonId: string; moduleId: string; order: number; orderIndex?: number; moduleTitle?: string }>
+  ): Promise<void> {
+    const batch = db.batch();
+    for (const item of updates) {
+      const idx = item.orderIndex ?? item.order;
+      const lessonRef = db
+        .collection('courses')
+        .doc(courseId)
+        .collection('modules')
+        .doc(item.moduleId)
+        .collection('lessons')
+        .doc(item.lessonId);
+
+      const payload: any = {
+        order: idx,
+        orderIndex: idx,
+        updatedAt: new Date(),
+      };
+      if (item.moduleTitle) {
+        payload.moduleTitle = item.moduleTitle;
+      }
+      batch.set(lessonRef, toDocument(payload), { merge: true });
+    }
+
+    // Also update parent course updatedAt
+    const courseRef = db.collection('courses').doc(courseId);
+    batch.set(courseRef, toDocument({ updatedAt: new Date() }), { merge: true });
+
+    await batch.commit();
+    this.invalidateCache(`lessons:${courseId}`);
+    this.invalidateCache(`modules:${courseId}`);
+  }
+
+  /**
+   * Deletes a canonical lesson, re-sequences remaining lessons in the module with batched write, and updates course stats.
    * Canonical target: courses/{courseId}/modules/{moduleId}/lessons/{lessonId}
    */
   async deleteLesson(lessonId: string, courseId?: string, moduleId?: string): Promise<boolean> {
     try {
       if (courseId && moduleId) {
-        await db
-          .collection('courses')
-          .doc(courseId)
-          .collection('modules')
-          .doc(moduleId)
-          .collection('lessons')
-          .doc(lessonId)
-          .delete();
+        const moduleRef = db.collection('courses').doc(courseId).collection('modules').doc(moduleId);
+        const lessonRef = moduleRef.collection('lessons').doc(lessonId);
+
+        // Fetch remaining lessons to re-sequence without gaps
+        const remainingLessonsSnap = await moduleRef.collection('lessons').get();
+        const batch = db.batch();
+
+        batch.delete(lessonRef);
+
+        let seq = 1;
+        const otherDocs = remainingLessonsSnap.docs
+          .filter((d) => d.id !== lessonId)
+          .sort((a, b) => (a.data().orderIndex ?? a.data().order ?? 0) - (b.data().orderIndex ?? b.data().order ?? 0));
+
+        for (const doc of otherDocs) {
+          batch.set(
+            doc.ref,
+            toDocument({
+              order: seq,
+              orderIndex: seq,
+              updatedAt: new Date(),
+            }),
+            { merge: true }
+          );
+          seq++;
+        }
+
+        await batch.commit();
 
         this.invalidateCache(`lesson:${courseId}:${moduleId}:${lessonId}`);
         this.invalidateCache(`lessons:${courseId}:${moduleId}`);
+
+        await this.syncCourseStats(courseId);
       }
       return true;
     } catch (error) {
       console.error(`Error deleting lesson ${lessonId}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Cascading module deletion: removes all nested lessons, the module doc, and syncs course stats.
+   */
+  async deleteModule(courseId: string, moduleId: string): Promise<boolean> {
+    try {
+      const moduleRef = db.collection('courses').doc(courseId).collection('modules').doc(moduleId);
+      const lessonsSnap = await moduleRef.collection('lessons').get();
+
+      const batch = db.batch();
+      lessonsSnap.forEach((lDoc) => {
+        batch.delete(lDoc.ref);
+      });
+      batch.delete(moduleRef);
+
+      await batch.commit();
+
+      this.invalidateCache(`modules:${courseId}`);
+      this.invalidateCache(`lessons:${courseId}:${moduleId}`);
+
+      await this.syncCourseStats(courseId);
+      return true;
+    } catch (error) {
+      console.error(`Error deleting module ${moduleId}:`, error);
       return false;
     }
   }

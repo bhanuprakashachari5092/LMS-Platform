@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useCourses } from '@/contexts/CourseContext';
 import type { ModuleItem, LearningUnitItem } from '@/contexts/CourseContext';
@@ -28,13 +28,16 @@ import {
   HelpCircle,
   Video,
   Paperclip,
-  CheckSquare
+  CheckSquare,
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ResourceItem } from '@/services/contentManagementService';
 import { sanitizeAdminInput, sanitizeMarkdownContent } from '@/utils/adminDataSanitizer';
 import { MarkdownContent } from '@/components/learning/MarkdownContent';
 import { aiAutofillService } from '@/services/aiAutofillService';
+import { courseService } from '@/services/courseService';
 
 // Calculate estimated reading time (~200 words per minute)
 function calculateEstimatedReadMinutes(text?: string): number {
@@ -53,11 +56,16 @@ function countLines(text?: string): number {
   return text.split('\n').length;
 }
 
-function formatDate(dateVal?: string | number | Date): string {
-  if (!dateVal) return 'Just now';
+function formatRelativeTime(dateVal?: string | number | Date | null): string {
+  if (!dateVal) return 'Not saved yet';
   try {
     const d = new Date(dateVal);
     if (isNaN(d.getTime())) return 'Recently';
+    const diffSec = Math.floor((Date.now() - d.getTime()) / 1000);
+    if (diffSec < 5) return 'Saved just now';
+    if (diffSec < 60) return `Saved ${diffSec}s ago`;
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `Saved ${diffMin}m ago`;
     return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   } catch {
     return 'Recently';
@@ -90,6 +98,10 @@ export const AdminContentStudio: React.FC = () => {
   const [showDiscardModal, setShowDiscardModal] = useState<boolean>(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
 
+  // Delete Modals State
+  const [lessonToDelete, setLessonToDelete] = useState<{ unit: LearningUnitItem; mId: string; tId: string } | null>(null);
+  const [moduleToDelete, setModuleToDelete] = useState<ModuleItem | null>(null);
+
   // Drag and drop reordering state
   const [draggedLessonInfo, setDraggedLessonInfo] = useState<{ lessonId: string; sourceModId: string; sourceTopId: string } | null>(null);
   const [dragOverLessonId, setDragOverLessonId] = useState<string | null>(null);
@@ -108,8 +120,11 @@ export const AdminContentStudio: React.FC = () => {
   // Editor Tabs
   const [activeTab, setActiveTab] = useState<'reading' | 'overview' | 'video' | 'resources' | 'quiz' | 'assignment'>('reading');
 
-  // Save Status
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  // Real-time Save & Autosave Status
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [lastSavedTimestamp, setLastSavedTimestamp] = useState<string | null>(null);
+  const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
+  const [relativeSaveString, setRelativeSaveString] = useState<string>('Saved');
 
   // Resource helpers
   const [newResourceName, setNewResourceName] = useState('');
@@ -117,6 +132,8 @@ export const AdminContentStudio: React.FC = () => {
 
   // Textarea ref for markdown toolbar insertions & cursor
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const autosaveTimerRef = useRef<any>(null);
+  const retryCountRef = useRef<number>(0);
 
   // Find active course record
   const activeCourse = useMemo(() => {
@@ -153,22 +170,140 @@ export const AdminContentStudio: React.FC = () => {
           setSelectedLesson(firstUnit);
           setActiveModuleId(firstMod.id);
           setActiveTopicId(firstTopic.id);
+          setLastSavedTimestamp(firstUnit.lastSavedAt || null);
         }
       }
     }
   }, [activeCourse]);
 
-  // Global Keyboard Shortcuts (Ctrl+S / Cmd+S to save)
+  // Live Relative Save Time Updater (runs every 3 seconds)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (lastSavedTimestamp) {
+        setRelativeSaveString(formatRelativeTime(lastSavedTimestamp));
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [lastSavedTimestamp]);
+
+  // Primary Persistence Engine: Writes Lesson to Firestore + Syncs Course
+  const persistLessonToFirestore = useCallback(
+    async (lessonToSave: LearningUnitItem, modId: string, topId: string, isManual = false): Promise<boolean> => {
+      if (!activeCourse) return false;
+
+      setSaveStatus('saving');
+      setSaveErrorMessage(null);
+
+      try {
+        const sanitizedLesson: LearningUnitItem = {
+          ...lessonToSave,
+          title: sanitizeAdminInput(lessonToSave.title),
+          description: sanitizeAdminInput(lessonToSave.description),
+          readingContent: sanitizeMarkdownContent(lessonToSave.readingContent || ''),
+          lastSavedAt: new Date().toISOString(),
+          order: lessonToSave.order || 1,
+          orderIndex: lessonToSave.orderIndex || lessonToSave.order || 1,
+          duration: `${calculateEstimatedReadMinutes(lessonToSave.readingContent)} mins`
+        };
+
+        // 1. Update In-Memory Course Tree
+        const updatedModules = (activeCourse.modules || []).map(m => {
+          if (m.id === modId) {
+            const nextTopics = m.topics.map(t => {
+              if (t.id === topId) {
+                const nextUnits = t.learningUnits.map(u => (u.id === lessonToSave.id ? sanitizedLesson : u));
+                return { ...t, learningUnits: nextUnits };
+              }
+              return t;
+            });
+            return { ...m, topics: nextTopics };
+          }
+          return m;
+        });
+
+        // 2. Persist to Backend API / Firestore Subcollections
+        await courseService.saveLessonContent(String(activeCourse.id), modId, sanitizedLesson);
+
+        // 3. Update Course Document in Context & LocalStorage
+        await updateCourse(activeCourse.id, {
+          modules: updatedModules,
+          updatedAt: new Date().toISOString()
+        });
+
+        setSelectedLesson(sanitizedLesson);
+        setIsDirty(false);
+        setSaveStatus('saved');
+        setLastSavedTimestamp(sanitizedLesson.lastSavedAt || new Date().toISOString());
+        setRelativeSaveString('Saved just now');
+        retryCountRef.current = 0;
+
+        if (isManual) {
+          toast.success(`Lesson "${sanitizedLesson.title}" saved to Firebase!`);
+        }
+
+        setTimeout(() => {
+          setSaveStatus(prev => (prev === 'saved' ? 'idle' : prev));
+        }, 3000);
+
+        return true;
+      } catch (err: any) {
+        console.error('Firestore save failure:', err);
+        setSaveStatus('error');
+        const errorMsg = err.message || 'Network error writing to Firestore';
+        setSaveErrorMessage(errorMsg);
+
+        // Auto-retry mechanism with exponential backoff (up to 3 attempts)
+        if (retryCountRef.current < 3) {
+          retryCountRef.current += 1;
+          const retryDelay = Math.pow(2, retryCountRef.current) * 1000;
+          setTimeout(() => {
+            if (isDirty) {
+              persistLessonToFirestore(lessonToSave, modId, topId, false);
+            }
+          }, retryDelay);
+        } else {
+          toast.error(`Save failed: ${errorMsg}. Please check connection.`);
+        }
+
+        return false;
+      }
+    },
+    [activeCourse, updateCourse, isDirty]
+  );
+
+  // Autosave Debounce Engine (Triggers 1.8 seconds after user stops typing)
+  useEffect(() => {
+    if (!isDirty || !selectedLesson || !activeModuleId || !activeTopicId) return;
+
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+    }
+
+    autosaveTimerRef.current = setTimeout(() => {
+      persistLessonToFirestore(selectedLesson, activeModuleId, activeTopicId, false);
+    }, 1800);
+
+    return () => {
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+      }
+    };
+  }, [isDirty, selectedLesson, activeModuleId, activeTopicId, persistLessonToFirestore]);
+
+  // Global Keyboard Shortcuts (Ctrl+S / Cmd+S to save immediately)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
-        handleManualSave();
+        if (selectedLesson && activeModuleId && activeTopicId) {
+          if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+          persistLessonToFirestore(selectedLesson, activeModuleId, activeTopicId, true);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedLesson, activeCourse, activeModuleId, activeTopicId, isDirty]);
+  }, [selectedLesson, activeModuleId, activeTopicId, persistLessonToFirestore]);
 
   // Browser reload / navigation unsaved guard
   useEffect(() => {
@@ -182,46 +317,11 @@ export const AdminContentStudio: React.FC = () => {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isDirty]);
 
-  // Save Lesson Handler
-  const handleManualSave = async () => {
-    if (!activeCourse || !selectedLesson || !activeModuleId || !activeTopicId) return;
-
-    setSaveStatus('saving');
-    try {
-      const sanitizedLesson: LearningUnitItem = {
-        ...selectedLesson,
-        title: sanitizeAdminInput(selectedLesson.title),
-        description: sanitizeAdminInput(selectedLesson.description),
-        readingContent: sanitizeMarkdownContent(selectedLesson.readingContent || ''),
-        lastSavedAt: new Date().toISOString(),
-        order: selectedLesson.order || 1,
-        orderIndex: selectedLesson.orderIndex || selectedLesson.order || 1,
-      };
-
-      const updatedModules = (activeCourse.modules || []).map(m => {
-        if (m.id === activeModuleId) {
-          const nextTopics = m.topics.map(t => {
-            if (t.id === activeTopicId) {
-              const nextUnits = t.learningUnits.map(u => (u.id === selectedLesson.id ? sanitizedLesson : u));
-              return { ...t, learningUnits: nextUnits };
-            }
-            return t;
-          });
-          return { ...m, topics: nextTopics };
-        }
-        return m;
-      });
-
-      await updateCourse(activeCourse.id, { modules: updatedModules });
-      setSelectedLesson(sanitizedLesson);
-      setIsDirty(false);
-      setSaveStatus('saved');
-      toast.success(`Lesson "${sanitizedLesson.title}" saved successfully!`);
-      setTimeout(() => setSaveStatus('idle'), 2500);
-    } catch (err: any) {
-      setSaveStatus('idle');
-      toast.error(err.message || 'Failed to save lesson.');
-    }
+  // Manual Save Trigger
+  const handleManualSave = () => {
+    if (!selectedLesson || !activeModuleId || !activeTopicId) return;
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    persistLessonToFirestore(selectedLesson, activeModuleId, activeTopicId, true);
   };
 
   // Safe Navigation Handler with Discard Modal
@@ -242,6 +342,7 @@ export const AdminContentStudio: React.FC = () => {
       setActiveModuleId(mId);
       setActiveTopicId(tId);
       setIsDirty(false);
+      setLastSavedTimestamp(unit.lastSavedAt || null);
     });
   };
 
@@ -358,7 +459,6 @@ export const AdminContentStudio: React.FC = () => {
       return;
     }
 
-    // Check if existing content has more than 50 words and prompt confirmation
     const currentWordCount = countWords(selectedLesson.readingContent);
     if (currentWordCount > 50 && !showAiOverwriteModal) {
       setShowAiOverwriteModal(true);
@@ -377,25 +477,26 @@ export const AdminContentStudio: React.FC = () => {
       });
 
       handleInputChange('readingContent', result.content);
-      handleInputChange('estimatedReadMinutes' as any, result.estimatedReadMinutes);
+      handleInputChange('duration', `${result.estimatedReadMinutes} mins`);
       setActiveTab('reading');
-      toast.success('✨ In-depth lesson draft generated! Review in the live preview.');
+      toast.success('✨ AI Draft generated! Saving to Firebase...');
     } catch (err: any) {
-      toast.error(err.message || 'Autofill failed — please try again or write manually.');
+      toast.error(err.message || 'Autofill failed — please try again.');
     } finally {
       setIsAutofillingLesson(false);
     }
   };
 
-  // HTML5 Drag & Drop handlers
+  // HTML5 Drag & Drop handlers with Atomic Batched Reorder Write
   const handleDragStart = (e: React.DragEvent, lessonId: string, sourceModId: string, sourceTopId: string) => {
     e.dataTransfer.setData('text/plain', lessonId);
     setDraggedLessonInfo({ lessonId, sourceModId, sourceTopId });
   };
 
-  const handleDropOnLesson = (e: React.DragEvent, targetLessonId: string, targetModId: string, targetTopId: string) => {
+  const handleDropOnLesson = async (e: React.DragEvent, targetLessonId: string, targetModId: string, targetTopId: string) => {
     e.preventDefault();
     setDragOverLessonId(null);
+    setDragOverModId(null);
     if (!draggedLessonInfo || !activeCourse || !activeCourse.modules) return;
     if (draggedLessonInfo.lessonId === targetLessonId) return;
 
@@ -414,6 +515,8 @@ export const AdminContentStudio: React.FC = () => {
 
     if (!movingUnit) return;
 
+    const batchUpdates: Array<{ lessonId: string; moduleId: string; order: number; orderIndex: number }> = [];
+
     updated.forEach(m => {
       if (m.id === targetModId) {
         m.topics.forEach(t => {
@@ -424,19 +527,37 @@ export const AdminContentStudio: React.FC = () => {
             } else {
               t.learningUnits.push(movingUnit!);
             }
+
+            // Re-sequence
+            t.learningUnits = t.learningUnits.map((u, i) => {
+              const seq = i + 1;
+              batchUpdates.push({ lessonId: u.id, moduleId: m.id, order: seq, orderIndex: seq });
+              return { ...u, order: seq, orderIndex: seq };
+            });
           }
         });
       }
     });
 
-    updateCourse(activeCourse.id, { modules: updated });
-    toast.success('Reordered lesson position.');
+    // 1. Optimistic Local State Update
+    await updateCourse(activeCourse.id, { modules: updated });
+
+    // 2. Atomic Batched Firestore Write
+    try {
+      await courseService.batchReorderLessons(String(activeCourse.id), batchUpdates);
+      toast.success('Curriculum reordered and saved to Firebase.');
+    } catch (err) {
+      console.warn('Batch reorder warning:', err);
+    }
+
     setDraggedLessonInfo(null);
   };
 
-  // Move Lesson Up/Down
-  const moveLesson = (mId: string, tId: string, uId: string, direction: 'up' | 'down') => {
+  // Move Lesson Up/Down with Batched Write
+  const moveLesson = async (mId: string, tId: string, uId: string, direction: 'up' | 'down') => {
     if (!activeCourse?.modules) return;
+    const batchUpdates: Array<{ lessonId: string; moduleId: string; order: number; orderIndex: number }> = [];
+
     const updated = activeCourse.modules.map(m => {
       if (m.id === mId) {
         const nextTopics = m.topics.map(t => {
@@ -449,7 +570,13 @@ export const AdminContentStudio: React.FC = () => {
             const units = [...t.learningUnits];
             const [moved] = units.splice(idx, 1);
             units.splice(targetIdx, 0, moved);
-            return { ...t, learningUnits: units.map((u, i) => ({ ...u, order: i + 1, orderIndex: i + 1 })) };
+
+            const resequenced = units.map((u, i) => {
+              const seq = i + 1;
+              batchUpdates.push({ lessonId: u.id, moduleId: m.id, order: seq, orderIndex: seq });
+              return { ...u, order: seq, orderIndex: seq };
+            });
+            return { ...t, learningUnits: resequenced };
           }
           return t;
         });
@@ -457,11 +584,14 @@ export const AdminContentStudio: React.FC = () => {
       }
       return m;
     });
-    updateCourse(activeCourse.id, { modules: updated });
+
+    await updateCourse(activeCourse.id, { modules: updated });
+    await courseService.batchReorderLessons(String(activeCourse.id), batchUpdates);
+    toast.success('Lesson order updated.');
   };
 
   // Add new lesson
-  const addLessonNode = (mId: string, tId: string) => {
+  const addLessonNode = async (mId: string, tId: string) => {
     if (!activeCourse?.modules) return;
     const targetModule = activeCourse.modules.find(m => m.id === mId);
     const existingCount = targetModule?.topics?.flatMap(t => t.learningUnits).length || 0;
@@ -491,19 +621,36 @@ export const AdminContentStudio: React.FC = () => {
       }
       return m;
     });
-    updateCourse(activeCourse.id, { modules: updated });
+
+    await updateCourse(activeCourse.id, { modules: updated });
+    await courseService.saveLessonContent(String(activeCourse.id), mId, newLesson);
+
     setSelectedLesson(newLesson);
     setActiveModuleId(mId);
     setActiveTopicId(tId);
     setIsDirty(false);
+    setLastSavedTimestamp(newLesson.lastSavedAt || null);
     toast.success('Added new Lesson. Ready to edit!');
   };
 
   // Add new module
-  const addModuleNode = () => {
+  const addModuleNode = async () => {
     if (!activeCourse) return;
     const newModId = `mod_${Date.now()}`;
     const newTopicId = `top_${Date.now()}`;
+    const firstLessonId = `lesson_${Date.now()}`;
+    const firstLesson: LearningUnitItem = {
+      id: firstLessonId,
+      title: 'Module Introduction & Notes',
+      description: 'Introductory notes.',
+      duration: '15 mins',
+      type: 'Reading',
+      order: 1,
+      orderIndex: 1,
+      lastSavedAt: new Date().toISOString(),
+      readingContent: '# Module Introduction\n\nWelcome to this module!'
+    };
+
     const newMod: ModuleItem = {
       id: newModId,
       title: `Module ${(activeCourse.modules?.length || 0) + 1}: New Curriculum Module`,
@@ -515,25 +662,77 @@ export const AdminContentStudio: React.FC = () => {
           title: 'Topic 1: Foundations',
           description: 'Topic introduction',
           estimatedDuration: '45 mins',
-          learningUnits: [
-            {
-              id: `lesson_${Date.now()}`,
-              title: 'Module Introduction & Notes',
-              description: 'Introductory notes.',
-              duration: '15 mins',
-              type: 'Reading',
-              order: 1,
-              orderIndex: 1,
-              lastSavedAt: new Date().toISOString(),
-              readingContent: '# Module Introduction\n\nWelcome to this module!'
-            }
-          ]
+          learningUnits: [firstLesson]
         }
       ]
     };
+
     const updated = [...(activeCourse.modules || []), newMod];
-    updateCourse(activeCourse.id, { modules: updated });
-    toast.success('Added new Module.');
+    await updateCourse(activeCourse.id, { modules: updated });
+    await courseService.saveLessonContent(String(activeCourse.id), newModId, firstLesson);
+
+    setSelectedLesson(firstLesson);
+    setActiveModuleId(newModId);
+    setActiveTopicId(newTopicId);
+    setIsDirty(false);
+    toast.success('Added new Module and synced with Firebase.');
+  };
+
+  // Delete Lesson Handler
+  const confirmDeleteLesson = async () => {
+    if (!lessonToDelete || !activeCourse || !activeCourse.modules) return;
+    const { unit, mId, tId } = lessonToDelete;
+
+    const updated = activeCourse.modules.map(m => {
+      if (m.id === mId) {
+        const nextTopics = m.topics.map(t => {
+          if (t.id === tId) {
+            const filtered = t.learningUnits.filter(u => u.id !== unit.id);
+            return {
+              ...t,
+              learningUnits: filtered.map((u, i) => ({ ...u, order: i + 1, orderIndex: i + 1 }))
+            };
+          }
+          return t;
+        });
+        return { ...m, topics: nextTopics };
+      }
+      return m;
+    });
+
+    await updateCourse(activeCourse.id, { modules: updated });
+    await courseService.deleteLessonContent(unit.id, String(activeCourse.id), mId);
+
+    if (selectedLesson?.id === unit.id) {
+      const firstAvailable = updated[0]?.topics?.[0]?.learningUnits?.[0] || null;
+      setSelectedLesson(firstAvailable);
+      if (firstAvailable && updated[0] && updated[0].topics[0]) {
+        setActiveModuleId(updated[0].id);
+        setActiveTopicId(updated[0].topics[0].id);
+      }
+    }
+
+    setLessonToDelete(null);
+    toast.success(`Deleted lesson "${unit.title}".`);
+  };
+
+  // Delete Module Handler
+  const confirmDeleteModule = async () => {
+    if (!moduleToDelete || !activeCourse || !activeCourse.modules) return;
+
+    const updated = activeCourse.modules.filter(m => m.id !== moduleToDelete.id);
+    await updateCourse(activeCourse.id, { modules: updated });
+    await courseService.deleteModuleContent(moduleToDelete.id, String(activeCourse.id));
+
+    const firstAvailable = updated[0]?.topics?.[0]?.learningUnits?.[0] || null;
+    setSelectedLesson(firstAvailable);
+    if (firstAvailable && updated[0] && updated[0].topics[0]) {
+      setActiveModuleId(updated[0].id);
+      setActiveTopicId(updated[0].topics[0].id);
+    }
+
+    setModuleToDelete(null);
+    toast.success(`Deleted module "${moduleToDelete.title}".`);
   };
 
   // Course Stats
@@ -606,11 +805,43 @@ export const AdminContentStudio: React.FC = () => {
         <div className="flex items-center gap-2.5 shrink-0 text-xs font-bold">
           
           {/* Status Indicator */}
-          <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-800/60 border border-slate-700/60 text-[11px]">
-            <span className={`w-2 h-2 rounded-full ${isDirty ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`} />
-            <span className={isDirty ? 'text-amber-300' : 'text-emerald-300 font-medium'}>
-              {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved ✓' : isDirty ? 'Unsaved Changes' : 'Live Sync'}
-            </span>
+          <div
+            className={`hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full border text-[11px] transition-all ${
+              saveStatus === 'error'
+                ? 'bg-rose-950/60 border-rose-800 text-rose-300'
+                : isDirty
+                ? 'bg-amber-950/40 border-amber-800/60 text-amber-300'
+                : 'bg-slate-800/60 border-slate-700/60 text-slate-300'
+            }`}
+          >
+            {saveStatus === 'saving' ? (
+              <>
+                <RefreshCw className="w-3 h-3 text-indigo-400 animate-spin" />
+                <span className="text-indigo-300 font-semibold">Saving to Firebase...</span>
+              </>
+            ) : saveStatus === 'error' ? (
+              <>
+                <AlertCircle className="w-3 h-3 text-rose-400" />
+                <span className="text-rose-300 font-bold">Save failed</span>
+                <button
+                  type="button"
+                  onClick={handleManualSave}
+                  className="underline hover:text-white cursor-pointer ml-1"
+                >
+                  Retry
+                </button>
+              </>
+            ) : isDirty ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                <span>Unsaved Draft (Autosaving...)</span>
+              </>
+            ) : (
+              <>
+                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                <span className="text-emerald-300">{relativeSaveString}</span>
+              </>
+            )}
           </div>
 
           {/* AI Draft Button */}
@@ -645,16 +876,33 @@ export const AdminContentStudio: React.FC = () => {
             title="Save Lesson (Ctrl+S / Cmd+S)"
           >
             <Save className="w-3.5 h-3.5" />
-            <span>Save</span>
+            <span>{saveStatus === 'saving' ? 'Saving...' : 'Save'}</span>
             <span className="text-[10px] opacity-70 bg-indigo-700 px-1 py-0.5 rounded font-mono hidden lg:inline">⌘S</span>
           </button>
         </div>
       </header>
 
+      {/* Persistent Error Alert (if Firestore write fails) */}
+      {saveErrorMessage && (
+        <div className="bg-rose-950/80 border-b border-rose-800/80 px-4 py-2 flex items-center justify-between text-xs text-rose-200 shrink-0">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+            <span><strong>Save Warning:</strong> {saveErrorMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleManualSave}
+            className="px-3 py-1 bg-rose-800 hover:bg-rose-700 text-white rounded-lg font-bold cursor-pointer transition-colors"
+          >
+            Retry Save Now
+          </button>
+        </div>
+      )}
+
       {/* 2. MAIN STUDIO WORKSPACE (3 Zones: Left Outline, Center Editor, Right Preview) */}
       <div className="flex-1 flex min-h-0 overflow-hidden relative">
         
-        {/* ZONE A: COLLAPSIBLE CURRICULUM OUTLINE PANEL (~300px) */}
+        {/* ZONE A: COLLAPSIBLE CURRICULUM OUTLINE PANEL (~320px) */}
         <aside
           className={`bg-slate-900 border-r border-slate-800 flex flex-col transition-all duration-300 ease-in-out shrink-0 z-10 ${
             isSidebarOpen ? 'w-80' : 'w-0 border-r-0'
@@ -764,6 +1012,14 @@ export const AdminContentStudio: React.FC = () => {
                         >
                           <Plus className="w-3.5 h-3.5" />
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => setModuleToDelete(module)}
+                          className="p-1 hover:bg-slate-800 text-rose-400 rounded-md cursor-pointer"
+                          title="Delete Module"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
 
@@ -831,6 +1087,14 @@ export const AdminContentStudio: React.FC = () => {
                                         title="Move Down"
                                       >
                                         <ChevronDown className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setLessonToDelete({ unit, mId: module.id, tId: topic.id })}
+                                        className={`p-1 rounded cursor-pointer ${isSelected ? 'hover:bg-indigo-700 text-rose-200' : 'hover:bg-slate-800 text-rose-400'}`}
+                                        title="Delete Lesson"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
                                       </button>
                                     </div>
                                   </div>
@@ -1157,9 +1421,9 @@ export const AdminContentStudio: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <span>Saved: {formatDate(selectedLesson.lastSavedAt)}</span>
+                      <span>{relativeSaveString}</span>
                       <span>•</span>
-                      <span className="text-slate-500">Markdown Studio v2.0</span>
+                      <span className="text-slate-500">Firestore Live Sync</span>
                     </div>
                   </footer>
                 </div>
@@ -1463,7 +1727,78 @@ export const AdminContentStudio: React.FC = () => {
         </div>
       )}
 
-      {/* 5. AI OVERWRITE CONFIRMATION MODAL */}
+      {/* 5. DELETE LESSON CONFIRMATION MODAL */}
+      {lessonToDelete && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-2xl">
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center">
+              <Trash2 className="w-6 h-6" />
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="font-extrabold text-base text-white">Delete Lesson?</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Are you sure you want to permanently delete <span className="text-white font-bold">"{lessonToDelete.unit.title}"</span>? This will remove the document from Firestore and re-sequence remaining lessons.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setLessonToDelete(null)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteLesson}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold cursor-pointer"
+              >
+                Delete Lesson
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6. DELETE MODULE CONFIRMATION MODAL */}
+      {moduleToDelete && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-2xl">
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="font-extrabold text-base text-white">Delete Entire Module?</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Warning: Deleting <span className="text-white font-bold">"{moduleToDelete.title}"</span> will permanently delete all{' '}
+                <span className="text-rose-400 font-bold">{moduleToDelete.topics?.flatMap(t => t.learningUnits).length || 0} lessons</span> inside it from Firebase.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setModuleToDelete(null)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteModule}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold cursor-pointer"
+              >
+                Delete Module & Lessons
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 7. AI OVERWRITE CONFIRMATION MODAL */}
       {showAiOverwriteModal && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-2xl">

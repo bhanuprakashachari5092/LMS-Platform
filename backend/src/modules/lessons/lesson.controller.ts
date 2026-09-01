@@ -40,6 +40,17 @@ export class LessonController {
     res.status(201).json(formatResponse(true, lessonData, 'Lesson saved successfully'));
   });
 
+  batchReorder = asyncHandler(async (req: Request, res: Response) => {
+    const { courseId, updates } = req.body;
+    if (!courseId || !Array.isArray(updates)) {
+      res.status(400).json(formatResponse(false, null, 'courseId and updates array are required'));
+      return;
+    }
+
+    await this.lessonService.batchReorderLessons(courseId, updates);
+    res.json(formatResponse(true, null, 'Lessons reordered successfully'));
+  });
+
   deleteLesson = asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id as string;
     const courseId = req.query.courseId as string | undefined;
@@ -52,5 +63,23 @@ export class LessonController {
     }
 
     res.json(formatResponse(true, null, 'Lesson deleted successfully'));
+  });
+
+  deleteModule = asyncHandler(async (req: Request, res: Response) => {
+    const moduleId = req.params.id as string;
+    const courseId = req.query.courseId as string;
+
+    if (!courseId || !moduleId) {
+      res.status(400).json(formatResponse(false, null, 'courseId and moduleId are required'));
+      return;
+    }
+
+    const success = await this.lessonService.deleteModule(courseId, moduleId);
+    if (!success) {
+      res.status(404).json(formatResponse(false, null, 'Failed to delete module'));
+      return;
+    }
+
+    res.json(formatResponse(true, null, 'Module and lessons deleted successfully'));
   });
 }

@@ -1716,6 +1716,115 @@ class CourseService {
     } catch (e) {}
     return 0;
   }
+
+  async saveLessonContent(courseId: string, moduleId: string, lessonDoc: any): Promise<boolean> {
+    try {
+      const token = localStorage.getItem('shaivika_auth_token');
+      const res = await fetch(`${API_BASE_URL}/lessons`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          courseId,
+          moduleId,
+          ...lessonDoc,
+        }),
+      });
+
+      if (res.ok) {
+        this.courseDetailsCache.delete(courseId);
+        this.getCoursesCache.clear();
+        return true;
+      }
+    } catch (e) {
+      console.warn('[CourseService] Backend saveLesson error:', e);
+    }
+
+    if (db) {
+      try {
+        const docRef = doc(db, 'courses', courseId, 'modules', moduleId, 'lessons', lessonDoc.id);
+        await setDoc(docRef, { ...lessonDoc, courseId, moduleId, updatedAt: new Date().toISOString() }, { merge: true });
+        this.courseDetailsCache.delete(courseId);
+        this.getCoursesCache.clear();
+        return true;
+      } catch (err) {
+        console.warn('[CourseService] Direct Firestore lesson save error:', err);
+      }
+    }
+    return false;
+  }
+
+  async batchReorderLessons(courseId: string, updates: any[]): Promise<boolean> {
+    try {
+      const token = localStorage.getItem('shaivika_auth_token');
+      const res = await fetch(`${API_BASE_URL}/lessons/batch-reorder`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ courseId, updates }),
+      });
+      if (res.ok) {
+        this.courseDetailsCache.delete(courseId);
+        this.getCoursesCache.clear();
+        return true;
+      }
+    } catch (e) {
+      console.warn('[CourseService] batchReorderLessons error:', e);
+    }
+    return false;
+  }
+
+  async deleteLessonContent(lessonId: string, courseId: string, moduleId: string): Promise<boolean> {
+    try {
+      const token = localStorage.getItem('shaivika_auth_token');
+      const res = await fetch(`${API_BASE_URL}/lessons/${lessonId}?courseId=${courseId}&moduleId=${moduleId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        this.courseDetailsCache.delete(courseId);
+        this.getCoursesCache.clear();
+        return true;
+      }
+    } catch (e) {
+      console.warn('[CourseService] deleteLessonContent error:', e);
+    }
+
+    if (db) {
+      try {
+        const docRef = doc(db, 'courses', courseId, 'modules', moduleId, 'lessons', lessonId);
+        await deleteDoc(docRef);
+        this.courseDetailsCache.delete(courseId);
+        this.getCoursesCache.clear();
+        return true;
+      } catch (err) {
+        console.warn('[CourseService] Direct Firestore lesson delete error:', err);
+      }
+    }
+    return false;
+  }
+
+  async deleteModuleContent(moduleId: string, courseId: string): Promise<boolean> {
+    try {
+      const token = localStorage.getItem('shaivika_auth_token');
+      const res = await fetch(`${API_BASE_URL}/lessons/modules/${moduleId}?courseId=${courseId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        this.courseDetailsCache.delete(courseId);
+        this.getCoursesCache.clear();
+        return true;
+      }
+    } catch (e) {
+      console.warn('[CourseService] deleteModuleContent error:', e);
+    }
+    return false;
+  }
 }
 
 export const courseService = new CourseService();
