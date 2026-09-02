@@ -66,25 +66,25 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, isNig
         rehypePlugins={rehypePlugins}
         components={{
           // ── Headings ─────────────────────────────────────────────
-          h1: ({ children }) => (
+          h1: ({ children }: any) => (
             <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight mt-10 mb-4 leading-tight
               ${isNightMode ? 'text-white' : 'text-slate-900'}`}>
               {children}
             </h1>
           ),
-          h2: ({ children }) => (
+          h2: ({ children }: any) => (
             <h2 className={`text-xl sm:text-2xl font-bold tracking-tight mt-8 mb-3 leading-snug
               ${isNightMode ? 'text-slate-100' : 'text-slate-800'}`}>
               {children}
             </h2>
           ),
-          h3: ({ children }) => (
+          h3: ({ children }: any) => (
             <h3 className={`text-lg sm:text-xl font-semibold mt-6 mb-2 leading-snug
               ${isNightMode ? 'text-slate-200' : 'text-slate-700'}`}>
               {children}
             </h3>
           ),
-          h4: ({ children }) => (
+          h4: ({ children }: any) => (
             <h4 className={`text-base font-semibold mt-5 mb-2
               ${isNightMode ? 'text-slate-300' : 'text-slate-700'}`}>
               {children}
@@ -92,7 +92,7 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, isNig
           ),
 
           // ── Paragraph ────────────────────────────────────────────
-          p: ({ children }) => (
+          p: ({ children }: any) => (
             <p className={`text-[1.0625rem] leading-[1.75] mb-5
               ${isNightMode ? 'text-slate-300' : 'text-slate-600'}`}>
               {children}
@@ -100,19 +100,19 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, isNig
           ),
 
           // ── Strong / Em ──────────────────────────────────────────
-          strong: ({ children }) => (
+          strong: ({ children }: any) => (
             <strong className={`font-bold ${isNightMode ? 'text-white' : 'text-slate-900'}`}>
               {children}
             </strong>
           ),
-          em: ({ children }) => (
+          em: ({ children }: any) => (
             <em className={`italic ${isNightMode ? 'text-slate-200' : 'text-slate-700'}`}>
               {children}
             </em>
           ),
 
           // ── Code blocks ──────────────────────────────────────────
-          pre: ({ children }) => {
+          pre: ({ children }: any) => {
             // Extract the raw code text from children
             const codeElement = React.Children.toArray(children).find(
               (child: any) => child?.type === 'code' || child?.props?.className?.includes('hljs')
@@ -264,7 +264,7 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, isNig
           },
 
           // ── Inline code ──────────────────────────────────────────
-          code: ({ className, children, ...props }) => {
+          code: ({ className, children, ...props }: any) => {
             // If it has a language class, it's inside a <pre> — render as-is
             if (className?.includes('language-') || className?.includes('hljs')) {
               return (
@@ -289,7 +289,7 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, isNig
           },
 
           // ── Blockquote (Tip / Note callouts) ─────────────────────
-          blockquote: ({ children }) => {
+          blockquote: ({ children }: any) => {
             const childText = React.Children.toArray(children)
               .map((c: any) => {
                 if (typeof c === 'string') return c;
@@ -369,40 +369,40 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, isNig
           },
 
           // ── Lists ────────────────────────────────────────────────
-          ul: ({ children }) => (
+          ul: ({ children }: any) => (
             <ul className={`list-disc pl-6 mb-5 space-y-1.5 text-[1.0625rem] leading-[1.75]
               ${isNightMode ? 'text-slate-300 marker:text-slate-500' : 'text-slate-600 marker:text-slate-400'}`}>
               {children}
             </ul>
           ),
-          ol: ({ children }) => (
+          ol: ({ children }: any) => (
             <ol className={`list-decimal pl-6 mb-5 space-y-1.5 text-[1.0625rem] leading-[1.75]
               ${isNightMode ? 'text-slate-300 marker:text-slate-500' : 'text-slate-600 marker:text-slate-400'}`}>
               {children}
             </ol>
           ),
-          li: ({ children }) => (
+          li: ({ children }: any) => (
             <li className="pl-1">{children}</li>
           ),
 
           // ── Table ────────────────────────────────────────────────
-          table: ({ children }) => (
+          table: ({ children }: any) => (
             <div className="my-6 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
               <table className={`w-full text-sm ${isNightMode ? 'text-slate-300' : 'text-slate-700'}`}>
                 {children}
               </table>
             </div>
           ),
-          thead: ({ children }) => (
+          thead: ({ children }: any) => (
             <thead className={`text-xs font-semibold uppercase tracking-wider
               ${isNightMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-600'}`}>
               {children}
             </thead>
           ),
-          th: ({ children }) => (
+          th: ({ children }: any) => (
             <th className="px-4 py-3 text-left font-semibold">{children}</th>
           ),
-          td: ({ children }) => (
+          td: ({ children }: any) => (
             <td className={`px-4 py-3 border-t ${isNightMode ? 'border-slate-700' : 'border-slate-200'}`}>
               {children}
             </td>
@@ -414,7 +414,7 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, isNig
           ),
 
           // ── Links ────────────────────────────────────────────────
-          a: ({ href, children }) => (
+          a: ({ href, children }: any) => (
             <a
               href={href}
               target="_blank"
@@ -430,7 +430,7 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, isNig
           ),
 
           // ── Images ───────────────────────────────────────────────
-          img: ({ src, alt }) => (
+          img: ({ src, alt }: any) => (
             <figure className="my-6">
               <img
                 src={src}

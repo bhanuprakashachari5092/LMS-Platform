@@ -1288,6 +1288,30 @@ class CourseService {
     return found;
   }
 
+  async getCourseModules(courseId: string): Promise<any[]> {
+    try {
+      const token = localStorage.getItem('shaivika_auth_token');
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      const res = await fetch(`${API_BASE_URL}/courses/${encodeURIComponent(courseId)}/modules`, {
+        headers,
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          return json.data;
+        }
+      }
+    } catch (err) {
+      console.warn(`[CourseService] Backend modules fetch notice for ${courseId}:`, err);
+    }
+    return [];
+  }
+
   async createCourse(dto: CreateCourseDTO): Promise<ICourse> {
     try {
       const token = localStorage.getItem('shaivika_auth_token');

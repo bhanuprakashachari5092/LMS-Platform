@@ -28,6 +28,22 @@ export const ModulesTab: React.FC<ModulesTabProps> = ({
     'git-1': true,
   });
 
+  React.useEffect(() => {
+    if (modules && modules.length > 0) {
+      const activeMod = modules.find((m) =>
+        m.lessons?.some((l) => String(l.id) === String(selectedLessonId))
+      );
+      if (activeMod) {
+        setOpenModules((prev) => ({
+          ...prev,
+          [String(activeMod.id)]: true,
+        }));
+      } else if (Object.keys(openModules).length === 0) {
+        setOpenModules({ [String(modules[0].id)]: true });
+      }
+    }
+  }, [selectedLessonId, modules]);
+
   const toggleModule = (moduleId: string | number) => {
     setOpenModules((prev) => ({
       ...prev,

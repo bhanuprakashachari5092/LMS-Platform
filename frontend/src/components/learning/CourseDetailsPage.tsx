@@ -54,6 +54,7 @@ export interface CourseDetailsProps {
       }>;
     }>;
   };
+  isLoadingModules?: boolean;
   onStartLearning: () => void;
   isEnrolled?: boolean;
   onEnroll?: () => void;
@@ -61,6 +62,7 @@ export interface CourseDetailsProps {
 
 export const CourseDetailsPage: React.FC<CourseDetailsProps> = ({
   course,
+  isLoadingModules: _isLoadingModules = false,
   onStartLearning,
   isEnrolled = false,
   onEnroll,
@@ -69,6 +71,12 @@ export const CourseDetailsPage: React.FC<CourseDetailsProps> = ({
   const [activeTab, setActiveTab] = useState<'overview' | 'curriculum' | 'outcomes' | 'faq'>('overview');
   const [openModuleId, setOpenModuleId] = useState<string | number | null>(course.modules[0]?.id || null);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
+
+  React.useEffect(() => {
+    if (!openModuleId && course.modules && course.modules.length > 0) {
+      setOpenModuleId(course.modules[0].id);
+    }
+  }, [course.modules, openModuleId]);
 
   const toggleModule = (id: string | number) => {
     setOpenModuleId(openModuleId === id ? null : id);

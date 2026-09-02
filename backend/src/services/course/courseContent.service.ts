@@ -58,15 +58,40 @@ export class CourseContentService {
       }
 
       const modules: CourseModuleDoc[] = [];
-      snapshot.forEach((doc) => {
+      for (const doc of snapshot.docs) {
         const raw = fromDocument<any>(doc);
         const idx = raw.orderIndex ?? raw.order ?? 1;
+        let lessons = raw.lessons;
+        if (!lessons || !Array.isArray(lessons) || lessons.length === 0) {
+          try {
+            const lessonsSnap = await db
+              .collection('courses')
+              .doc(courseId)
+              .collection('modules')
+              .doc(doc.id)
+              .collection('lessons')
+              .get();
+            if (lessonsSnap && !lessonsSnap.empty) {
+              lessons = lessonsSnap.docs.map(lDoc => {
+                const lRaw = fromDocument<any>(lDoc);
+                const lIdx = lRaw.orderIndex ?? lRaw.order ?? 1;
+                return {
+                  ...lRaw,
+                  orderIndex: lIdx,
+                  order: lIdx,
+                };
+              });
+              lessons.sort((a: any, b: any) => (a.orderIndex ?? a.order ?? 0) - (b.orderIndex ?? b.order ?? 0));
+            }
+          } catch (e) {}
+        }
         modules.push({
           ...raw,
           orderIndex: idx,
           order: idx,
+          lessons: lessons || [],
         });
-      });
+      }
 
       modules.sort((a, b) => (a.orderIndex ?? a.order ?? 0) - (b.orderIndex ?? b.order ?? 0));
       this.setCache(cacheKey, modules);
