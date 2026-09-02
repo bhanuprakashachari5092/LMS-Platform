@@ -4,71 +4,7 @@ import { toast } from 'sonner';
 import { soundService } from '@/services/soundService';
 import type { Challenge } from '@/services/challengeEngine';
 import { MarkdownRenderer } from './MarkdownRenderer';
-import { GamifiedArchitectureFlow } from './GamifiedArchitectureFlow';
-import { GamifiedObjectivesCard } from './GamifiedObjectivesCard';
 import { useTheme } from '@/contexts/ThemeContext';
-
-function parseContent(content: string) {
-  if (!content) return { objectives: '', concept: '', flowchart: '' };
-
-  const lines = content.split('\n');
-  const objectivesLines: string[] = [];
-  const flowchartLines: string[] = [];
-  const conceptLines: string[] = [];
-
-  let inObjectives = false;
-  // A box drawing or arrow character or lines containing explicit "diagram" keyword
-  const flowchartChars = /[│┌└─↓├┤┬┴┼┐┘╔╗╚╝═║╠╣╦╩╬▲▼◄►┌┐└┘├┤┬┴┼─]/;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const trimmed = line.trim();
-
-    // Check if it's a flowchart line first
-    const hasFlowchartChar = flowchartChars.test(line);
-    const isExplicitDiagram = trimmed.toLowerCase().startsWith('diagram');
-
-    if (hasFlowchartChar || isExplicitDiagram) {
-      flowchartLines.push(line);
-      continue;
-    }
-
-    // Detect Objectives block start
-    const isObjectivesStart = /learning\s+objective/i.test(trimmed);
-    if (isObjectivesStart) {
-      inObjectives = true;
-      objectivesLines.push(line);
-      continue;
-    }
-
-    if (inObjectives) {
-      // Objectives end when we see a new section heading, e.g. "1.1 Introduction" or "#### 1.2"
-      const isNewHeading = trimmed.startsWith('#') || /^\d+\.\d+\s+/.test(trimmed) || /^\d+\.\d+\s*:/.test(trimmed);
-      if (isNewHeading) {
-        inObjectives = false;
-        conceptLines.push(line);
-      } else {
-        objectivesLines.push(line);
-      }
-    } else {
-      conceptLines.push(line);
-    }
-  }
-
-  const finalObjectives = objectivesLines.join('\n').trim();
-  let finalConcept = conceptLines.join('\n').trim();
-  const finalFlowchart = flowchartLines.join('\n').trim();
-
-  if (!finalObjectives && !finalConcept && content.trim()) {
-    finalConcept = content.trim();
-  }
-
-  return {
-    objectives: finalObjectives,
-    concept: finalConcept,
-    flowchart: finalFlowchart
-  };
-}
 
 interface ChallengeArenaProps {
   challenge: Challenge;
@@ -113,19 +49,14 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
   const [revealedStageCount, setRevealedStageCount] = useState(1);
   const [showExampleExplanation, setShowExampleExplanation] = useState(false);
 
-  // Parse lesson content
-  const { objectives, concept, flowchart } = React.useMemo(() => parseContent(lessonContent), [lessonContent]);
-
   // Construct stages list dynamically
   const stages = React.useMemo(() => {
     return [
-      ...(objectives ? [{ id: 'objectives', name: '🎯 LEARNING OBJECTIVES' }] : []),
-      ...(concept ? [{ id: 'concept', name: '💡 CONCEPT / EXPLANATION' }] : []),
-      ...(challenge.exampleCode ? [{ id: 'example', name: '💻 EXAMPLE / CODE' }] : []),
-      ...(flowchart ? [{ id: 'flowchart', name: '🔀 FLOWCHART / DIAGRAM' }] : []),
+      { id: 'concept', name: '💡 CONCEPT / EXPLANATION' },
+      ...(challenge.exampleCode && !challenge.exampleCode.includes('No code example') ? [{ id: 'example', name: '💻 EXAMPLE / CODE' }] : []),
       { id: 'practice', name: '🧪 PRACTICE' }
     ];
-  }, [objectives, concept, challenge.exampleCode, flowchart]);
+  }, [challenge.exampleCode]);
 
   const totalContentStages = stages.length;
   const isPracticeUnlocked = true;
@@ -338,18 +269,6 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
               ? 'animate-in fade-in slide-in-from-bottom-3.5 duration-500 shadow-sm border-l-4 border-l-primary'
               : 'border-l-4 border-l-slate-300 dark:border-l-slate-700';
 
-            if (stage.id === 'objectives') {
-              return (
-                <div key="objectives" className={animClass}>
-                  <GamifiedObjectivesCard
-                    objectives={objectives}
-                    isNightMode={isNightMode}
-                    title="TARGET LEARNING OBJECTIVES"
-                  />
-                </div>
-              );
-            }
-
             if (stage.id === 'concept') {
               return (
                 <div 
@@ -362,7 +281,7 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
                   </h3>
                   <div className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm leading-relaxed font-sans font-normal">
                     <MarkdownRenderer
-                      content={concept}
+                      content={lessonContent}
                       isNightMode={isNightMode}
                       courseId={courseId}
                     />
@@ -417,18 +336,6 @@ export const ChallengeArena: React.FC<ChallengeArenaProps> = ({
                       </div>
                     )}
                   </div>
-                </div>
-              );
-            }
-
-            if (stage.id === 'flowchart') {
-              return (
-                <div key="flowchart" className={animClass}>
-                  <GamifiedArchitectureFlow
-                    rawContent={flowchart}
-                    isNightMode={isNightMode}
-                    title="SYSTEM ARCHITECTURE & EXECUTION FLOW"
-                  />
                 </div>
               );
             }

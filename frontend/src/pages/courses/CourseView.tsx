@@ -1,6 +1,6 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { useParams, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
-import { useCourses } from '@/contexts/CourseContext';
+import { useCourses, loadStaticCourseModules } from '@/contexts/CourseContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { courseService } from '@/services/courseService';
 import { toast } from 'sonner';
@@ -97,7 +97,7 @@ export const CourseView: React.FC = () => {
   const studentAvatar = userProfile?.photoURL || user?.photoURL || undefined;
   const studentName = userProfile?.name || user?.displayName || userProfile?.githubUsername || 'Student User';
   const idOrSlug = (courseId || slug || '').trim();
-  const { getCourseById, refreshCourses } = useCourses();
+  const { getCourseById, getCourseModules, refreshCourses } = useCourses();
   const dynamicCourse = getCourseById(idOrSlug);
 
   // Validation: Mismatched course IDs cannot occur, and fallback is removed
@@ -110,6 +110,61 @@ export const CourseView: React.FC = () => {
 
   const targetCourseId = String(dynamicCourse?.id || '');
   const userId = user?.uid || 'default_student';
+
+  const [courseModules, setCourseModules] = useState<any[]>(() => {
+    return dynamicCourse?.modules && dynamicCourse.modules.length > 0 ? dynamicCourse.modules : [];
+  });
+  const [isLoadingModules, setIsLoadingModules] = useState<boolean>(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!dynamicCourse) return;
+
+    if (dynamicCourse.modules && dynamicCourse.modules.length > 0) {
+      setCourseModules(dynamicCourse.modules);
+      return;
+    }
+
+    setIsLoadingModules(true);
+    const courseTarget = String(dynamicCourse.id || idOrSlug);
+
+    getCourseModules(courseTarget)
+      .then((mods) => {
+        if (isMounted) {
+          if (mods && mods.length > 0) {
+            setCourseModules(mods);
+          } else {
+            loadStaticCourseModules(courseTarget)
+              .then((staticMods) => {
+                if (isMounted && staticMods && staticMods.length > 0) {
+                  setCourseModules(staticMods);
+                }
+              })
+              .catch(() => {});
+          }
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          loadStaticCourseModules(courseTarget)
+            .then((staticMods) => {
+              if (isMounted && staticMods && staticMods.length > 0) {
+                setCourseModules(staticMods);
+              }
+            })
+            .catch(() => {});
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoadingModules(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [dynamicCourse?.id, idOrSlug, getCourseModules]);
 
   const [isEnrolled, setIsEnrolled] = useState<boolean>(() => {
     return targetCourseId ? courseService.isCourseEnrolled(targetCourseId, userId) : false;
@@ -384,6 +439,11 @@ export const CourseView: React.FC = () => {
   const meta = getCourseMeta(dynamicCourse);
 
   const cAny = dynamicCourse as any;
+  const effectiveModules = (courseModules && courseModules.length > 0)
+    ? courseModules
+    : (dynamicCourse?.modules && dynamicCourse.modules.length > 0)
+    ? dynamicCourse.modules
+    : [];
 
   const activeCourseData = {
     ...dynamicCourse,
@@ -404,7 +464,7 @@ export const CourseView: React.FC = () => {
     thumbnail: dynamicCourse.thumbnail || '/assets/images/linux_course_thumbnail.webp',
     introText: meta.introText,
     outcomes: meta.outcomes,
-    modules: mapCourseModulesToPlayerModules(dynamicCourse.modules)
+    modules: mapCourseModulesToPlayerModules(effectiveModules)
   };
 
   if (isLearningMode) {
@@ -435,6 +495,7 @@ export const CourseView: React.FC = () => {
       />
       <CourseDetailsPage
         course={activeCourseData}
+        isLoadingModules={isLoadingModules}
         onStartLearning={handleStartLearning}
         isEnrolled={isEnrolled}
         onEnroll={handleEnrollClick}

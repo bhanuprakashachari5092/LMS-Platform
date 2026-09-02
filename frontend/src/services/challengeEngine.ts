@@ -515,7 +515,8 @@ export function getChallengeForLesson(
   lessonId: string,
   lessonTitle: string,
   lessonContent: string,
-  allLessons: any[]
+  allLessons: any[],
+  modules?: any[]
 ): Challenge {
   const cTitle = courseTitle.toLowerCase();
   const lId = String(lessonId).toLowerCase();
@@ -524,6 +525,8 @@ export function getChallengeForLesson(
   
   // 0. Use the existing course/module data first if it has a custom challenge
   const currentLesson = activeIdx !== -1 ? allLessons[activeIdx] : null;
+  const indices = getModuleAndChallengeIndices(lessonId, modules, allLessons);
+
   if (currentLesson) {
     const existingRaw = currentLesson.practiceLabChallenge || currentLesson.challenge;
     if (existingRaw) {
@@ -536,7 +539,7 @@ export function getChallengeForLesson(
         correctAnswer: existingRaw.correctAnswer || existingRaw.answer || 'True',
         hint: existingRaw.hint || 'Review the explanation.',
         placeholder: existingRaw.placeholder
-      }, lessonId, lessonTitle, allLessons);
+      }, lessonId, lessonTitle, allLessons, modules);
     }
   }
   
@@ -564,7 +567,7 @@ export function getChallengeForLesson(
         return item.keywords.some(kw => titleL.includes(kw) || idL.includes(kw));
       });
       if (firstMatch && String(firstMatch.id) === String(lessonId)) {
-        return fillChallengeDetails(item.challenge, lessonId, lessonTitle, allLessons);
+        return fillChallengeDetails(item.challenge, lessonId, lessonTitle, allLessons, modules);
       }
     }
   }
@@ -573,11 +576,9 @@ export function getChallengeForLesson(
   if (cTitle.includes('database') || cTitle.includes('dbms') || cTitle.includes('sql')) {
     const foundInDbms = dbmsLessonsData[String(lessonId)];
     if (foundInDbms) {
-      const challengeIdx = activeIdx !== -1 ? activeIdx + 1 : 1;
-      const missionIdx = Math.ceil(challengeIdx / 4);
       return {
-        missionNum: String(missionIdx).padStart(2, '0'),
-        challengeNum: String(challengeIdx - (missionIdx - 1) * 4).padStart(2, '0'),
+        missionNum: indices.missionNum,
+        challengeNum: indices.challengeNum,
         title: lessonTitle,
         learnText: foundInDbms.content.substring(0, 180) + '...',
         exampleCode: foundInDbms.commands?.[0]?.command || 'SELECT * FROM users;',
@@ -628,12 +629,9 @@ export function getChallengeForLesson(
     }
   }
 
-  const challengeIdx = activeIdx !== -1 ? activeIdx + 1 : 1;
-  const missionIdx = Math.ceil(challengeIdx / 4);
-
   return {
-    missionNum: String(missionIdx).padStart(2, '0'),
-    challengeNum: String(challengeIdx - (missionIdx - 1) * 4).padStart(2, '0'),
+    missionNum: indices.missionNum,
+    challengeNum: indices.challengeNum,
     title: lessonTitle,
     learnText: lessonContent.length > 200 ? lessonContent.substring(0, 200) + '...' : lessonContent || 'Welcome to this challenge.',
     exampleCode: exampleCode,
@@ -646,22 +644,42 @@ export function getChallengeForLesson(
   };
 }
 
+function getModuleAndChallengeIndices(lessonId: string | number, modules?: any[], allLessons?: any[]) {
+  if (modules && Array.isArray(modules) && modules.length > 0) {
+    for (let m = 0; m < modules.length; m++) {
+      const lIdx = modules[m].lessons?.findIndex((l: any) => String(l.id) === String(lessonId));
+      if (lIdx !== undefined && lIdx !== -1) {
+        return {
+          missionNum: String(m + 1).padStart(2, '0'),
+          challengeNum: String(lIdx + 1).padStart(2, '0'),
+        };
+      }
+    }
+  }
+  const activeIdx = (allLessons || []).findIndex((l: any) => String(l.id) === String(lessonId));
+  const cIdx = activeIdx !== -1 ? activeIdx + 1 : 1;
+  return {
+    missionNum: String(Math.ceil(cIdx / 4)).padStart(2, '0'),
+    challengeNum: String(((cIdx - 1) % 4) + 1).padStart(2, '0'),
+  };
+}
+
 function fillChallengeDetails(
   raw: Omit<Challenge, 'missionNum' | 'challengeNum' | 'title'>,
   lessonId: string,
   lessonTitle: string,
-  allLessons: any[]
+  allLessons: any[],
+  modules?: any[]
 ): Challenge {
   const activeIdx = allLessons.findIndex(l => String(l.id) === String(lessonId));
-  const challengeIdx = activeIdx !== -1 ? activeIdx + 1 : 1;
-  const missionIdx = Math.ceil(challengeIdx / 4);
+  const indices = getModuleAndChallengeIndices(lessonId, modules, allLessons);
   const currentLesson = activeIdx !== -1 ? allLessons[activeIdx] : null;
   const difficulty = currentLesson?.difficulty || raw.difficulty || 'Easy';
 
   return {
     ...raw,
-    missionNum: String(missionIdx).padStart(2, '0'),
-    challengeNum: String(challengeIdx - (missionIdx - 1) * 4).padStart(2, '0'),
+    missionNum: indices.missionNum,
+    challengeNum: indices.challengeNum,
     title: lessonTitle,
     difficulty: difficulty
   };

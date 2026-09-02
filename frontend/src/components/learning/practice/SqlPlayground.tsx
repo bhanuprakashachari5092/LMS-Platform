@@ -73,7 +73,7 @@ const getSqlJs = (): Promise<SqlJsStatic> => {
       locateFile: (file: string) => `https://sql.js.org/dist/${file}`,
     });
   }
-  return sqlJsPromise;
+  return sqlJsPromise!;
 };
 
 export const SqlPlayground: React.FC<SqlPlaygroundProps> = ({
@@ -123,8 +123,8 @@ export const SqlPlayground: React.FC<SqlPlaygroundProps> = ({
     try {
       const tablesRes = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';");
       if (tablesRes.length > 0) {
-        const tables = tablesRes[0].values.map((v) => String(v[0]));
-        const tableDetails = tables.map((tableName) => {
+        const tables = tablesRes[0].values.map((v: any) => String(v[0]));
+        const tableDetails = tables.map((tableName: string) => {
           let count = 0;
           let columns: string[] = [];
           try {
@@ -134,7 +134,7 @@ export const SqlPlayground: React.FC<SqlPlaygroundProps> = ({
             }
             const pragmaRes = db.exec(`PRAGMA table_info(${tableName});`);
             if (pragmaRes.length > 0) {
-              columns = pragmaRes[0].values.map((row) => `${row[1]} (${row[2]})`);
+              columns = pragmaRes[0].values.map((row: any) => `${row[1]} (${row[2]})`);
             }
           } catch {}
           return { name: tableName, count, columns };

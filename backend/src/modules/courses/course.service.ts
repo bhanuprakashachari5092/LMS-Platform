@@ -90,14 +90,30 @@ export class CourseService {
     });
   }
 
-  async getCourseModules(courseId: string) {
+  async getCourseModules(courseIdOrSlug: string) {
+    let resolvedId = courseIdOrSlug;
+    try {
+      const course = (await this.getCourseById(courseIdOrSlug)) || (await this.getCourseBySlug(courseIdOrSlug));
+      if (course && course.id) {
+        resolvedId = String(course.id);
+      }
+    } catch (e) {}
+
     const { courseContentService } = await import('../../services/course/courseContent.service');
-    return courseContentService.getCourseModules(courseId);
+    return courseContentService.getCourseModules(resolvedId);
   }
 
-  async getModuleLessons(courseId: string, moduleId: string, options?: any) {
+  async getModuleLessons(courseIdOrSlug: string, moduleId: string, options?: any) {
+    let resolvedId = courseIdOrSlug;
+    try {
+      const course = (await this.getCourseById(courseIdOrSlug)) || (await this.getCourseBySlug(courseIdOrSlug));
+      if (course && course.id) {
+        resolvedId = String(course.id);
+      }
+    } catch (e) {}
+
     const { courseContentService } = await import('../../services/course/courseContent.service');
-    return courseContentService.getModuleLessons(courseId, moduleId, options);
+    return courseContentService.getModuleLessons(resolvedId, moduleId, options);
   }
 
   async bulkImportCourse(payload: any, adminId: string) {

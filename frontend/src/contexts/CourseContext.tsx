@@ -23,11 +23,11 @@ export const loadStaticCourseModules = async (courseIdOrSlug: string | number): 
     const mod = await import('@/data/reactCourseFullData');
     return mod.reactCourseModules;
   }
-  if (target.includes('c-prog') || target === 'c-programming') {
+  if (target.includes('c-prog') || target.includes('c-programming') || target === 'c-programming-course-id') {
     const mod = await import('@/data/cCourseFullData');
     return mod.cCourseModules;
   }
-  if (target.includes('python')) {
+  if (target.includes('python') || target === 'python-through-oops-course-id') {
     const mod = await import('@/data/pythonCourseFullData');
     return mod.pythonCourseModules;
   }
@@ -207,6 +207,7 @@ interface CourseContextType {
   toggleCourseStatus: (id: number | string) => Promise<void>;
   deleteCourse: (id: number | string) => Promise<void>;
   getCourseById: (id: number | string) => CourseItem | undefined;
+  getCourseModules: (id: number | string) => Promise<ModuleItem[]>;
   refreshCourses: () => Promise<void>;
   updateCourse: (id: number | string, updates: Partial<CourseItem>) => Promise<void>;
 }
@@ -1202,6 +1203,45 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  const getCourseModules = useCallback(async (idOrSlug: number | string): Promise<ModuleItem[]> => {
+    const target = String(idOrSlug).toLowerCase().trim();
+    if (!target) return [];
+
+    const existingCourse = getCourseById(target);
+
+    // 1. Check static authoritative full module datasets first
+    try {
+      const staticMods = await loadStaticCourseModules(target);
+      if (staticMods && staticMods.length > 0) {
+        if (!existingCourse?.modules || existingCourse.modules.length < staticMods.length) {
+          if (existingCourse) {
+            updateCourse(existingCourse.id, { modules: staticMods });
+          }
+        }
+        return staticMods;
+      }
+    } catch (e) {}
+
+    // 2. Check existing cached course modules
+    if (existingCourse?.modules && existingCourse.modules.length > 0) {
+      return existingCourse.modules;
+    }
+
+    // 3. Check backend API modules
+    try {
+      const targetId = existingCourse ? String(existingCourse.id) : target;
+      const apiMods = await courseService.getCourseModules(targetId);
+      if (apiMods && apiMods.length > 0) {
+        if (existingCourse) {
+          updateCourse(existingCourse.id, { modules: apiMods });
+        }
+        return apiMods;
+      }
+    } catch (e) {}
+
+    return [];
+  }, [getCourseById, updateCourse]);
+
   return (
     <CourseContext.Provider
       value={{
@@ -1211,6 +1251,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         toggleCourseStatus,
         deleteCourse,
         getCourseById,
+        getCourseModules,
         refreshCourses,
         updateCourse,
       }}
