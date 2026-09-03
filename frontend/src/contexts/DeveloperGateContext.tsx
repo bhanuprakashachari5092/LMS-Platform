@@ -13,33 +13,60 @@ interface DeveloperGateContextType {
 
 const DeveloperGateContext = createContext<DeveloperGateContextType | undefined>(undefined);
 
+// ── Persistence helpers (localStorage survives tab close + refresh; sessionStorage as backup) ──
+const DEV_SESSION_KEY = 'kz_dev_session_active';
+const DEV_TOKEN_KEY   = 'kz_dev_token';
+
+const getStoredDevToken = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(DEV_TOKEN_KEY) || sessionStorage.getItem(DEV_TOKEN_KEY);
+};
+
+const getStoredDevSession = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  return (
+    localStorage.getItem(DEV_SESSION_KEY) === 'true' ||
+    sessionStorage.getItem(DEV_SESSION_KEY) === 'true'
+  );
+};
+
+const saveDevSession = (token?: string) => {
+  localStorage.setItem(DEV_SESSION_KEY, 'true');
+  sessionStorage.setItem(DEV_SESSION_KEY, 'true');
+  if (token) {
+    localStorage.setItem(DEV_TOKEN_KEY, token);
+    sessionStorage.setItem(DEV_TOKEN_KEY, token);
+  }
+};
+
+const clearDevSession = () => {
+  localStorage.removeItem(DEV_SESSION_KEY);
+  sessionStorage.removeItem(DEV_SESSION_KEY);
+  localStorage.removeItem(DEV_TOKEN_KEY);
+  sessionStorage.removeItem(DEV_TOKEN_KEY);
+};
+
 export const DeveloperGateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isPrelaunchMode, setIsPrelaunchMode] = useState<boolean>(true);
-  const [isDeveloper, setIsDeveloper] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return (
-      sessionStorage.getItem('kz_dev_session_active') === 'true' ||
-      localStorage.getItem('kz_dev_session_active') === 'true'
-    );
-  });
+  const [isDeveloper, setIsDeveloper] = useState<boolean>(() => getStoredDevSession());
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const checkStatus = useCallback(async () => {
     try {
-      const res = await apiClient.get('/developer-access/status');
+      const storedToken = getStoredDevToken();
+      const res = await apiClient.get('/developer-access/status', {
+        headers: storedToken ? { 'x-developer-token': storedToken } : {},
+      });
       if (res.data && res.data.success) {
         setIsPrelaunchMode(Boolean(res.data.prelaunchMode));
         if (res.data.isDeveloper) {
           setIsDeveloper(true);
-          sessionStorage.setItem('kz_dev_session_active', 'true');
-          localStorage.setItem('kz_dev_session_active', 'true');
+          saveDevSession();
         }
       }
     } catch {
-      // If backend is waking up or offline, maintain existing valid session if available
-      const localActive =
-        sessionStorage.getItem('kz_dev_session_active') === 'true' ||
-        localStorage.getItem('kz_dev_session_active') === 'true';
+      // If backend is waking up or offline, maintain existing valid session from localStorage
+      const localActive = getStoredDevSession();
       setIsPrelaunchMode(true);
       if (localActive) {
         setIsDeveloper(true);
@@ -61,8 +88,7 @@ export const DeveloperGateProvider: React.FC<{ children: React.ReactNode }> = ({
     // Instant local verification for standard developer passcode (googlemanoj)
     if (cleanPasscode === 'googlemanoj') {
       setIsDeveloper(true);
-      sessionStorage.setItem('kz_dev_session_active', 'true');
-      localStorage.setItem('kz_dev_session_active', 'true');
+      saveDevSession();
       apiClient.post('/developer-access/verify', { passcode: cleanPasscode }).catch(() => null);
       toast.success('Developer access authorized!');
       return { success: true, message: 'Developer environment authorized.' };
@@ -72,8 +98,7 @@ export const DeveloperGateProvider: React.FC<{ children: React.ReactNode }> = ({
       const res = await apiClient.post('/developer-access/verify', { passcode: cleanPasscode });
       if (res.data && res.data.success) {
         setIsDeveloper(true);
-        sessionStorage.setItem('kz_dev_session_active', 'true');
-        localStorage.setItem('kz_dev_session_active', 'true');
+        saveDevSession(res.data.token);
         toast.success('Developer access authorized!');
         return { success: true, message: res.data.message };
       }
@@ -105,8 +130,7 @@ export const DeveloperGateProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch {
       // Ignore network error on logout
     } finally {
-      sessionStorage.removeItem('kz_dev_session_active');
-      localStorage.removeItem('kz_dev_session_active');
+      clearDevSession();
       setIsDeveloper(false);
       toast.info('Developer session ended.');
       window.location.href = '/';
@@ -155,3 +179,6 @@ export const useDeveloperGate = () => {
   }
   return context;
 };
+
+
+

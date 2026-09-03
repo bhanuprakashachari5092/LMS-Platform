@@ -11,7 +11,7 @@ export const apiClient = axios.create({
   timeout: 15000,
 });
 
-// Request interceptor to attach Firebase ID Bearer token
+// Request interceptor to attach Firebase ID Bearer token and developer session token
 apiClient.interceptors.request.use(
   (config) => {
     const token =
@@ -22,6 +22,14 @@ apiClient.interceptors.request.use(
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    const devToken =
+      sessionStorage.getItem('kz_dev_token') ||
+      localStorage.getItem('kz_dev_token');
+    if (devToken && config.headers) {
+      config.headers['x-developer-token'] = devToken;
+    }
+
     return config;
   },
   (error) => Promise.reject(error)

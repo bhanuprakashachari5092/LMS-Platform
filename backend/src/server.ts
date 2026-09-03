@@ -48,7 +48,10 @@ const io = new SocketServer(server, {
       // Allow requests with no origin (e.g. mobile apps, server-to-server)
       if (!origin) return callback(null, true);
       const isKaizenQ = /^https?:\/\/(www\.)?kaizenq\.in(:\d+)?$/.test(origin);
-      if (isKaizenQ || allowedOrigins.includes(origin)) {
+      const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+      const isVercelDomain = /^https:\/\/.*\.vercel\.app$/.test(origin);
+
+      if (isKaizenQ || isLocalhost || isVercelDomain || allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
       if (!isProduction && defaultDevOrigins.includes(origin)) {

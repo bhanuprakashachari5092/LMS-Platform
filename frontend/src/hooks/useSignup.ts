@@ -32,8 +32,8 @@ export const useSignup = () => {
         githubUrl: githubUrl.trim(),
         linkedinUrl: linkedinUrl ? linkedinUrl.trim() : '',
         portfolioUrl: portfolioUrl ? portfolioUrl.trim() : '',
-        emailVerified: false,
-        status: 'email_verification_pending',
+        emailVerified: true,
+        status: 'active',
         role: 'student',
         createdAt: now,
         updatedAt: now,
@@ -46,18 +46,18 @@ export const useSignup = () => {
       try {
         adminNotificationService.addNotification({
           type: 'NEW_STUDENT',
-          title: 'New Student Application',
-          message: `${fullName.trim()} (${normalizedEmail}) registered and pending verification.`,
-          link: '/admin/students?status=pending',
+          title: 'New Student Registration',
+          message: `${fullName.trim()} (${normalizedEmail}) enrolled on the platform.`,
+          link: '/admin/students',
         });
       } catch (e) {
         console.warn('Failed to post signup notification:', e);
       }
 
-      toast.success('Account created! Verification email sent.');
+      toast.success('Account created successfully! You can now sign in.');
 
-      // 3. Redirect user to /auth/verify-email without auto-login session
-      navigate('/auth/verify-email', {
+      // 3. Redirect user to login with email prefilled
+      navigate(`/auth/login?email=${encodeURIComponent(normalizedEmail)}`, {
         replace: true,
         state: {
           email: normalizedEmail,

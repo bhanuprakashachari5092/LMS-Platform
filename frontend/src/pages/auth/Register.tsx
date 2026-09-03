@@ -86,8 +86,9 @@ export const Register: React.FC = () => {
         toast.success('Instructor registration submitted! Please wait for approval from KaizenQ team.');
         setRegistrationSubmitted(true);
       } else {
-        toast.success('Student registration submitted successfully!');
-        setRegistrationSubmitted(true);
+        // Students are active immediately — navigate directly to login
+        toast.success('Account created successfully! Please sign in to access your dashboard.');
+        navigate(`/auth/login?email=${encodeURIComponent(email.toLowerCase().trim())}`, { replace: true });
       }
     } catch (err: any) {
       console.error('[REGISTER COMPONENT] Registration error caught:', err);

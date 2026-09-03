@@ -51,6 +51,7 @@ export class DeveloperAccessController {
       return res.status(200).json({
         success: true,
         message: 'Developer access granted.',
+        token,
         expiresIn: env.DEVELOPER_SESSION_TTL,
       });
     } catch (error) {
@@ -69,8 +70,13 @@ export class DeveloperAccessController {
   public async getStatus(req: Request, res: Response): Promise<Response> {
     try {
       const prelaunchMode = env.PRELAUNCH_MODE === 'true';
-      const cookieToken = req.cookies?.kz_dev_session;
-      const session = verifyDeveloperToken(cookieToken);
+
+      // Accept token from HttpOnly cookie OR x-developer-token header (for cross-origin / dev mode)
+      const cookieToken  = req.cookies?.kz_dev_session;
+      const headerToken  = req.headers['x-developer-token'] as string | undefined;
+      const token        = cookieToken || headerToken;
+
+      const session = verifyDeveloperToken(token);
 
       return res.status(200).json({
         success: true,
