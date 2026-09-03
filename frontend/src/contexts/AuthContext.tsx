@@ -216,8 +216,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const shouldRepairInstructor = targetRole === 'instructor' || storedRole === 'instructor';
         const finalRole: UserRole = isAdmin ? 'admin' : (shouldRepairInstructor ? 'instructor' : (data.role || targetRole));
         
-        const isApproved = isAdmin ? true : (data.approved !== undefined ? data.approved : (data.status === 'active' || data.status === 'Active' || data.status === 'approved'));
-        const currentStatus = data.status || (isAdmin ? 'active' : 'pending');
+        const isStudent = finalRole === 'student';
+        const isApproved = isAdmin || isStudent ? true : (data.approved !== undefined ? data.approved : (data.status === 'active' || data.status === 'Active' || data.status === 'approved'));
+        const currentStatus = (isAdmin || isStudent) ? 'active' : (data.status || 'pending');
+
+        // Auto-heal student records that were saved with pending status
+        if (isStudent && (data.status === 'pending' || data.status === 'Pending' || data.status === 'email_verification_pending' || data.approved === false) && db) {
+          updateDoc(userRef, {
+            status: 'active',
+            approved: true,
+            updatedAt: new Date().toISOString(),
+          }).catch((err) => console.warn('[AUTH REPAIR] Notice healing student record in users:', err));
+        }
 
         const resolvedGithubUsername = data.githubUsername || calculatedUsername;
         const resolvedPhotoURL = data.photoURL || firebaseUser.photoURL || (resolvedGithubUsername ? `https://github.com/${resolvedGithubUsername}.png?size=200` : null);
@@ -274,8 +284,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUserProfile(profileData);
         return profileData;
       } else {
-        const isApproved = isAdmin ? true : false;
-        const initialStatus = isAdmin ? 'active' : 'pending';
+        const isStudent = targetRole === 'student';
+        const isApproved = isAdmin || isStudent ? true : false;
+        const initialStatus = (isAdmin || isStudent) ? 'active' : 'pending';
 
         const newProfile: UserProfile = {
           uid: firebaseUser.uid,
@@ -385,9 +396,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: firebaseUser.email || '',
         photoURL: firebaseUser.photoURL || null,
         role: targetRole,
-        approved: false,
-        // CRITICAL: use lowercase 'pending' — uppercase 'Pending' breaks Admin Dashboard filter
-        status: targetRole === 'instructor' ? 'pending' : 'Active',
+        approved: targetRole === 'student' || isAdmin ? true : false,
+        // CRITICAL: Students are active immediately; only instructors require admin review
+        status: targetRole === 'instructor' ? 'pending' : 'active',
         provider: isGithub ? 'github.com' : 'password',
         providerId: isGithub ? 'github.com' : 'password',
         createdAt: new Date().toISOString(),
@@ -423,11 +434,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const storedSignupRole = typeof window !== 'undefined' ? sessionStorage.getItem('kaizenq_signup_role') as UserRole : undefined;
             const profile = await fetchUserProfile(currentUser, undefined, storedSignupRole);
             if (profile) {
-              // Enforce account status check on initialization
-              const isPending = (profile.role === 'instructor' && (profile.status === 'pending' || profile.status === 'Pending')) || 
-                                (profile.role === 'student' && profile.status === 'pending');
-              const isRejected = profile.status === 'rejected';
-              const isSuspended = profile.status === 'Suspended';
+              // Enforce account status check on initialization (Only instructors require pending approval; suspended/rejected accounts are blocked)
+              const isPending = profile.role === 'instructor' && (profile.status === 'pending' || profile.status === 'Pending');
+              const statusStr = (profile.status as string) || '';
+              const isRejected = statusStr === 'rejected' || statusStr === 'Rejected';
+              const isSuspended = statusStr === 'Suspended' || statusStr === 'suspended';
               
               const cleanEmail = (currentUser.email || '').toLowerCase().trim();
               const isAdminEmail = cleanEmail === 'admin@gmail.com' || cleanEmail.startsWith('admin@');
@@ -605,47 +616,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const isVerifiedQuery = typeof window !== 'undefined' && window.location.search.includes('verified=true');
       const isVerified = currentUser.emailVerified || isVerifiedQuery;
 
-      // Module 2 Gate: Email Verification AND Admin Approval for Student/Instructor Accounts
+      // Module 2 Gate: Admin Approval for Instructor Accounts (Students are active upon registration)
+      // 1. Admin Approval Check — read ONLY from `users` collection (single source of truth)
+      let approvalStatus = 'approved';
+      let userRole: UserRole = 'student';
+      if (db) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            userRole = data.role || 'student';
+            // Normalize: 'active', 'Active', 'approved' → approved; 'pending' → pending
+            const rawStatus = data.status || '';
+            const isApproved = data.approved === true || rawStatus === 'active' || rawStatus === 'Active' || rawStatus === 'approved';
+            approvalStatus = isApproved ? 'approved' : (rawStatus || 'pending');
+          }
+        } catch (err) {
+          console.warn('User status check failed:', err);
+        }
+      }
+
+      // Auto-heal existing students who had pending status in users or students
+      if (userRole === 'student' && (approvalStatus === 'pending' || approvalStatus === 'Pending' || approvalStatus === 'Pending Approval' || approvalStatus === 'email_verification_pending')) {
+        approvalStatus = 'approved';
+        if (db) {
+          updateDoc(doc(db, 'users', currentUser.uid), {
+            status: 'active',
+            approved: true,
+            updatedAt: new Date().toISOString(),
+          }).catch((err) => console.warn('[AUTH HEAL] users record update notice:', err));
+          updateDoc(doc(db, 'students', currentUser.uid), {
+            status: 'active',
+            approved: true,
+            updatedAt: new Date().toISOString(),
+          }).catch(() => null);
+        }
+      }
+
+      const isInstructorPending = userRole === 'instructor' && (approvalStatus === 'pending' || approvalStatus === 'Pending');
+
       if (!isAdminEmail && typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-        // 1. Email Verification Check
-        if (!isVerified) {
+        // 1. Email Verification Check - Enforced on instructors; students can access the platform
+        if (!isVerified && userRole === 'instructor') {
           await signOut(auth).catch(() => null);
           const unverifiedError: any = new Error('Please verify your email address before logging in.');
           unverifiedError.code = 'EMAIL_NOT_VERIFIED';
           throw unverifiedError;
         }
 
-        // 2. Admin Approval Check — read ONLY from `users` collection (single source of truth)
-        let approvalStatus = 'approved';
-        let userRole: UserRole = 'student';
-        if (db) {
-          try {
-            const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-            if (userDoc.exists()) {
-              const data = userDoc.data();
-              userRole = data.role || 'student';
-              // Normalize: 'active', 'Active', 'approved' → approved; 'pending' → pending
-              const rawStatus = data.status || '';
-              const isApproved = data.approved === true || rawStatus === 'active' || rawStatus === 'Active' || rawStatus === 'approved';
-              approvalStatus = isApproved ? 'approved' : (rawStatus || 'pending');
-            }
-          } catch (err) {
-            console.warn('User status check failed:', err);
-          }
-        }
-
-
-        const isPending = (userRole === 'instructor' && (approvalStatus === 'pending' || approvalStatus === 'Pending')) || 
-                          (userRole === 'student' && (approvalStatus === 'pending' || approvalStatus === 'Pending Approval'));
-
-        if (isPending) {
+        if (isInstructorPending) {
           if (auth) {
             await signOut(auth).catch(() => null);
           }
-          console.warn(`[Dashboard Access Blocked] User ${currentUser.email} blocked because status is ${approvalStatus}.`);
-          const pendingErr: any = new Error(userRole === 'instructor'
-            ? 'Your instructor account is awaiting administrator approval. Please check your email.'
-            : 'Your registration application is pending administrator review and approval.'
+          console.warn(`[Dashboard Access Blocked] Instructor ${currentUser.email} blocked because status is ${approvalStatus}.`);
+          const pendingErr: any = new Error(
+            'Your instructor account is awaiting administrator approval. Please check your email.'
           );
           pendingErr.code = 'ADMIN_APPROVAL_PENDING';
           throw pendingErr;
@@ -888,10 +913,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async (): Promise<void> => {
     if (auth) {
-      await signOut(auth);
+      await signOut(auth).catch(() => null);
     }
     setUser(null);
     setUserProfile(null);
+    localStorage.removeItem('shaivika_auth_token');
+    localStorage.removeItem('token');
+    localStorage.removeItem('shaivika_user');
+    localStorage.removeItem('firebase_token');
   };
 
   const clearAuthCaches = async (): Promise<void> => {
@@ -900,8 +929,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await signOut(auth).catch(() => null);
       }
       if (typeof window !== 'undefined') {
-        sessionStorage.clear();
-        localStorage.removeItem('shaivika_user');
+        // Selectively remove auth keys — DO NOT call sessionStorage.clear() as that would
+        // wipe the developer session token and lock everyone out of prelaunch mode
+        const authKeys = [
+          'shaivika_auth_token', 'token', 'firebase_token', 'shaivika_user',
+          'kaizenq_signup_role', 'pendingGithubCredential', 'pendingGithubEmail',
+        ];
+        authKeys.forEach((k) => {
+          sessionStorage.removeItem(k);
+          localStorage.removeItem(k);
+        });
         localStorage.removeItem('shaivika_realtime_students_v3');
         localStorage.removeItem('shaivika_admin_users_v3');
         if ('indexedDB' in window) {
