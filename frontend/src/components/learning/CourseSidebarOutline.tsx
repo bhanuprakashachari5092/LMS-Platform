@@ -183,7 +183,19 @@ export const CourseSidebarOutline: React.FC<CourseSidebarOutlineProps> = ({
           return (
             <div key={group.moduleId} className="mb-3">
               {/* Module group header with theme styling */}
-              <div className="flex items-center gap-1.5 px-3 py-1.5 min-w-0">
+              <button
+                type="button"
+                onClick={() => {
+                  const firstUnlocked = group.lessons.find((l) => l.isUnlocked);
+                  if (firstUnlocked) {
+                    onSelectLesson(firstUnlocked.id);
+                    if (isDrawer && onClose && window.innerWidth < 1024) {
+                      onClose();
+                    }
+                  }
+                }}
+                className="w-full flex items-center gap-1.5 px-3 py-1.5 min-w-0 text-left cursor-pointer hover:opacity-80 transition-opacity"
+              >
                 {group.themeColor && (
                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${themeClasses?.dot || 'bg-sky-500'}`} />
                 )}
@@ -194,7 +206,7 @@ export const CourseSidebarOutline: React.FC<CourseSidebarOutlineProps> = ({
                   ${themeClasses ? themeClasses.text : (isNightMode ? 'text-slate-500' : 'text-slate-400')}`}>
                   {group.moduleTitle.replace(/^(🟢|🟡|🔵|🔴)\s*/, '')}
                 </h3>
-              </div>
+              </button>
 
               {/* Lessons */}
               {group.lessons.map((lesson) => {

@@ -645,22 +645,97 @@ export function getChallengeForLesson(
 }
 
 function getModuleAndChallengeIndices(lessonId: string | number, modules?: any[], allLessons?: any[]) {
+  const lId = String(lessonId);
+
+  // 1. Direct search in modules array if available
   if (modules && Array.isArray(modules) && modules.length > 0) {
     for (let m = 0; m < modules.length; m++) {
-      const lIdx = modules[m].lessons?.findIndex((l: any) => String(l.id) === String(lessonId));
-      if (lIdx !== undefined && lIdx !== -1) {
+      const mod = modules[m];
+      // Check direct lessons array
+      if (mod.lessons && Array.isArray(mod.lessons)) {
+        const lIdx = mod.lessons.findIndex((l: any) => String(l.id) === lId);
+        if (lIdx !== -1) {
+          return {
+            missionNum: String(m + 1).padStart(2, '0'),
+            challengeNum: String(lIdx + 1).padStart(2, '0'),
+          };
+        }
+      }
+      // Check topics -> learningUnits
+      if (mod.topics && Array.isArray(mod.topics)) {
+        let topicUnitIdx = 0;
+        for (let t = 0; t < mod.topics.length; t++) {
+          const top = mod.topics[t];
+          if (top.learningUnits && Array.isArray(top.learningUnits)) {
+            for (let u = 0; u < top.learningUnits.length; u++) {
+              if (String(top.learningUnits[u].id) === lId) {
+                return {
+                  missionNum: String(m + 1).padStart(2, '0'),
+                  challengeNum: String(topicUnitIdx + 1).padStart(2, '0'),
+                };
+              }
+              topicUnitIdx++;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // 2. Search through allLessons metadata (moduleId / moduleTitle)
+  if (allLessons && Array.isArray(allLessons) && allLessons.length > 0) {
+    const targetLesson = allLessons.find((l: any) => String(l.id) === lId);
+    if (targetLesson) {
+      // If target lesson has moduleId and modules is provided, match by moduleId
+      if (targetLesson.moduleId && modules && Array.isArray(modules)) {
+        const mIdx = modules.findIndex((m: any) => String(m.id) === String(targetLesson.moduleId));
+        if (mIdx !== -1) {
+          const moduleLessons = allLessons.filter((l: any) => String(l.moduleId) === String(targetLesson.moduleId));
+          const lIdx = moduleLessons.findIndex((l: any) => String(l.id) === lId);
+          return {
+            missionNum: String(mIdx + 1).padStart(2, '0'),
+            challengeNum: String(Math.max(0, lIdx) + 1).padStart(2, '0'),
+          };
+        }
+      }
+
+      // If allLessons has moduleId / moduleTitle, derive unique modules list
+      const modIdentifier = targetLesson.moduleId || targetLesson.moduleTitle;
+      if (modIdentifier) {
+        const uniqueModules: string[] = [];
+        allLessons.forEach((l: any) => {
+          const idOrTitle = String(l.moduleId || l.moduleTitle || '');
+          if (idOrTitle && !uniqueModules.includes(idOrTitle)) {
+            uniqueModules.push(idOrTitle);
+          }
+        });
+        const mIdx = uniqueModules.indexOf(String(modIdentifier));
+        if (mIdx !== -1) {
+          const moduleLessons = allLessons.filter(
+            (l: any) => String(l.moduleId || l.moduleTitle || '') === String(modIdentifier)
+          );
+          const lIdx = moduleLessons.findIndex((l: any) => String(l.id) === lId);
+          return {
+            missionNum: String(mIdx + 1).padStart(2, '0'),
+            challengeNum: String(Math.max(0, lIdx) + 1).padStart(2, '0'),
+          };
+        }
+      }
+
+      // Fallback: flat activeIdx
+      const activeIdx = allLessons.findIndex((l: any) => String(l.id) === lId);
+      if (activeIdx !== -1) {
         return {
-          missionNum: String(m + 1).padStart(2, '0'),
-          challengeNum: String(lIdx + 1).padStart(2, '0'),
+          missionNum: String(activeIdx + 1).padStart(2, '0'),
+          challengeNum: '01',
         };
       }
     }
   }
-  const activeIdx = (allLessons || []).findIndex((l: any) => String(l.id) === String(lessonId));
-  const cIdx = activeIdx !== -1 ? activeIdx + 1 : 1;
+
   return {
-    missionNum: String(Math.ceil(cIdx / 4)).padStart(2, '0'),
-    challengeNum: String(((cIdx - 1) % 4) + 1).padStart(2, '0'),
+    missionNum: '01',
+    challengeNum: '01',
   };
 }
 

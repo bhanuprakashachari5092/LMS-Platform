@@ -11,6 +11,7 @@ interface ModulesTabProps {
   onSelectLesson: (id: string | number) => void;
   progressPercent: number;
   isNightMode?: boolean;
+  onSelectModule?: (moduleId: string | number) => void;
 }
 
 export const ModulesTab: React.FC<ModulesTabProps> = ({
@@ -21,11 +22,20 @@ export const ModulesTab: React.FC<ModulesTabProps> = ({
   onSelectLesson,
   progressPercent,
   isNightMode = false,
+  onSelectModule,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [openModules, setOpenModules] = useState<{ [key: string]: boolean }>({
-    '1': true,
-    'git-1': true,
+  const [openModules, setOpenModules] = useState<{ [key: string]: boolean }>(() => {
+    if (modules && modules.length > 0) {
+      const activeMod = modules.find((m) =>
+        m.lessons?.some((l) => String(l.id) === String(selectedLessonId))
+      );
+      if (activeMod) {
+        return { [String(activeMod.id)]: true };
+      }
+      return { [String(modules[0].id)]: true };
+    }
+    return {};
   });
 
   React.useEffect(() => {
@@ -34,12 +44,13 @@ export const ModulesTab: React.FC<ModulesTabProps> = ({
         m.lessons?.some((l) => String(l.id) === String(selectedLessonId))
       );
       if (activeMod) {
-        setOpenModules((prev) => ({
-          ...prev,
-          [String(activeMod.id)]: true,
-        }));
-      } else if (Object.keys(openModules).length === 0) {
-        setOpenModules({ [String(modules[0].id)]: true });
+        setOpenModules((prev) => {
+          if (prev[String(activeMod.id)]) return prev;
+          return {
+            ...prev,
+            [String(activeMod.id)]: true,
+          };
+        });
       }
     }
   }, [selectedLessonId, modules]);
@@ -49,6 +60,17 @@ export const ModulesTab: React.FC<ModulesTabProps> = ({
       ...prev,
       [String(moduleId)]: !prev[String(moduleId)],
     }));
+  };
+
+  const handleSelectModule = (moduleId: string | number) => {
+    if (onSelectModule) {
+      onSelectModule(moduleId);
+      return;
+    }
+    const targetModule = modules.find((m) => String(m.id) === String(moduleId));
+    if (targetModule && targetModule.lessons && targetModule.lessons.length > 0) {
+      onSelectLesson(targetModule.lessons[0].id);
+    }
   };
 
   const handleExpandAll = () => {
@@ -149,6 +171,7 @@ export const ModulesTab: React.FC<ModulesTabProps> = ({
               module={module}
               isOpen={!!openModules[String(module.id)]}
               onToggle={() => toggleModule(module.id)}
+              onSelectModule={handleSelectModule}
               selectedLessonId={selectedLessonId}
               completedLessonIds={completedLessonIds}
               onSelectLesson={onSelectLesson}

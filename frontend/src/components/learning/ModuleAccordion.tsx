@@ -16,6 +16,7 @@ interface ModuleAccordionProps {
   module: ModuleData;
   isOpen: boolean;
   onToggle: () => void;
+  onSelectModule?: (moduleId: string | number) => void;
   selectedLessonId: string | number;
   completedLessonIds: (string | number)[];
   onSelectLesson: (id: string | number) => void;
@@ -28,6 +29,7 @@ export const ModuleAccordion: React.FC<ModuleAccordionProps> = ({
   module,
   isOpen,
   onToggle,
+  onSelectModule,
   selectedLessonId,
   completedLessonIds,
   onSelectLesson,
@@ -47,6 +49,14 @@ export const ModuleAccordion: React.FC<ModuleAccordionProps> = ({
       return;
     }
     onToggle();
+    if (onSelectModule) {
+      onSelectModule(module.id);
+    } else if (module.lessons && module.lessons.length > 0) {
+      const isAlreadyInThisModule = module.lessons.some(l => String(l.id) === String(selectedLessonId));
+      if (!isAlreadyInThisModule) {
+        onSelectLesson(module.lessons[0].id);
+      }
+    }
   };
 
   return (
