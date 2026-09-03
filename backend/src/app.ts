@@ -76,7 +76,10 @@ const corsOptions: cors.CorsOptions = {
     if (!origin) return callback(null, true);
 
     const isKaizenQDomain = /^https?:\/\/(www\.)?kaizenq\.in(:\d+)?$/.test(origin);
-    if (isKaizenQDomain || allowedOrigins.includes(origin)) {
+    const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+    const isVercelDomain = /^https:\/\/.*\.vercel\.app$/.test(origin);
+
+    if (isKaizenQDomain || isLocalhost || isVercelDomain || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
 
@@ -88,7 +91,7 @@ const corsOptions: cors.CorsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'x-developer-token'],
 };
 
 app.use(cors(corsOptions));
