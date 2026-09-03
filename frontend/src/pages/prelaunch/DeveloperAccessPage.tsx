@@ -18,7 +18,7 @@ import { BrandLogo } from '@/components/common/BrandLogo';
 
 export const DeveloperAccessPage: React.FC = () => {
   const navigate = useNavigate();
-  const { verifyPasscode, isDeveloper } = useDeveloperGate();
+  const { verifyPasscode, isDeveloper, logoutDeveloper } = useDeveloperGate();
 
   const [passcode, setPasscode] = useState('');
   const [showPasscode, setShowPasscode] = useState(false);
@@ -27,7 +27,7 @@ export const DeveloperAccessPage: React.FC = () => {
   const [isRateLimited, setIsRateLimited] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  // If already authenticated as developer, offer direct jump to login or dashboard
+  // If already authenticated as developer, offer direct jump to login, signup, dashboard or lockout
   if (isDeveloper && !isSuccess) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4 font-sans">
@@ -42,22 +42,44 @@ export const DeveloperAccessPage: React.FC = () => {
           <div className="space-y-2">
             <h2 className="text-xl font-heading font-black text-white">Developer Session Active</h2>
             <p className="text-xs text-slate-400">
-              Passcode <span className="font-mono text-cyan-400 font-bold">googlemanoj</span> is verified. You have full developer access to the LMS platform.
+              Passcode <span className="font-mono text-cyan-400 font-bold">googlemanoj</span> is verified. Full developer and platform access is unlocked.
             </p>
           </div>
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2.5">
             <button
               onClick={() => navigate('/auth/login')}
               className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 font-heading font-black text-sm transition-all duration-200 shadow-lg shadow-cyan-500/20 cursor-pointer flex items-center justify-center gap-2"
             >
-              <span>Proceed to Login</span>
+              <span>Sign In to Platform</span>
               <ArrowRight className="w-4 h-4" />
             </button>
             <button
-              onClick={() => navigate('/dashboard')}
+              onClick={() => navigate('/auth/signup')}
               className="w-full py-3 rounded-2xl bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-200 font-heading font-bold text-xs transition-all duration-200 cursor-pointer flex items-center justify-center gap-2"
             >
+              <span>Create Student Account (Sign Up)</span>
+            </button>
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="w-full py-2.5 rounded-2xl bg-slate-800/60 hover:bg-slate-750 border border-slate-700/60 text-slate-300 font-heading font-medium text-xs transition-all duration-200 cursor-pointer flex items-center justify-center gap-2"
+            >
               <span>Go to Student Dashboard</span>
+            </button>
+            <button
+              onClick={() => navigate('/')}
+              className="w-full py-2 rounded-2xl bg-transparent hover:bg-slate-800/50 text-slate-400 hover:text-slate-200 text-xs font-medium transition-colors cursor-pointer"
+            >
+              <span>View Main Website (Home)</span>
+            </button>
+          </div>
+
+          <div className="pt-3 border-t border-slate-800">
+            <button
+              onClick={() => logoutDeveloper()}
+              className="text-xs font-mono text-rose-400 hover:text-rose-300 transition-colors cursor-pointer flex items-center justify-center gap-1.5 mx-auto"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>Lock Out (Re-lock Developer Gate)</span>
             </button>
           </div>
         </motion.div>

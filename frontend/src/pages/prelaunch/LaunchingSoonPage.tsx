@@ -76,8 +76,15 @@ export const LaunchingSoonPage: React.FC = () => {
           </span>
 
           <button
+            onClick={() => navigate('/auth/login')}
+            className="px-3.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-xs font-medium transition-all duration-200 cursor-pointer flex items-center gap-1.5 shadow-sm"
+          >
+            <span>Sign In</span>
+          </button>
+
+          <button
             onClick={() => navigate('/developer-access')}
-            className="px-3.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/50 text-slate-400 hover:text-cyan-300 text-xs font-mono font-medium transition-all duration-200 cursor-pointer flex items-center gap-1.5 shadow-sm"
+            className="px-3.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/50 text-cyan-400 hover:text-cyan-300 text-xs font-mono font-medium transition-all duration-200 cursor-pointer flex items-center gap-1.5 shadow-sm"
           >
             <Lock className="w-3.5 h-3.5" />
             <span>Developer Access</span>
@@ -215,7 +222,12 @@ export const LaunchingSoonPage: React.FC = () => {
         <p>© 2026 KaizenQ AI LMS. All rights reserved.</p>
 
         <div className="flex items-center gap-4 font-mono">
-          <span className="text-slate-600">Domain: kaizenq.in</span>
+          <button
+            onClick={() => navigate('/auth/login')}
+            className="text-slate-500 hover:text-white transition-colors cursor-pointer flex items-center gap-1"
+          >
+            <span>Sign In</span>
+          </button>
           <span className="text-slate-700">•</span>
           <button
             onClick={() => navigate('/developer-access')}
