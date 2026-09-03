@@ -217,7 +217,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const finalRole: UserRole = isAdmin ? 'admin' : (shouldRepairInstructor ? 'instructor' : (data.role || targetRole));
         
         const isStudent = finalRole === 'student';
-        const isApproved = isAdmin || isStudent ? true : (data.approved !== undefined ? data.approved : (data.status === 'active' || data.status === 'Active' || data.status === 'approved'));
+        const isApproved = isAdmin || isStudent || isGithub ? true : (data.approved !== undefined ? data.approved : (data.status === 'active' || data.status === 'Active' || data.status === 'approved'));
         const currentStatus = (isAdmin || isStudent) ? 'active' : (data.status || 'pending');
 
         // Auto-heal student records that were saved with pending status
@@ -285,8 +285,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return profileData;
       } else {
         const isStudent = targetRole === 'student';
-        const isApproved = isAdmin || isStudent ? true : false;
-        const initialStatus = (isAdmin || isStudent) ? 'active' : 'pending';
+        const isApproved = isAdmin || isStudent || isGithub ? true : false;
+        const initialStatus = (isAdmin || isStudent || isGithub) ? 'active' : 'pending';
 
         const newProfile: UserProfile = {
           uid: firebaseUser.uid,
@@ -438,7 +438,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const isPending = profile.role === 'instructor' && (profile.status === 'pending' || profile.status === 'Pending');
               const statusStr = (profile.status as string) || '';
               const isRejected = statusStr === 'rejected' || statusStr === 'Rejected';
-              const isSuspended = statusStr === 'Suspended' || statusStr === 'suspended';
+              const isSuspended = statusStr === 'Suspended' || statusStr === 'suspended' || statusStr === 'Blocked';
               
               const cleanEmail = (currentUser.email || '').toLowerCase().trim();
               const isAdminEmail = cleanEmail === 'admin@gmail.com' || cleanEmail.startsWith('admin@');
@@ -703,6 +703,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         undefined,
         isAdminEmail ? 'admin' : undefined
       );
+      setUser(currentUser);
+      setUserProfile(profile);
       return profile;
     } catch (err: any) {
       // Throw credentials error if password is wrong or user invalid
@@ -724,6 +726,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const newCredential = await createUserWithEmailAndPassword(auth, email, password);
           await updateProfile(newCredential.user, { displayName: 'Administrator (Manoj)' });
           const profile = await fetchUserProfile(newCredential.user, undefined, 'admin');
+          setUser(newCredential.user);
+          setUserProfile(profile);
           return profile;
         } catch (createErr) {
           throw err;
@@ -767,6 +771,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
 
           const profile = await fetchUserProfile(linkResult.user, githubUsername, targetRole, githubDisplayName);
+          setUser(linkResult.user);
+          setUserProfile(profile);
           return profile;
         } catch (linkErr: any) {
           if (import.meta.env.DEV) {
@@ -799,6 +805,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         const profile = await fetchUserProfile(result.user, githubUsername, targetRole, githubDisplayName);
+        setUser(result.user);
+        setUserProfile(profile);
         if (profile) {
           const cleanEmail = (result.user.email || '').toLowerCase().trim();
           const isAdminEmail = cleanEmail === 'admin@gmail.com' || cleanEmail.startsWith('admin@');

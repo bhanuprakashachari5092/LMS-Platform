@@ -1,0 +1,1 @@
+var e=(typeof window<`u`&&window.location&&window.location.hostname&&window.location.hostname!==`localhost`&&window.location.hostname!==`127.0.0.1`?`${window.location.origin}/api`:`http://localhost:5000/api`).replace(/\/+$/,``),t=e.endsWith(`/api`)?e:`${e}/api`;export{t};
