@@ -31,6 +31,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { API_BASE_URL } from '@/config/api';
 import { CertificateService } from '@/services/achievementService';
 import { CheckoutModal } from '../courses/CheckoutModal';
+import { 
+  PORTFOLIO_THEMES_CONFIG, 
+  PortfolioThemeRenderer 
+} from './themes/PortfolioThemes';
+import type { 
+  PortfolioThemeId 
+} from './themes/PortfolioThemes';
 
 const Github: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -220,6 +227,10 @@ export const PortfolioBuilder: React.FC = () => {
   ]);
 
   // 6. Theme & Accent Settings
+  const [portfolioTheme, setPortfolioTheme] = useState<PortfolioThemeId>(() => {
+    const saved = localStorage.getItem('shaivika_portfolio_theme') as PortfolioThemeId;
+    return saved && PORTFOLIO_THEMES_CONFIG.some(t => t.id === saved) ? saved : 'bento_grid';
+  });
   const [accentColor, setAccentColor] = useState<'cyan' | 'purple' | 'emerald' | 'amber' | 'rose'>('cyan');
   const [isPublished, setIsPublished] = useState(() => {
     return localStorage.getItem('shaivika_portfolio_published') === 'true';
@@ -240,9 +251,6 @@ export const PortfolioBuilder: React.FC = () => {
     localStorage.getItem('shaivika_vip_unlocked') === 'true'
   );
   const [showVipModal, setShowVipModal] = useState(false);
-
-
-
 
   // LMS Telemetry data
   const [userCertificates, setUserCertificates] = useState<any[]>([]);
@@ -268,6 +276,9 @@ export const PortfolioBuilder: React.FC = () => {
           if (p.skills && Array.isArray(p.skills)) setSkills(p.skills);
           if (p.projects && Array.isArray(p.projects)) setProjects(p.projects);
           if (p.accentColor) setAccentColor(p.accentColor);
+          if (p.theme && PORTFOLIO_THEMES_CONFIG.some(t => t.id === p.theme)) {
+            setPortfolioTheme(p.theme as PortfolioThemeId);
+          }
           if (typeof p.isPublished === 'boolean') setIsPublished(p.isPublished);
         }
       })
@@ -384,6 +395,7 @@ export const PortfolioBuilder: React.FC = () => {
     localStorage.setItem('shaivika_portfolio_published', String(targetPublished));
     localStorage.setItem('shaivika_portfolio_skills', JSON.stringify(skills));
     localStorage.setItem('shaivika_portfolio_projects', JSON.stringify(projects));
+    localStorage.setItem('shaivika_portfolio_theme', portfolioTheme);
 
     const payload = {
       studentId: userId,
@@ -410,6 +422,7 @@ export const PortfolioBuilder: React.FC = () => {
       educations,
       education: educations,
       accentColor,
+      theme: portfolioTheme,
       isPublished: targetPublished,
     };
 
@@ -552,6 +565,42 @@ export const PortfolioBuilder: React.FC = () => {
             <Save className="w-4 h-4" />
             <span>{isSaving ? 'Saving...' : isPublished ? 'Publish Updates' : 'Publish Portfolio Live'}</span>
           </button>
+        </div>
+      </div>
+
+      {/* ── Quick Theme Switcher Strip ── */}
+      <div className="p-4 rounded-3xl bg-slate-900/90 border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-md">
+        <div className="flex items-center gap-2">
+          <Palette className="w-4 h-4 text-cyan-400" />
+          <span className="text-xs font-bold text-white uppercase tracking-wider">Portfolio Style:</span>
+          <span className="text-xs font-mono font-bold text-cyan-300">
+            {PORTFOLIO_THEMES_CONFIG.find(t => t.id === portfolioTheme)?.name}
+          </span>
+        </div>
+
+        <div className="flex flex-wrap gap-1.5">
+          {PORTFOLIO_THEMES_CONFIG.map((t) => {
+            const isSelected = portfolioTheme === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => {
+                  setPortfolioTheme(t.id);
+                  localStorage.setItem('shaivika_portfolio_theme', t.id);
+                  toast.success(`Active theme: ${t.name}`);
+                }}
+                className={`px-3 py-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  isSelected
+                    ? 'bg-cyan-500 text-slate-950 font-black shadow-md'
+                    : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-750'
+                }`}
+              >
+                {isSelected && <Check className="w-3 h-3 text-slate-950" />}
+                <span>{t.badge}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -998,11 +1047,56 @@ export const PortfolioBuilder: React.FC = () => {
         {activeBuilderTab === 'theme' && (
           <div className="space-y-6 animate-in fade-in duration-200">
             <div>
-              <h3 className="text-lg font-heading font-bold text-white">Visual Styling & Custom Vanity Handle</h3>
-              <p className="text-xs text-slate-400 font-medium">Choose your portfolio theme accent color and personalized public URL handle.</p>
+              <h3 className="text-lg font-heading font-bold text-white">Visual Styling & Portfolio Themes</h3>
+              <p className="text-xs text-slate-400 font-medium">Select your developer portfolio homepage style, accent colors, and custom public URL handle.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* 6 Theme Cards Selector */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">Select Portfolio Homepage Layout & Theme</label>
+                <span className="text-[11px] text-slate-500 font-mono">6 Styles Available</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                {PORTFOLIO_THEMES_CONFIG.map((t) => {
+                  const isSelected = portfolioTheme === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => {
+                        setPortfolioTheme(t.id);
+                        localStorage.setItem('shaivika_portfolio_theme', t.id);
+                        toast.success(`Applied theme: ${t.name}`);
+                      }}
+                      className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between space-y-2.5 ${
+                        isSelected
+                          ? 'border-cyan-500 bg-cyan-950/40 shadow-lg shadow-cyan-950/30 ring-2 ring-cyan-500/30'
+                          : 'border-slate-800 bg-slate-950/70 hover:border-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-300">
+                          {t.badge}
+                        </span>
+                        {isSelected && (
+                          <span className="w-5 h-5 rounded-full bg-cyan-500 text-slate-950 flex items-center justify-center font-bold">
+                            <Check className="w-3 h-3" />
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white">{t.name}</h4>
+                        <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">{t.tagline}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
               {/* Vanity Handle */}
               <div className="space-y-3 p-5 rounded-2xl bg-slate-950 border border-slate-800">
                 <label className="text-xs font-bold text-slate-300">Vanity Username / Handle</label>
@@ -1021,7 +1115,7 @@ export const PortfolioBuilder: React.FC = () => {
 
               {/* Theme Color Palette */}
               <div className="space-y-3 p-5 rounded-2xl bg-slate-950 border border-slate-800">
-                <label className="text-xs font-bold text-slate-300">Accent Color Theme</label>
+                <label className="text-xs font-bold text-slate-300">Accent Color Glow</label>
                 <div className="flex items-center gap-3 pt-1">
                   {[
                     { id: 'cyan', label: 'Cyber Cyan', bg: 'bg-cyan-500', ring: 'ring-cyan-500' },
@@ -1397,7 +1491,7 @@ export const PortfolioBuilder: React.FC = () => {
             {/* Embedded Live Frame */}
             <div className="flex-1 bg-slate-950 flex items-center justify-center p-4 overflow-y-auto">
               <div
-                className={`h-full bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl transition-all duration-300 ${
+                className={`h-full bg-slate-900 border border-slate-800 rounded-2xl overflow-y-auto shadow-2xl transition-all duration-300 ${
                   previewDevice === 'mobile'
                     ? 'w-[375px]'
                     : previewDevice === 'tablet'
@@ -1405,10 +1499,23 @@ export const PortfolioBuilder: React.FC = () => {
                     : 'w-full'
                 }`}
               >
-                <iframe
-                  src={`/portfolio/${handle || userId}`}
-                  title="Portfolio Live Preview"
-                  className="w-full h-full border-none"
+                <PortfolioThemeRenderer 
+                  themeId={portfolioTheme} 
+                  data={{
+                    fullName,
+                    headline,
+                    bio: aboutBio,
+                    location,
+                    email,
+                    githubUrl,
+                    linkedinUrl,
+                    websiteUrl,
+                    skills,
+                    projects,
+                    experiences,
+                    educations,
+                    avatarUrl,
+                  }} 
                 />
               </div>
             </div>

@@ -55,6 +55,9 @@ router.put('/me', extractOptionalUser as any, async (req: AuthenticatedRequest, 
       certifications,
       projects,
       template,
+      website,
+      github,
+      linkedin,
     } = req.body;
 
     const payload: any = {
@@ -65,12 +68,15 @@ router.put('/me', extractOptionalUser as any, async (req: AuthenticatedRequest, 
       location: location || '',
       title: title || 'Full Stack Developer',
       summary: summary || '',
+      website: website || '',
+      github: github || '',
+      linkedin: linkedin || '',
       skills: Array.isArray(skills) ? skills : [],
       experience: Array.isArray(experience) ? experience : [],
       education: Array.isArray(education) ? education : [],
       certifications: Array.isArray(certifications) ? certifications : [],
       projects: Array.isArray(projects) ? projects : [],
-      template: template || 'modern',
+      template: template || 'overleaf_classic',
       updatedAt: new Date().toISOString(),
     };
 

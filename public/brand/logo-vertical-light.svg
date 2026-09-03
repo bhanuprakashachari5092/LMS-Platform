@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 400" width="100%" height="100%">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Sora:wght@700;800&amp;display=swap');
+      .v-text-kaizen {
+        font-family: 'Sora', -apple-system, sans-serif;
+        font-weight: 800;
+        font-size: 54px;
+        fill: #0B1220;
+        letter-spacing: -0.02em;
+      }
+      .v-text-q {
+        font-family: 'Sora', -apple-system, sans-serif;
+        font-weight: 800;
+        font-size: 54px;
+        fill: url(#vkqGrad);
+        letter-spacing: -0.02em;
+      }
+      .v-tagline {
+        font-family: 'Sora', -apple-system, sans-serif;
+        font-weight: 600;
+        font-size: 13px;
+        fill: #64748B;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+      }
+    </style>
+
+    <linearGradient id="vkqGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563EB" />
+      <stop offset="100%" stop-color="#22D3EE" />
+    </linearGradient>
+  </defs>
+
+  <rect width="360" height="400" fill="#FFFFFF" rx="20" />
+
+  <g transform="translate(180, 140)">
+    <!-- Centered Symbol -->
+    <g transform="translate(-100, -100)">
+      <circle cx="100" cy="100" r="66" fill="none" stroke="url(#vkqGrad)" stroke-width="16" stroke-linecap="round" />
+      <line x1="70" y1="56" x2="70" y2="144" stroke="url(#vkqGrad)" stroke-width="15" stroke-linecap="round" />
+      <path d="M 70 100 L 126 54 M 110 54 L 126 54 L 126 70" fill="none" stroke="url(#vkqGrad)" stroke-width="15" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M 70 100 L 138 144 M 138 144 L 162 168" fill="none" stroke="url(#vkqGrad)" stroke-width="15" stroke-linecap="round" />
+      
+      <circle cx="70" cy="56" r="4" fill="#22D3EE" />
+      <circle cx="70" cy="56" r="8" fill="none" stroke="#22D3EE" stroke-width="1.5" opacity="0.6" />
+      <circle cx="126" cy="54" r="4.5" fill="#22D3EE" />
+      <circle cx="126" cy="54" r="9" fill="none" stroke="#22D3EE" stroke-width="1.5" opacity="0.8" />
+      <circle cx="70" cy="100" r="3.5" fill="#FFFFFF" />
+      <circle cx="162" cy="168" r="4" fill="#22D3EE" />
+      <circle cx="162" cy="168" r="8" fill="none" stroke="#22D3EE" stroke-width="1.5" opacity="0.6" />
+    </g>
+  </g>
+
+  <!-- Wordmark Below Centered -->
+  <g transform="translate(180, 290)" text-anchor="middle">
+    <text y="0">
+      <tspan class="v-text-kaizen">Kaizen </tspan>
+      <tspan class="v-text-q">Q</tspan>
+    </text>
+    <text class="v-tagline" y="32">AI-POWERED LMS</text>
+  </g>
+</svg>

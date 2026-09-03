@@ -216,8 +216,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const shouldRepairInstructor = targetRole === 'instructor' || storedRole === 'instructor';
         const finalRole: UserRole = isAdmin ? 'admin' : (shouldRepairInstructor ? 'instructor' : (data.role || targetRole));
         
-        const isApproved = isAdmin ? true : (data.approved !== undefined ? data.approved : (data.status === 'active' || data.status === 'Active' || data.status === 'approved'));
-        const currentStatus = data.status || (isAdmin ? 'active' : 'pending');
+        const isApproved = isAdmin || finalRole === 'student' ? true : (data.approved !== undefined ? data.approved : (data.status === 'active' || data.status === 'Active' || data.status === 'approved'));
+        const currentStatus = (isAdmin || finalRole === 'student')
+          ? (data.status === 'Suspended' || data.status === 'rejected' ? data.status : 'Active')
+          : (data.status || 'pending');
 
         const resolvedGithubUsername = data.githubUsername || calculatedUsername;
         const resolvedPhotoURL = data.photoURL || firebaseUser.photoURL || (resolvedGithubUsername ? `https://github.com/${resolvedGithubUsername}.png?size=200` : null);
@@ -274,8 +276,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUserProfile(profileData);
         return profileData;
       } else {
-        const isApproved = isAdmin ? true : false;
-        const initialStatus = isAdmin ? 'active' : 'pending';
+        const isApproved = isAdmin || targetRole === 'student';
+        const initialStatus = (isAdmin || targetRole === 'student') ? 'Active' : 'pending';
 
         const newProfile: UserProfile = {
           uid: firebaseUser.uid,
@@ -423,9 +425,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const storedSignupRole = typeof window !== 'undefined' ? sessionStorage.getItem('kaizenq_signup_role') as UserRole : undefined;
             const profile = await fetchUserProfile(currentUser, undefined, storedSignupRole);
             if (profile) {
-              // Enforce account status check on initialization
-              const isPending = (profile.role === 'instructor' && (profile.status === 'pending' || profile.status === 'Pending')) || 
-                                (profile.role === 'student' && profile.status === 'pending');
+              // Enforce account status check on initialization (Instructors pending approval or suspended/rejected accounts)
+              const isPending = profile.role === 'instructor' && (profile.status === 'pending' || profile.status === 'Pending');
               const isRejected = profile.status === 'rejected';
               const isSuspended = profile.status === 'Suspended';
               
@@ -635,18 +636,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
 
-        const isPending = (userRole === 'instructor' && (approvalStatus === 'pending' || approvalStatus === 'Pending')) || 
-                          (userRole === 'student' && (approvalStatus === 'pending' || approvalStatus === 'Pending Approval'));
+        const isPending = userRole === 'instructor' && (approvalStatus === 'pending' || approvalStatus === 'Pending');
 
         if (isPending) {
           if (auth) {
             await signOut(auth).catch(() => null);
           }
           console.warn(`[Dashboard Access Blocked] User ${currentUser.email} blocked because status is ${approvalStatus}.`);
-          const pendingErr: any = new Error(userRole === 'instructor'
-            ? 'Your instructor account is awaiting administrator approval. Please check your email.'
-            : 'Your registration application is pending administrator review and approval.'
-          );
+          const pendingErr: any = new Error('Your instructor account is awaiting administrator approval. Please check your email.');
           pendingErr.code = 'ADMIN_APPROVAL_PENDING';
           throw pendingErr;
         } else if (approvalStatus === 'rejected' || approvalStatus === 'Rejected') {

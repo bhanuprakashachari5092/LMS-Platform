@@ -33,11 +33,12 @@ export const Login: React.FC = () => {
 
   // Redirect if user is already logged in
   useEffect(() => {
-    if (user && userProfile) {
+    if (user) {
       const from = (location.state as any)?.from?.pathname;
-      if (from) {
+      const role = userProfile?.role || (user.email?.toLowerCase().includes('admin') ? 'admin' : 'student');
+      if (from && from !== '/auth/login' && from !== '/login') {
         navigate(from, { replace: true });
-      } else if (userProfile.role === 'admin') {
+      } else if (role === 'admin') {
         navigate('/admin/dashboard', { replace: true });
       } else {
         navigate('/dashboard', { replace: true });
@@ -56,7 +57,8 @@ export const Login: React.FC = () => {
     try {
       const profile = await login(email, password, rememberMe);
       toast.success('Signed in successfully!');
-      if (profile?.role === 'admin') {
+      const role = profile?.role || (email.toLowerCase().includes('admin') ? 'admin' : 'student');
+      if (role === 'admin') {
         navigate('/admin/dashboard', { replace: true });
       } else {
         navigate('/dashboard', { replace: true });
@@ -88,7 +90,8 @@ export const Login: React.FC = () => {
     try {
       const profile = await signInWithGithub();
       toast.success('Signed in with GitHub successfully!');
-      if (profile?.role === 'admin') {
+      const role = profile?.role || 'student';
+      if (role === 'admin') {
         navigate('/admin/dashboard', { replace: true });
       } else {
         navigate('/dashboard', { replace: true });

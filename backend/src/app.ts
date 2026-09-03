@@ -60,13 +60,13 @@ const defaultDevOrigins = ['http://localhost:5173', 'http://localhost:3000', 'ht
 const configuredOrigins = [
   ...env.CORS_ORIGIN.split(',').map((o) => o.trim()),
   ...env.FRONTEND_URL.split(',').map((o) => o.trim()),
-].filter((o) => Boolean(o) && (isProduction ? !defaultDevOrigins.includes(o) : true));
+].filter(Boolean);
 
 const allowedOrigins = Array.from(
   new Set([
     ...defaultProductionOrigins,
     ...configuredOrigins,
-    ...(!isProduction ? defaultDevOrigins : []),
+    ...defaultDevOrigins,
   ])
 );
 
@@ -76,11 +76,8 @@ const corsOptions: cors.CorsOptions = {
     if (!origin) return callback(null, true);
 
     const isKaizenQDomain = /^https?:\/\/(www\.)?kaizenq\.in(:\d+)?$/.test(origin);
-    if (isKaizenQDomain || allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-
-    if (!isProduction && (defaultDevOrigins.includes(origin) || env.CORS_ORIGIN === '*')) {
+    const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+    if (isKaizenQDomain || isLocalhost || allowedOrigins.includes(origin) || env.CORS_ORIGIN === '*') {
       return callback(null, true);
     }
 

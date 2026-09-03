@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 200" width="100%" height="100%">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Sora:wght@700;800;900&amp;display=swap');
+      .text-kaizen-dark {
+        font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-weight: 900;
+        font-size: 78px;
+        fill: #FFFFFF;
+        letter-spacing: -0.02em;
+      }
+      .text-q-dark {
+        font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-weight: 900;
+        font-size: 78px;
+        fill: url(#kqGradDark);
+        letter-spacing: -0.02em;
+      }
+      .text-tagline-dark {
+        font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-weight: 800;
+        font-size: 22px;
+        fill: #E2E8F0;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+      }
+    </style>
+
+    <linearGradient id="kqGradDark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563EB" />
+      <stop offset="100%" stop-color="#22D3EE" />
+    </linearGradient>
+
+    <linearGradient id="kqArrowGradDark" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#2563EB" />
+      <stop offset="100%" stop-color="#38BDF8" />
+    </linearGradient>
+
+    <filter id="kqGlowDark" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <g transform="translate(10, 0)">
+    <!-- SYMBOL (LEFT) -->
+    <g transform="translate(10, 0)" filter="url(#kqGlowDark)">
+      <line x1="12" y1="72" x2="48" y2="72" stroke="url(#kqGradDark)" stroke-width="3.5" stroke-linecap="round" />
+      <circle cx="12" cy="72" r="5" fill="none" stroke="url(#kqGradDark)" stroke-width="3.5" />
+      <polygon points="46,67 57,72 46,77" fill="url(#kqGradDark)" />
+
+      <line x1="2" y1="100" x2="44" y2="100" stroke="url(#kqGradDark)" stroke-width="3.5" stroke-linecap="round" />
+      <circle cx="2" cy="100" r="5" fill="none" stroke="url(#kqGradDark)" stroke-width="3.5" />
+      <polygon points="42,95 53,100 42,105" fill="url(#kqGradDark)" />
+
+      <line x1="18" y1="128" x2="48" y2="128" stroke="url(#kqGradDark)" stroke-width="3.5" stroke-linecap="round" />
+      <circle cx="18" cy="128" r="5" fill="none" stroke="url(#kqGradDark)" stroke-width="3.5" />
+      <polygon points="46,123 57,128 46,133" fill="url(#kqGradDark)" />
+
+      <circle cx="110" cy="100" r="66" fill="none" stroke="url(#kqGradDark)" stroke-width="16" stroke-linecap="round" />
+
+      <line x1="80" y1="56" x2="80" y2="144" stroke="url(#kqGradDark)" stroke-width="15" stroke-linecap="round" />
+      <path d="M 80 100 L 136 54" fill="none" stroke="url(#kqGradDark)" stroke-width="15" stroke-linecap="round" />
+      <path d="M 80 100 L 148 144 L 172 168" fill="none" stroke="url(#kqGradDark)" stroke-width="15" stroke-linecap="round" />
+
+      <g transform="translate(120, 88)">
+        <path d="M 0 16 L 0 0 M -6 6 L 0 -1 L 6 6" fill="none" stroke="url(#kqArrowGradDark)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+      </g>
+    </g>
+
+    <!-- WORDMARK & TAGLINE (RIGHT) -->
+    <g transform="translate(225, 106)">
+      <text class="text-kaizen-dark" x="0" y="0">Kaizen</text>
+      <text class="text-q-dark" x="290" y="0">Q</text>
+      
+      <g transform="translate(0, 42)">
+        <line x1="0" y1="-7" x2="35" y2="-7" stroke="url(#kqGradDark)" stroke-width="3.5" stroke-linecap="round" />
+        
+        <text class="text-tagline-dark" x="48" y="0">
+          LEARN <tspan fill="#38BDF8" font-weight="900">•</tspan> BUILD <tspan fill="#22D3EE" font-weight="900">•</tspan> EVOLVE
+        </text>
+
+        <line x1="445" y1="-7" x2="480" y2="-7" stroke="url(#kqGradDark)" stroke-width="3.5" stroke-linecap="round" />
+      </g>
+    </g>
+  </g>
+</svg>
