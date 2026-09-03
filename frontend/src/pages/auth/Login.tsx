@@ -33,11 +33,12 @@ export const Login: React.FC = () => {
 
   // Redirect if user is already logged in
   useEffect(() => {
-    if (user && userProfile) {
+    if (user) {
       const from = (location.state as any)?.from?.pathname;
-      if (from) {
+      const role = userProfile?.role || (user.email?.toLowerCase().includes('admin') ? 'admin' : 'student');
+      if (from && from !== '/auth/login' && from !== '/login') {
         navigate(from, { replace: true });
-      } else if (userProfile.role === 'admin') {
+      } else if (role === 'admin') {
         navigate('/admin/dashboard', { replace: true });
       } else {
         navigate('/dashboard', { replace: true });

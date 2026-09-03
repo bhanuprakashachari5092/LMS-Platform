@@ -1,23 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Printer, Save, Sparkles, Plus, Trash2, Award, Briefcase, GraduationCap, Wand2 } from 'lucide-react';
+import { 
+  FileText, 
+  Printer, 
+  Save, 
+  Sparkles, 
+  Plus, 
+  Trash2, 
+  Briefcase, 
+  GraduationCap, 
+  Wand2,
+  LayoutTemplate,
+  FolderGit2,
+  Check,
+  CheckCircle2
+} from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { API_BASE_URL } from '@/config/api';
 import { CertificateService } from '@/services/achievementService';
 import { toast } from 'sonner';
 import { CheckoutModal } from './CheckoutModal';
-
-interface Experience {
-  role: string;
-  company: string;
-  duration: string;
-  desc: string;
-}
-
-interface Education {
-  degree: string;
-  school: string;
-  duration: string;
-}
+import { 
+  RESUME_TEMPLATES_CONFIG, 
+  ResumeTemplateRenderer 
+} from './resume-templates/ResumeTemplates';
+import type { 
+  TemplateId, 
+  ResumeData, 
+  ExperienceItem, 
+  EducationItem, 
+  ProjectItem 
+} from './resume-templates/ResumeTemplates';
 
 export const ResumeBuilder: React.FC = () => {
   const { user, userProfile } = useAuth();
@@ -49,6 +61,18 @@ export const ResumeBuilder: React.FC = () => {
     localStorage.getItem('shaivika_resume_title') || 'Full Stack & AI Engineer'
   );
 
+  const [website, setWebsite] = useState(
+    localStorage.getItem('shaivika_resume_website') || 'https://shaivika.ai'
+  );
+
+  const [github, setGithub] = useState(
+    localStorage.getItem('shaivika_resume_github') || 'https://github.com/developer'
+  );
+
+  const [linkedin, setLinkedin] = useState(
+    localStorage.getItem('shaivika_resume_linkedin') || 'https://linkedin.com/in/developer'
+  );
+
   const [summary, setSummary] = useState(
     localStorage.getItem('shaivika_resume_summary') ||
     'Dedicated engineering professional mastering system architecture, full stack React & Node.js development, and AI engineering practices at Shaivika AI Foundation LMS.'
@@ -62,7 +86,7 @@ export const ResumeBuilder: React.FC = () => {
 
   const [newSkill, setNewSkill] = useState('');
 
-  const [experience, setExperience] = useState<Experience[]>(() => {
+  const [experience, setExperience] = useState<ExperienceItem[]>(() => {
     const cached = localStorage.getItem('shaivika_resume_experience');
     if (cached) return JSON.parse(cached);
     return [
@@ -75,7 +99,7 @@ export const ResumeBuilder: React.FC = () => {
     ];
   });
 
-  const [education, setEducation] = useState<Education[]>(() => {
+  const [education, setEducation] = useState<EducationItem[]>(() => {
     const cached = localStorage.getItem('shaivika_resume_education');
     if (cached) return JSON.parse(cached);
     return [
@@ -87,15 +111,33 @@ export const ResumeBuilder: React.FC = () => {
     ];
   });
 
+  const [projects, setProjects] = useState<ProjectItem[]>(() => {
+    const cached = localStorage.getItem('shaivika_resume_projects');
+    if (cached) return JSON.parse(cached);
+    return [
+      {
+        name: 'KaizenQ AI LMS & Knowledge Studio',
+        tech: 'React, Node.js, TypeScript, PostgreSQL, Gemini AI',
+        link: 'https://github.com/developer/kaizenq-lms',
+        desc: 'Engineered an interactive adaptive learning platform with real-time code sandboxes and AI automated tutor feedback.',
+      },
+    ];
+  });
+
   const [certifications, setCertifications] = useState<string[]>(() => {
     const cached = localStorage.getItem('shaivika_resume_certifications');
     if (cached) return JSON.parse(cached);
     return ['Shaivika AI Foundation: Full Stack React & Node.js Mastery'];
   });
 
-  const [template, setTemplate] = useState<'modern' | 'classic' | 'minimal'>('modern');
+  const [template, setTemplate] = useState<TemplateId>(() => {
+    const cached = localStorage.getItem('shaivika_resume_template') as TemplateId;
+    return cached && RESUME_TEMPLATES_CONFIG.some(t => t.id === cached) ? cached : 'overleaf_classic';
+  });
+
   const [newRole, setNewRole] = useState({ role: '', company: '', duration: '', desc: '' });
   const [newEd, setNewEd] = useState({ degree: '', school: '', duration: '' });
+  const [newProj, setNewProj] = useState({ name: '', tech: '', link: '', desc: '' });
   const [isSaving, setIsSaving] = useState(false);
   const [showVipModal, setShowVipModal] = useState(false);
   const [isVipUnlocked] = useState<boolean>(() =>
@@ -115,12 +157,18 @@ export const ResumeBuilder: React.FC = () => {
           if (d.phone) setPhone(d.phone);
           if (d.location) setLocation(d.location);
           if (d.title) setJobTitle(d.title);
+          if (d.website) setWebsite(d.website);
+          if (d.github) setGithub(d.github);
+          if (d.linkedin) setLinkedin(d.linkedin);
           if (d.summary) setSummary(d.summary);
           if (Array.isArray(d.skills) && d.skills.length > 0) setSkills(d.skills);
           if (Array.isArray(d.experience) && d.experience.length > 0) setExperience(d.experience);
           if (Array.isArray(d.education) && d.education.length > 0) setEducation(d.education);
+          if (Array.isArray(d.projects) && d.projects.length > 0) setProjects(d.projects);
           if (Array.isArray(d.certifications) && d.certifications.length > 0) setCertifications(d.certifications);
-          if (d.template) setTemplate(d.template);
+          if (d.template && RESUME_TEMPLATES_CONFIG.some(t => t.id === d.template)) {
+            setTemplate(d.template as TemplateId);
+          }
         }
       })
       .catch(() => {});
@@ -134,11 +182,16 @@ export const ResumeBuilder: React.FC = () => {
     localStorage.setItem('shaivika_resume_phone', phone);
     localStorage.setItem('shaivika_resume_location', location);
     localStorage.setItem('shaivika_resume_title', jobTitle);
+    localStorage.setItem('shaivika_resume_website', website);
+    localStorage.setItem('shaivika_resume_github', github);
+    localStorage.setItem('shaivika_resume_linkedin', linkedin);
     localStorage.setItem('shaivika_resume_summary', summary);
     localStorage.setItem('shaivika_resume_skills', JSON.stringify(skills));
     localStorage.setItem('shaivika_resume_experience', JSON.stringify(experience));
     localStorage.setItem('shaivika_resume_education', JSON.stringify(education));
+    localStorage.setItem('shaivika_resume_projects', JSON.stringify(projects));
     localStorage.setItem('shaivika_resume_certifications', JSON.stringify(certifications));
+    localStorage.setItem('shaivika_resume_template', template);
 
     // 2. Database API
     try {
@@ -162,16 +215,20 @@ export const ResumeBuilder: React.FC = () => {
           phone,
           location,
           title: jobTitle,
+          website,
+          github,
+          linkedin,
           summary,
           skills,
           experience,
           education,
+          projects,
           certifications,
           template,
         }),
       });
 
-      toast.success('💾 Resume saved to cloud database & local workspace!');
+      toast.success('💾 Resume draft saved to cloud database & local workspace!');
     } catch {
       toast.success('💾 Resume saved locally.');
     } finally {
@@ -234,6 +291,12 @@ export const ResumeBuilder: React.FC = () => {
     }
   };
 
+  const handleRemoveExperience = (index: number) => {
+    const updated = experience.filter((_, i) => i !== index);
+    setExperience(updated);
+    localStorage.setItem('shaivika_resume_experience', JSON.stringify(updated));
+  };
+
   const handleAddEducation = () => {
     if (newEd.degree && newEd.school) {
       const updated = [...education, newEd];
@@ -241,6 +304,33 @@ export const ResumeBuilder: React.FC = () => {
       setNewEd({ degree: '', school: '', duration: '' });
       localStorage.setItem('shaivika_resume_education', JSON.stringify(updated));
     }
+  };
+
+  const handleRemoveEducation = (index: number) => {
+    const updated = education.filter((_, i) => i !== index);
+    setEducation(updated);
+    localStorage.setItem('shaivika_resume_education', JSON.stringify(updated));
+  };
+
+  const handleAddProject = () => {
+    if (newProj.name) {
+      const updated = [...projects, newProj];
+      setProjects(updated);
+      setNewProj({ name: '', tech: '', link: '', desc: '' });
+      localStorage.setItem('shaivika_resume_projects', JSON.stringify(updated));
+    }
+  };
+
+  const handleRemoveProject = (index: number) => {
+    const updated = projects.filter((_, i) => i !== index);
+    setProjects(updated);
+    localStorage.setItem('shaivika_resume_projects', JSON.stringify(updated));
+  };
+
+  const handleSelectTemplate = (id: TemplateId) => {
+    setTemplate(id);
+    localStorage.setItem('shaivika_resume_template', id);
+    toast.success(`Applied template: ${RESUME_TEMPLATES_CONFIG.find(t => t.id === id)?.name}`);
   };
 
   const handlePrint = () => {
@@ -252,9 +342,26 @@ export const ResumeBuilder: React.FC = () => {
     window.print();
   };
 
+  const resumeData: ResumeData = {
+    fullName,
+    jobTitle,
+    email,
+    phone,
+    location,
+    website,
+    github,
+    linkedin,
+    summary,
+    skills,
+    experience,
+    education,
+    projects,
+    certifications,
+  };
+
   return (
     <div className="space-y-8 font-sans text-slate-800 dark:text-zinc-100 animate-in fade-in duration-300">
-      {/* Print styles injected directly to prevent page-level dashboard components from printing */}
+      {/* Print styles injected directly for clean document export */}
       <style>{`
         @media print {
           body * {
@@ -274,6 +381,7 @@ export const ResumeBuilder: React.FC = () => {
             color: black !important;
             border: none !important;
             box-shadow: none !important;
+            border-radius: 0 !important;
           }
           .no-print {
             display: none !important;
@@ -289,7 +397,7 @@ export const ResumeBuilder: React.FC = () => {
             <span>Interactive Resume Builder</span>
           </h2>
           <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
-            Build and export a print-perfect professional developer resume with Shaivika verified credentials.
+            Build and export print-perfect ATS & LaTeX developer resumes with Shaivika verified credentials.
           </p>
         </div>
         <div className="flex flex-wrap gap-2.5">
@@ -319,16 +427,67 @@ export const ResumeBuilder: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-        {/* Left Column: Form Editor */}
-        <div className="no-print space-y-6">
+      {/* Visual Template Switcher Bar */}
+      <div className="no-print p-5 rounded-3xl border border-sky-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <LayoutTemplate className="w-4 h-4 text-indigo-500" />
+            <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
+              Choose Resume Layout & Style
+            </span>
+          </div>
+          <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500">
+            6 Professional Templates Available
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+          {RESUME_TEMPLATES_CONFIG.map((t) => {
+            const isSelected = template === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => handleSelectTemplate(t.id)}
+                className={`relative p-3 text-left rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
+                  isSelected
+                    ? 'border-indigo-600 dark:border-indigo-500 bg-indigo-50/60 dark:bg-indigo-950/40 shadow-sm ring-2 ring-indigo-500/20'
+                    : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 hover:border-slate-300 dark:hover:border-slate-700'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-1 mb-1">
+                    <span className="text-[9px] font-extrabold uppercase tracking-wide px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
+                      {t.badge}
+                    </span>
+                    {isSelected && (
+                      <span className="w-4 h-4 rounded-full bg-indigo-600 text-white flex items-center justify-center">
+                        <Check className="w-2.5 h-2.5" />
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs font-bold text-slate-900 dark:text-white leading-tight">
+                    {t.name}
+                  </div>
+                </div>
+                <div className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-1.5 leading-snug">
+                  {t.tagline}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Left Column: Form Editor (5 cols on lg) */}
+        <div className="no-print lg:col-span-5 space-y-6">
           {/* Contact Details Editor */}
           <div className="p-6 rounded-3xl border border-sky-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-4">
             <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
               <span>Personal & Contact Info</span>
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
+              <div className="sm:col-span-2">
                 <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase block mb-1">Full Name</label>
                 <input
                   type="text"
@@ -337,7 +496,7 @@ export const ResumeBuilder: React.FC = () => {
                   className="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white font-medium"
                 />
               </div>
-              <div>
+              <div className="sm:col-span-2">
                 <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase block mb-1">Job / Target Title</label>
                 <input
                   type="text"
@@ -361,6 +520,35 @@ export const ResumeBuilder: React.FC = () => {
                   type="text"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
+                  className="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white font-medium"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase block mb-1">Location</label>
+                <input
+                  type="text"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  className="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white font-medium"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase block mb-1">GitHub URL</label>
+                <input
+                  type="text"
+                  value={github}
+                  onChange={(e) => setGithub(e.target.value)}
+                  placeholder="https://github.com/username"
+                  className="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white font-medium"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase block mb-1">LinkedIn URL</label>
+                <input
+                  type="text"
+                  value={linkedin}
+                  onChange={(e) => setLinkedin(e.target.value)}
+                  placeholder="https://linkedin.com/in/username"
                   className="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white font-medium"
                 />
               </div>
@@ -397,7 +585,7 @@ export const ResumeBuilder: React.FC = () => {
               />
               <button
                 onClick={handleAddSkill}
-                className="px-3 py-2.5 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-650 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-850 rounded-xl text-xs font-bold cursor-pointer hover:bg-indigo-105"
+                className="px-3 py-2.5 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 rounded-xl text-xs font-bold cursor-pointer hover:bg-indigo-100"
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -423,6 +611,24 @@ export const ResumeBuilder: React.FC = () => {
               <Briefcase className="w-4 h-4 text-emerald-500" />
               <span>Professional Experience</span>
             </h3>
+
+            {/* List of existing experience */}
+            {experience.length > 0 && (
+              <div className="space-y-2">
+                {experience.map((exp, i) => (
+                  <div key={i} className="p-3 bg-slate-50 dark:bg-slate-950/50 rounded-xl border border-slate-200 dark:border-slate-800 flex justify-between items-start gap-2">
+                    <div className="text-xs">
+                      <div className="font-bold text-slate-900 dark:text-white">{exp.role}</div>
+                      <div className="text-[11px] text-slate-500">{exp.company} • {exp.duration}</div>
+                    </div>
+                    <button onClick={() => handleRemoveExperience(i)} className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="space-y-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800">
               <input
                 type="text"
@@ -441,24 +647,87 @@ export const ResumeBuilder: React.FC = () => {
                 />
                 <input
                   type="text"
-                  placeholder="Duration (e.g. 2025 - 2026)"
+                  placeholder="Duration (e.g. 2025 - Present)"
                   value={newRole.duration}
                   onChange={(e) => setNewRole({ ...newRole, duration: e.target.value })}
                   className="p-2.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 />
               </div>
               <textarea
-                placeholder="Key accomplishments..."
+                placeholder="Key accomplishments (use new lines for bullet points)..."
                 value={newRole.desc}
                 onChange={(e) => setNewRole({ ...newRole, desc: e.target.value })}
                 className="w-full h-16 p-2.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl resize-none focus:outline-none text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
               />
               <button
                 onClick={handleAddExperience}
-                className="w-full py-2 bg-indigo-600 hover:bg-indigo-750 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Position</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Featured Projects */}
+          <div className="p-6 rounded-3xl border border-sky-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-4">
+            <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+              <FolderGit2 className="w-4 h-4 text-purple-500" />
+              <span>Key Projects & Portfolio</span>
+            </h3>
+
+            {projects.length > 0 && (
+              <div className="space-y-2">
+                {projects.map((proj, i) => (
+                  <div key={i} className="p-3 bg-slate-50 dark:bg-slate-950/50 rounded-xl border border-slate-200 dark:border-slate-800 flex justify-between items-start gap-2">
+                    <div className="text-xs">
+                      <div className="font-bold text-slate-900 dark:text-white">{proj.name}</div>
+                      <div className="text-[11px] text-slate-500">{proj.tech}</div>
+                    </div>
+                    <button onClick={() => handleRemoveProject(i)} className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800">
+              <input
+                type="text"
+                placeholder="Project Name (e.g. Distributed Cache Engine)"
+                value={newProj.name}
+                onChange={(e) => setNewProj({ ...newProj, name: e.target.value })}
+                className="w-full p-2.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  placeholder="Tech Stack (e.g. Go, Redis, Docker)"
+                  value={newProj.tech}
+                  onChange={(e) => setNewProj({ ...newProj, tech: e.target.value })}
+                  className="p-2.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                />
+                <input
+                  type="text"
+                  placeholder="Project / Repo Link"
+                  value={newProj.link}
+                  onChange={(e) => setNewProj({ ...newProj, link: e.target.value })}
+                  className="p-2.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                />
+              </div>
+              <textarea
+                placeholder="Brief project description and achievements..."
+                value={newProj.desc}
+                onChange={(e) => setNewProj({ ...newProj, desc: e.target.value })}
+                className="w-full h-16 p-2.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl resize-none focus:outline-none text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
+              />
+              <button
+                onClick={handleAddProject}
+                className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Project</span>
               </button>
             </div>
           </div>
@@ -469,10 +738,27 @@ export const ResumeBuilder: React.FC = () => {
               <GraduationCap className="w-4 h-4 text-cyan-500" />
               <span>Academic Education</span>
             </h3>
+
+            {education.length > 0 && (
+              <div className="space-y-2">
+                {education.map((ed, i) => (
+                  <div key={i} className="p-3 bg-slate-50 dark:bg-slate-950/50 rounded-xl border border-slate-200 dark:border-slate-800 flex justify-between items-start gap-2">
+                    <div className="text-xs">
+                      <div className="font-bold text-slate-900 dark:text-white">{ed.degree}</div>
+                      <div className="text-[11px] text-slate-500">{ed.school} • {ed.duration}</div>
+                    </div>
+                    <button onClick={() => handleRemoveEducation(i)} className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="space-y-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800">
               <input
                 type="text"
-                placeholder="Degree Course (e.g. B.Tech)"
+                placeholder="Degree Course (e.g. B.Tech Computer Science)"
                 value={newEd.degree}
                 onChange={(e) => setNewEd({ ...newEd, degree: e.target.value })}
                 className="w-full p-2.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
@@ -480,7 +766,7 @@ export const ResumeBuilder: React.FC = () => {
               <div className="grid grid-cols-2 gap-2">
                 <input
                   type="text"
-                  placeholder="School / College"
+                  placeholder="School / University"
                   value={newEd.school}
                   onChange={(e) => setNewEd({ ...newEd, school: e.target.value })}
                   className="p-2.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
@@ -495,7 +781,7 @@ export const ResumeBuilder: React.FC = () => {
               </div>
               <button
                 onClick={handleAddEducation}
-                className="w-full py-2 bg-indigo-600 hover:bg-indigo-750 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Education Entry</span>
@@ -504,111 +790,27 @@ export const ResumeBuilder: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Column: Live Printable Preview */}
-        <div id="shaivika-printable-resume" className="p-8 md:p-12 rounded-3xl border border-slate-250 dark:border-zinc-800 bg-white text-slate-900 shadow-xl space-y-8 select-text">
-          {/* Header */}
-          <div className="border-b-2 border-slate-900 pb-5 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
-            <div>
-              <h1 className="text-3xl font-black tracking-tight text-slate-900 uppercase">
-                {fullName}
-              </h1>
-              <span className="text-[11px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-150 px-2.5 py-0.5 rounded-md uppercase tracking-wider mt-1.5 inline-block">
-                {jobTitle}
-              </span>
-            </div>
-            <div className="text-right text-[11px] font-bold text-slate-500 space-y-0.5">
-              <div className="text-slate-900 font-extrabold">{email}</div>
-              <div>{phone} • {location}</div>
-              <div className="text-indigo-600 font-bold">Certification Authority: Shaivika AI Foundation LMS</div>
-            </div>
+        {/* Right Column: Live Printable Preview (7 cols on lg) */}
+        <div className="lg:col-span-7 sticky top-6">
+          <div className="flex items-center justify-between mb-2 px-1">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              Live Printable Preview ({RESUME_TEMPLATES_CONFIG.find(t => t.id === template)?.name})
+            </span>
+            <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <CheckCircle2 className="w-3 h-3" />
+              <span>A4 / Letter Print Ready</span>
+            </span>
           </div>
 
-          {/* Professional Summary */}
-          <div className="space-y-2">
-            <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest border-b border-slate-200 pb-1">
-              Summary Outline
-            </h4>
-            <p className="text-xs leading-relaxed text-slate-700 font-medium">
-              {summary}
-            </p>
+          <div 
+            id="shaivika-printable-resume" 
+            className="rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white shadow-2xl overflow-hidden min-h-[750px]"
+          >
+            <ResumeTemplateRenderer templateId={template} data={resumeData} />
           </div>
-
-          {/* Skills Grid */}
-          <div className="space-y-2">
-            <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest border-b border-slate-200 pb-1">
-              Technical Proficiencies
-            </h4>
-            <div className="flex flex-wrap gap-2 pt-1">
-              {skills.map((skill, i) => (
-                <span key={i} className="px-2 py-0.5 border border-slate-350 text-[10px] font-bold bg-slate-50 text-slate-800 rounded-md">
-                  {skill}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Verified Certificates & Courses */}
-          {certifications && certifications.length > 0 && (
-            <div className="space-y-3">
-              <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest border-b border-slate-200 pb-1 flex items-center gap-2">
-                <Award className="w-4 h-4 text-amber-500 fill-amber-500/10 shrink-0" />
-                <span>Verified Shaivika AI Foundation Certifications</span>
-              </h4>
-              <div className="space-y-2">
-                {certifications.map((cert, idx) => (
-                  <div key={idx} className="flex justify-between text-xs items-center bg-slate-50 p-2 rounded-lg border border-slate-200">
-                    <div className="font-bold text-slate-900">{cert}</div>
-                    <span className="text-[9px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full shrink-0">
-                      Verified
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Work Experience */}
-          {experience.length > 0 && (
-            <div className="space-y-3">
-              <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest border-b border-slate-200 pb-1">
-                Experience History
-              </h4>
-              <div className="space-y-3">
-                {experience.map((exp, i) => (
-                  <div key={i} className="text-xs">
-                    <div className="flex justify-between font-extrabold text-slate-900">
-                      <span>{exp.role}</span>
-                      <span className="text-[10px] text-slate-500">{exp.duration}</span>
-                    </div>
-                    <div className="text-[10px] font-extrabold text-indigo-700 mt-0.5">{exp.company}</div>
-                    <p className="text-[11px] text-slate-650 mt-1 font-medium leading-relaxed">{exp.desc}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Education */}
-          {education.length > 0 && (
-            <div className="space-y-3">
-              <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest border-b border-slate-200 pb-1">
-                Education Timeline
-              </h4>
-              <div className="space-y-3">
-                {education.map((ed, i) => (
-                  <div key={i} className="text-xs flex justify-between">
-                    <div>
-                      <div className="font-extrabold text-slate-900">{ed.degree}</div>
-                      <div className="text-[10px] text-slate-500 font-medium mt-0.5">{ed.school}</div>
-                    </div>
-                    <div className="text-[10px] font-bold text-slate-500 text-right">{ed.duration}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
+
       <CheckoutModal
         isOpen={showVipModal}
         onClose={() => setShowVipModal(false)}

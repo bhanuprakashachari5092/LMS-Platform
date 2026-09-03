@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="appBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0B1220" />
+      <stop offset="50%" stop-color="#0F172A" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+
+    <!-- Symbol Gradient -->
+    <linearGradient id="appSymbolGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563EB" />
+      <stop offset="50%" stop-color="#3B82F6" />
+      <stop offset="100%" stop-color="#22D3EE" />
+    </linearGradient>
+
+    <!-- Rim Light Gradient -->
+    <linearGradient id="appRimGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="rgba(34, 211, 238, 0.6)" />
+      <stop offset="50%" stop-color="rgba(37, 99, 235, 0.2)" />
+      <stop offset="100%" stop-color="rgba(255, 255, 255, 0.05)" />
+    </linearGradient>
+
+    <!-- Glass Specular Reflection Gradient -->
+    <linearGradient id="appGlassGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="rgba(255, 255, 255, 0.15)" />
+      <stop offset="40%" stop-color="rgba(255, 255, 255, 0.02)" />
+      <stop offset="100%" stop-color="rgba(255, 255, 255, 0.0)" />
+    </linearGradient>
+
+    <!-- Symbol Deep Soft Glow -->
+    <filter id="appSymbolGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="28" result="blur" />
+      <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.35 0" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <!-- Squircle Shadow -->
+    <filter id="appShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="32" stdDeviation="40" flood-color="#000000" flood-opacity="0.5" />
+    </filter>
+  </defs>
+
+  <!-- Canvas Base -->
+  <g filter="url(#appShadow)">
+    <!-- 1. Apple-style Squircle Canvas Container (Rx: 224 for 1024x1024) -->
+    <rect x="32" y="32" width="960" height="960" rx="216" fill="url(#appBgGrad)" />
+
+    <!-- 2. Outer Glass Bevel Rim -->
+    <rect x="32" y="32" width="960" height="960" rx="216" fill="none" stroke="url(#appRimGrad)" stroke-width="4" opacity="0.9" />
+
+    <!-- 3. Upper Specular Reflection (Glassmorphism Effect) -->
+    <path d="M 32 248 C 32 128, 128 32, 248 32 L 776 32 C 896 32, 992 128, 992 248 L 992 480 Q 512 600 32 480 Z" 
+          fill="url(#appGlassGrad)" />
+
+    <!-- 4. Subtle Radial Background Glow behind Symbol -->
+    <circle cx="512" cy="512" r="320" fill="#2563EB" opacity="0.12" filter="blur(60px)" />
+    <circle cx="512" cy="512" r="180" fill="#22D3EE" opacity="0.15" filter="blur(40px)" />
+
+    <!-- 5. KAIZEN Q SYMBOL (Centered at 512, 512, scaled 4.2x) -->
+    <g transform="translate(512, 512) scale(4.2) translate(-100, -100)" filter="url(#appSymbolGlow)">
+      <!-- Outer Q Ring -->
+      <circle cx="100" cy="100" r="66" fill="none" stroke="url(#appSymbolGrad)" stroke-width="16" stroke-linecap="round" />
+      
+      <!-- K Vertical Stem -->
+      <line x1="70" y1="56" x2="70" y2="144" stroke="url(#appSymbolGrad)" stroke-width="15" stroke-linecap="round" />
+      
+      <!-- K Upper Arm + Growth Arrow -->
+      <path d="M 70 100 L 126 54 M 110 54 L 126 54 L 126 70" fill="none" stroke="url(#appSymbolGrad)" stroke-width="15" stroke-linecap="round" stroke-linejoin="round" />
+      
+      <!-- K Lower Arm + Q Tail -->
+      <path d="M 70 100 L 138 144 M 138 144 L 162 168" fill="none" stroke="url(#appSymbolGrad)" stroke-width="15" stroke-linecap="round" />
+      
+      <!-- AI Micro Nodes -->
+      <circle cx="70" cy="56" r="4.5" fill="#22D3EE" />
+      <circle cx="70" cy="56" r="9" fill="none" stroke="#22D3EE" stroke-width="1.5" opacity="0.8" />
+      
+      <circle cx="126" cy="54" r="5" fill="#22D3EE" />
+      <circle cx="126" cy="54" r="10" fill="none" stroke="#22D3EE" stroke-width="1.5" opacity="0.9" />
+      
+      <circle cx="70" cy="100" r="4" fill="#FFFFFF" />
+      
+      <circle cx="162" cy="168" r="4.5" fill="#22D3EE" />
+      <circle cx="162" cy="168" r="9" fill="none" stroke="#22D3EE" stroke-width="1.5" opacity="0.8" />
+      
+      <!-- AI Traces -->
+      <line x1="70" y1="56" x2="126" y2="54" stroke="#22D3EE" stroke-width="1" stroke-dasharray="2 3" opacity="0.7" />
+    </g>
+  </g>
+</svg>
