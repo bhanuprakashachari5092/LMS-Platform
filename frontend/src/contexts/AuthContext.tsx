@@ -135,16 +135,9 @@ console.log("🚀 ACTIVE FIRESTORE INSTANCE: frontend/src/firebase.ts (db)");
 console.log("🚀 ACTIVE AUTH CONTEXT: frontend/src/contexts/AuthContext.tsx (AuthContext)");
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(() => auth?.currentUser || null);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(() => {
-    try {
-      const saved = typeof window !== 'undefined' ? localStorage.getItem('shaivika_user') : null;
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
-  const [loading, setLoading] = useState<boolean>(() => !auth?.currentUser && !(typeof window !== 'undefined' && localStorage.getItem('shaivika_user')));
+  const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
 
   // Fetch or create user document from Firestore
   const fetchUserProfile = async (
@@ -223,10 +216,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const shouldRepairInstructor = targetRole === 'instructor' || storedRole === 'instructor';
         const finalRole: UserRole = isAdmin ? 'admin' : (shouldRepairInstructor ? 'instructor' : (data.role || targetRole));
         
-        const isApproved = isAdmin || finalRole === 'student' ? true : (data.approved !== undefined ? data.approved : (data.status === 'active' || data.status === 'Active' || data.status === 'approved'));
-        const currentStatus = (isAdmin || finalRole === 'student')
-          ? (data.status === 'Suspended' || data.status === 'rejected' ? data.status : 'Active')
-          : (data.status || 'pending');
+        const isApproved = isAdmin ? true : (data.approved !== undefined ? data.approved : (data.status === 'active' || data.status === 'Active' || data.status === 'approved'));
+        const currentStatus = data.status || (isAdmin ? 'active' : 'pending');
 
         const resolvedGithubUsername = data.githubUsername || calculatedUsername;
         const resolvedPhotoURL = data.photoURL || firebaseUser.photoURL || (resolvedGithubUsername ? `https://github.com/${resolvedGithubUsername}.png?size=200` : null);
@@ -283,8 +274,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUserProfile(profileData);
         return profileData;
       } else {
-        const isApproved = isAdmin || targetRole === 'student';
-        const initialStatus = (isAdmin || targetRole === 'student') ? 'Active' : 'pending';
+        const isApproved = isAdmin ? true : false;
+        const initialStatus = isAdmin ? 'active' : 'pending';
 
         const newProfile: UserProfile = {
           uid: firebaseUser.uid,
@@ -325,61 +316,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           githubUsername: calculatedUsername,
         };
 
+        console.log(`[FIRESTORE] Creating initial users profile for ${firebaseUser.uid}...`);
         try {
           await setDoc(userRef, newProfile);
           console.log(`[FIRESTORE] Initial users profile created: users/${firebaseUser.uid}`);
         } catch (err: any) {
-          console.warn(`[FIRESTORE NOTICE] Failed writing users/${firebaseUser.uid} to Firestore, continuing with local profile:`, err);
+          console.error(`[FIRESTORE CRITICAL REJECTION] Failed creating users/${firebaseUser.uid}!`, err);
+          console.error('[FIRESTORE REJECTION REASON]', err?.message || err?.code || String(err));
+          console.error('[FIRESTORE REJECTION STACK]', err?.stack);
+          throw err;
         }
 
-        try {
-          if (targetRole === 'student') {
-            await syncStudent(newProfile);
-          } else if (targetRole === 'instructor') {
-            await syncInstructor(newProfile);
+        if (targetRole === 'student') {
+          await syncStudent(newProfile);
+        } else if (targetRole === 'instructor') {
+          await syncInstructor(newProfile);
 
-            // Dispatch instructor pending-approval email via SMTP backend
-            try {
-              const apiBaseUrl = API_BASE_URL;
-              await fetch(`${apiBaseUrl}/email/send`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  eventType: 'INSTRUCTOR_REGISTRATION_PENDING',
-                  recipientEmail: (firebaseUser.email || '').toLowerCase().trim(),
-                  payload: {
-                    instructorName: calculatedName,
-                    email: (firebaseUser.email || '').toLowerCase().trim(),
-                    department: 'Computer Science & System Architecture',
-                    qualification: 'Pending Verification',
-                    experience: 'Not yet specified',
-                  },
-                }),
-              });
-              console.log('[INSTRUCTOR REGISTRATION AUDIT] Pending approval SMTP email dispatched.');
-            } catch (emailErr) {
-              console.warn('[INSTRUCTOR REGISTRATION AUDIT] SMTP email dispatch notice:', emailErr);
-            }
-
-            // Notify admin in Firestore notifications collection
-            try {
-              const adminNotifRef = doc(collection(db, 'notifications'));
-              await setDoc(adminNotifRef, {
-                userId: firebaseUser.uid,
-                title: 'New Lecturer Registration',
-                message: `${calculatedName} (${firebaseUser.email}) registered as an Instructor and is pending approval.`,
-                createdAt: new Date().toISOString(),
-                isRead: false,
-                type: 'info',
-                recipientRole: 'admin',
-              });
-              console.log('[INSTRUCTOR REGISTRATION AUDIT] Admin notification written to Firestore notifications.');
-            } catch (notifErr) {
-              console.warn('[INSTRUCTOR REGISTRATION AUDIT] Failed to write admin notification:', notifErr);
-            }
+          // Dispatch instructor pending-approval email via SMTP backend
+          try {
+            const apiBaseUrl = API_BASE_URL;
+            await fetch(`${apiBaseUrl}/email/send`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                eventType: 'INSTRUCTOR_REGISTRATION_PENDING',
+                recipientEmail: (firebaseUser.email || '').toLowerCase().trim(),
+                payload: {
+                  instructorName: calculatedName,
+                  email: (firebaseUser.email || '').toLowerCase().trim(),
+                  department: 'Computer Science & System Architecture',
+                  qualification: 'Pending Verification',
+                  experience: 'Not yet specified',
+                },
+              }),
+            });
+            console.log('[INSTRUCTOR REGISTRATION AUDIT] Pending approval SMTP email dispatched.');
+          } catch (emailErr) {
+            console.warn('[INSTRUCTOR REGISTRATION AUDIT] SMTP email dispatch notice:', emailErr);
           }
-        } catch (syncErr) {
-          console.warn('[AUTH SYNC] Notice during role sync:', syncErr);
+
+          // Notify admin in Firestore notifications collection
+          try {
+            const adminNotifRef = doc(collection(db, 'notifications'));
+            await setDoc(adminNotifRef, {
+              userId: firebaseUser.uid,
+              title: 'New Lecturer Registration',
+              message: `${calculatedName} (${firebaseUser.email}) registered as an Instructor and is pending approval.`,
+              createdAt: new Date().toISOString(),
+              isRead: false,
+              type: 'info',
+              recipientRole: 'admin',
+            });
+            console.log('[INSTRUCTOR REGISTRATION AUDIT] Admin notification written to Firestore notifications.');
+          } catch (notifErr) {
+            console.warn('[INSTRUCTOR REGISTRATION AUDIT] Failed to write admin notification:', notifErr);
+          }
         }
 
         setUserProfile(newProfile);
@@ -432,8 +423,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const storedSignupRole = typeof window !== 'undefined' ? sessionStorage.getItem('kaizenq_signup_role') as UserRole : undefined;
             const profile = await fetchUserProfile(currentUser, undefined, storedSignupRole);
             if (profile) {
-              // Enforce account status check on initialization (Instructors pending approval or suspended/rejected accounts)
-              const isPending = profile.role === 'instructor' && (profile.status === 'pending' || profile.status === 'Pending');
+              // Enforce account status check on initialization
+              const isPending = (profile.role === 'instructor' && (profile.status === 'pending' || profile.status === 'Pending')) || 
+                                (profile.role === 'student' && profile.status === 'pending');
               const isRejected = profile.status === 'rejected';
               const isSuspended = profile.status === 'Suspended';
               
@@ -485,78 +477,77 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     password: string,
     role: UserRole = 'student'
   ): Promise<void> => {
-    if (!auth) {
-      throw new Error('Authentication service is currently unavailable.');
-    }
+    const apiBaseUrl = API_BASE_URL;
+    const endpoint = role === 'instructor' ? `${apiBaseUrl}/auth/signup/lecturer` : `${apiBaseUrl}/auth/signup/student`;
 
-    const cleanEmail = email.toLowerCase().trim();
-
-    // 1. Direct Firebase Auth registration
-    const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
-    await updateProfile(userCredential.user, { displayName: name });
-
-    const newProfile: UserProfile = {
-      uid: userCredential.user.uid,
-      email: cleanEmail,
-      name,
-      fullName: name,
-      role,
-      provider: 'password',
-      providerId: 'password',
-      isVerified: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      status: role === 'instructor' ? 'pending' : 'Active',
-      approved: role !== 'instructor',
-    };
-
-    if (db) {
-      try {
-        const userRef = doc(db, 'users', userCredential.user.uid);
-        await setDoc(userRef, newProfile, { merge: true });
-
-        if (role === 'student') {
-          await syncStudent(newProfile);
-        } else if (role === 'instructor') {
-          await syncInstructor(newProfile);
-        }
-      } catch (dbErr) {
-        console.warn('[SIGNUP] Firestore write notice:', dbErr);
-      }
-    }
-
-    // Optional backend notification for instructor applications
-    if (role === 'instructor') {
-      try {
-        const apiBaseUrl = API_BASE_URL;
-        await fetch(`${apiBaseUrl}/auth/signup/lecturer`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fullName: name,
-            email: cleanEmail,
-            password,
-            branch: 'AI & Computer Science',
-            specialty: 'Computer Science & System Architecture',
-            experience: 'Pending Verification',
-          }),
-        }).catch(() => null);
-      } catch (e) {}
-    }
-
-    setUser(userCredential.user);
-    setUserProfile(newProfile);
-    setLoading(false);
-
+    console.log(`[SIGNUP] Dispatching ${role} registration to backend endpoint: ${endpoint}...`);
     try {
-      const token = await userCredential.user.getIdToken(true);
-      localStorage.setItem('shaivika_auth_token', token);
-      localStorage.setItem('token', token);
-      localStorage.setItem('shaivika_user', JSON.stringify(newProfile));
-    } catch (e) {}
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: name,
+          email: email.toLowerCase().trim(),
+          password,
+          branch: 'AI & Computer Science',
+          specialty: 'Computer Science & System Architecture',
+          experience: 'Pending Verification',
+        }),
+      });
 
-    if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('kaizenq_signup_role');
+      const resData = await response.json();
+      if (!response.ok || !resData.success) {
+        console.error(`[SIGNUP ERROR] Backend ${role} signup failed:`, resData);
+        throw new Error(resData.error || resData.message || `Failed to submit ${role} registration.`);
+      }
+
+      console.log(`[SIGNUP SUCCESS] ${role} registration completed via backend:`, resData);
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('kaizenq_signup_role');
+      }
+    } catch (fetchErr: any) {
+      console.warn(`[SIGNUP FAILOVER] Backend endpoint notice: ${fetchErr?.message}. Initiating resilient direct Firebase registration...`);
+      
+      if (!auth) {
+        throw new Error(fetchErr?.message || 'Authentication service is currently unavailable.');
+      }
+
+      // Resilient Client-Side Fallback via Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, email.toLowerCase().trim(), password);
+      await updateProfile(userCredential.user, { displayName: name });
+
+      const newProfile: UserProfile = {
+        uid: userCredential.user.uid,
+        email: email.toLowerCase().trim(),
+        name,
+        fullName: name,
+        role,
+        provider: 'password',
+        providerId: 'password',
+        isVerified: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'Active',
+      };
+
+      if (db) {
+        try {
+          const userRef = doc(db, 'users', userCredential.user.uid);
+          await setDoc(userRef, newProfile, { merge: true });
+
+          if (role === 'student') {
+            await syncStudent(newProfile);
+          }
+        } catch (dbErr) {
+          console.warn('[SIGNUP FAILOVER] Firestore profile write notice:', dbErr);
+        }
+      }
+
+      setUser(userCredential.user);
+      setUserProfile(newProfile);
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('kaizenq_signup_role');
+      }
     }
   };
 
@@ -611,8 +602,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      // Admin Approval Check for instructors or suspended accounts
-      if (!isAdminEmail) {
+      const isVerifiedQuery = typeof window !== 'undefined' && window.location.search.includes('verified=true');
+      const isVerified = currentUser.emailVerified || isVerifiedQuery;
+
+      // Module 2 Gate: Email Verification AND Admin Approval for Student/Instructor Accounts
+      if (!isAdminEmail && typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+        // 1. Email Verification Check
+        if (!isVerified) {
+          await signOut(auth).catch(() => null);
+          const unverifiedError: any = new Error('Please verify your email address before logging in.');
+          unverifiedError.code = 'EMAIL_NOT_VERIFIED';
+          throw unverifiedError;
+        }
+
+        // 2. Admin Approval Check — read ONLY from `users` collection (single source of truth)
         let approvalStatus = 'approved';
         let userRole: UserRole = 'student';
         if (db) {
@@ -621,6 +624,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (userDoc.exists()) {
               const data = userDoc.data();
               userRole = data.role || 'student';
+              // Normalize: 'active', 'Active', 'approved' → approved; 'pending' → pending
               const rawStatus = data.status || '';
               const isApproved = data.approved === true || rawStatus === 'active' || rawStatus === 'Active' || rawStatus === 'approved';
               approvalStatus = isApproved ? 'approved' : (rawStatus || 'pending');
@@ -631,14 +635,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
 
-        const isPending = userRole === 'instructor' && (approvalStatus === 'pending' || approvalStatus === 'Pending');
+        const isPending = (userRole === 'instructor' && (approvalStatus === 'pending' || approvalStatus === 'Pending')) || 
+                          (userRole === 'student' && (approvalStatus === 'pending' || approvalStatus === 'Pending Approval'));
 
         if (isPending) {
           if (auth) {
             await signOut(auth).catch(() => null);
           }
           console.warn(`[Dashboard Access Blocked] User ${currentUser.email} blocked because status is ${approvalStatus}.`);
-          const pendingErr: any = new Error('Your instructor account is awaiting administrator approval. Please check your email.');
+          const pendingErr: any = new Error(userRole === 'instructor'
+            ? 'Your instructor account is awaiting administrator approval. Please check your email.'
+            : 'Your registration application is pending administrator review and approval.'
+          );
           pendingErr.code = 'ADMIN_APPROVAL_PENDING';
           throw pendingErr;
         } else if (approvalStatus === 'rejected' || approvalStatus === 'Rejected') {
@@ -670,20 +678,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         undefined,
         isAdminEmail ? 'admin' : undefined
       );
-
-      setUser(currentUser);
-      setUserProfile(profile);
-      setLoading(false);
-
-      try {
-        const token = await currentUser.getIdToken(true);
-        localStorage.setItem('shaivika_auth_token', token);
-        localStorage.setItem('token', token);
-        if (profile) {
-          localStorage.setItem('shaivika_user', JSON.stringify(profile));
-        }
-      } catch (e) {}
-
       return profile;
     } catch (err: any) {
       // Throw credentials error if password is wrong or user invalid
@@ -804,20 +798,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           }
         }
-
-        setUser(result.user);
-        setUserProfile(profile);
-        setLoading(false);
-
-        try {
-          const token = await result.user.getIdToken(true);
-          localStorage.setItem('shaivika_auth_token', token);
-          localStorage.setItem('token', token);
-          if (profile) {
-            localStorage.setItem('shaivika_user', JSON.stringify(profile));
-          }
-        } catch (e) {}
-
         return profile;
       } catch (error: any) {
         if (import.meta.env.DEV) {

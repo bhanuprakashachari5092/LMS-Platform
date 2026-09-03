@@ -14,9 +14,7 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
     );
   }
 
-  const hasSession = Boolean(user || (typeof window !== 'undefined' && (localStorage.getItem('token') || localStorage.getItem('shaivika_auth_token') || localStorage.getItem('shaivika_user'))));
-
-  if (!hasSession && !user) {
+  if (!user) {
     return <Navigate to="/auth/login" state={{ from: location }} replace />;
   }
 

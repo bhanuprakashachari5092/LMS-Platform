@@ -14,40 +14,33 @@ interface DeveloperGateContextType {
 const DeveloperGateContext = createContext<DeveloperGateContextType | undefined>(undefined);
 
 export const DeveloperGateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const isLocalHost = typeof window !== 'undefined' && 
-    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-
-  const [isPrelaunchMode, setIsPrelaunchMode] = useState<boolean>(false);
+  const [isPrelaunchMode, setIsPrelaunchMode] = useState<boolean>(true);
   const [isDeveloper, setIsDeveloper] = useState<boolean>(() => {
-    if (isLocalHost) return true;
     return sessionStorage.getItem('kz_dev_session_active') === 'true';
   });
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const checkStatus = useCallback(async () => {
     try {
       const res = await apiClient.get('/developer-access/status');
       if (res.data && res.data.success) {
-        if (!isLocalHost) {
-          setIsPrelaunchMode(Boolean(res.data.prelaunchMode));
-        } else {
-          setIsPrelaunchMode(false);
-          setIsDeveloper(true);
-        }
-        if (res.data.isDeveloper || isLocalHost) {
+        setIsPrelaunchMode(Boolean(res.data.prelaunchMode));
+        if (res.data.isDeveloper) {
           setIsDeveloper(true);
           sessionStorage.setItem('kz_dev_session_active', 'true');
         }
       }
     } catch {
-      setIsPrelaunchMode(false);
-      if (isLocalHost) {
+      // If backend is waking up or offline, maintain existing valid session if available
+      const localActive = sessionStorage.getItem('kz_dev_session_active') === 'true';
+      setIsPrelaunchMode(true);
+      if (localActive) {
         setIsDeveloper(true);
       }
     } finally {
       setIsLoading(false);
     }
-  }, [isLocalHost]);
+  }, []);
 
   useEffect(() => {
     checkStatus();
