@@ -13,7 +13,9 @@ export const StudentRoute: React.FC<{ children: React.ReactNode }> = ({ children
     );
   }
 
-  if (!user) {
+  const hasSession = Boolean(user || (typeof window !== 'undefined' && (localStorage.getItem('token') || localStorage.getItem('shaivika_auth_token') || localStorage.getItem('shaivika_user'))));
+
+  if (!hasSession && !user) {
     return <Navigate to="/auth/login" replace />;
   }
 

@@ -135,9 +135,16 @@ console.log("🚀 ACTIVE FIRESTORE INSTANCE: frontend/src/firebase.ts (db)");
 console.log("🚀 ACTIVE AUTH CONTEXT: frontend/src/contexts/AuthContext.tsx (AuthContext)");
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [user, setUser] = useState<User | null>(() => auth?.currentUser || null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('shaivika_user') : null;
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [loading, setLoading] = useState<boolean>(() => !auth?.currentUser && !(typeof window !== 'undefined' && localStorage.getItem('shaivika_user')));
 
   // Fetch or create user document from Firestore
   const fetchUserProfile = async (
@@ -662,6 +669,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         undefined,
         isAdminEmail ? 'admin' : undefined
       );
+
+      setUser(currentUser);
+      setUserProfile(profile);
+      setLoading(false);
+
+      try {
+        const token = await currentUser.getIdToken(true);
+        localStorage.setItem('shaivika_auth_token', token);
+        localStorage.setItem('token', token);
+        if (profile) {
+          localStorage.setItem('shaivika_user', JSON.stringify(profile));
+        }
+      } catch (e) {}
+
       return profile;
     } catch (err: any) {
       // Throw credentials error if password is wrong or user invalid
@@ -782,6 +803,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           }
         }
+
+        setUser(result.user);
+        setUserProfile(profile);
+        setLoading(false);
+
+        try {
+          const token = await result.user.getIdToken(true);
+          localStorage.setItem('shaivika_auth_token', token);
+          localStorage.setItem('token', token);
+          if (profile) {
+            localStorage.setItem('shaivika_user', JSON.stringify(profile));
+          }
+        } catch (e) {}
+
         return profile;
       } catch (error: any) {
         if (import.meta.env.DEV) {
