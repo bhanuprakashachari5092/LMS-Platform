@@ -678,6 +678,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         undefined,
         isAdminEmail ? 'admin' : undefined
       );
+      setUser(currentUser);
+      setUserProfile(profile);
       return profile;
     } catch (err: any) {
       // Throw credentials error if password is wrong or user invalid
@@ -699,6 +701,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const newCredential = await createUserWithEmailAndPassword(auth, email, password);
           await updateProfile(newCredential.user, { displayName: 'Administrator (Manoj)' });
           const profile = await fetchUserProfile(newCredential.user, undefined, 'admin');
+          setUser(newCredential.user);
+          setUserProfile(profile);
           return profile;
         } catch (createErr) {
           throw err;
@@ -742,6 +746,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
 
           const profile = await fetchUserProfile(linkResult.user, githubUsername, targetRole, githubDisplayName);
+          setUser(linkResult.user);
+          setUserProfile(profile);
           return profile;
         } catch (linkErr: any) {
           if (import.meta.env.DEV) {
@@ -774,6 +780,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         const profile = await fetchUserProfile(result.user, githubUsername, targetRole, githubDisplayName);
+        setUser(result.user);
+        setUserProfile(profile);
         if (profile) {
           const cleanEmail = (result.user.email || '').toLowerCase().trim();
           const isAdminEmail = cleanEmail === 'admin@gmail.com' || cleanEmail.startsWith('admin@');

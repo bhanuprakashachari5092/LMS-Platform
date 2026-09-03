@@ -27,7 +27,7 @@ export const DeveloperAccessPage: React.FC = () => {
   const [isRateLimited, setIsRateLimited] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  // If already authenticated as developer, offer direct jump to dashboard
+  // If already authenticated as developer, offer direct jump to login or dashboard
   if (isDeveloper && !isSuccess) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4 font-sans">
@@ -42,16 +42,24 @@ export const DeveloperAccessPage: React.FC = () => {
           <div className="space-y-2">
             <h2 className="text-xl font-heading font-black text-white">Developer Session Active</h2>
             <p className="text-xs text-slate-400">
-              You already have an authorized developer session active in this browser.
+              Passcode <span className="font-mono text-cyan-400 font-bold">googlemanoj</span> is verified. You have full developer access to the LMS platform.
             </p>
           </div>
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 font-heading font-black text-sm transition-all duration-200 shadow-lg shadow-cyan-500/20 cursor-pointer flex items-center justify-center gap-2"
-          >
-            <span>Proceed to LMS Dashboard</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={() => navigate('/auth/login')}
+              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 font-heading font-black text-sm transition-all duration-200 shadow-lg shadow-cyan-500/20 cursor-pointer flex items-center justify-center gap-2"
+            >
+              <span>Proceed to Login</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="w-full py-3 rounded-2xl bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-200 font-heading font-bold text-xs transition-all duration-200 cursor-pointer flex items-center justify-center gap-2"
+            >
+              <span>Go to Student Dashboard</span>
+            </button>
+          </div>
         </motion.div>
       </div>
     );
@@ -73,7 +81,7 @@ export const DeveloperAccessPage: React.FC = () => {
     if (result.success) {
       setIsSuccess(true);
       setTimeout(() => {
-        navigate('/dashboard');
+        navigate('/auth/login');
       }, 750);
     } else {
       if (result.rateLimited) {

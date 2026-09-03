@@ -256,13 +256,38 @@ export const AuthLayout: React.FC = () => {
           </motion.div>
 
           {/* Footer */}
-          <div className="text-xs text-slate-500 dark:text-slate-400 font-medium z-10 relative">
-            © {new Date().getFullYear()} KAIZENQ AI LMS. All rights reserved.
+          <div className="text-xs text-slate-500 dark:text-slate-400 font-medium z-10 relative flex items-center justify-between">
+            <span>© {new Date().getFullYear()} KAIZENQ AI LMS. All rights reserved.</span>
+            <Link
+              to="/developer-access"
+              className="hover:text-[#2563EB] dark:hover:text-[#60A5FA] font-mono text-[11px] flex items-center gap-1.5 transition-colors"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Developer Access</span>
+            </Link>
           </div>
         </div>
 
         {/* ==================== RIGHT FORM CONTAINER ==================== */}
         <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 relative z-10 my-auto min-h-[calc(100vh-64px)] lg:min-h-screen">
+          {/* Top Right Floating Navigation & Developer Access */}
+          <div className="absolute top-4 right-4 z-30 flex items-center gap-2">
+            <Link
+              to="/developer-access"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200 dark:border-white/10 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:text-[#2563EB] dark:hover:text-[#60A5FA] shadow-xs transition-all hover:scale-105"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Developer Access</span>
+            </Link>
+            <Link
+              to="/"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200 dark:border-white/10 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:text-[#2563EB] dark:hover:text-[#60A5FA] shadow-xs transition-all hover:scale-105"
+            >
+              <ArrowLeft className="w-3 h-3" />
+              <span>Home</span>
+            </Link>
+          </div>
+
           <div className="w-full max-w-md space-y-6">
             <Outlet />
           </div>
