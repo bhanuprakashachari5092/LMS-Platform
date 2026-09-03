@@ -1,6 +1,6 @@
 {
-  "installCommand": "npm install --include=dev",
-  "buildCommand": "npm run build --workspace=backend && npm run build --workspace=frontend && node -e \"const fs=require('fs'); fs.cpSync('frontend/dist', 'public', {recursive: true, force: true});\"",
+  "installCommand": "npm install",
+  "buildCommand": "cd frontend && npm install && npx vite build",
   "outputDirectory": "frontend/dist",
   "rewrites": [
     {
