@@ -28,6 +28,9 @@ const envSchema = z.object({
   // Stripe Payments
   STRIPE_SECRET_KEY: z.string().optional(),
 
+  // Optional MongoDB for caching/live classroom
+  MONGODB_URI: z.string().optional(),
+
   // Email Notification System Configurations (Brevo HTTP Transactional API)
   EMAIL_PROVIDER: z.enum(['brevo', 'nodemailer', 'resend', 'mock']).default('brevo'),
   BREVO_API_KEY: z.string().optional(),

@@ -16,12 +16,17 @@ export const developerGateMiddleware = (req: Request, res: Response, next: NextF
   const publicPaths = [
     '/',
     '/health',
+    '/api',
     '/api/developer-access/verify',
     '/api/developer-access/status',
     '/api/developer-access/logout',
     '/api/debug/send-email',
     '/api/test-email',
     '/api/certificates/verify', // Public certificate verification
+    '/api/auth',
+    '/api/students',
+    '/api/courses',
+    '/api/portfolio',
   ];
 
   const currentPath = req.path.toLowerCase();
@@ -30,6 +35,11 @@ export const developerGateMiddleware = (req: Request, res: Response, next: NextF
   );
 
   if (isWhitelisted) {
+    return next();
+  }
+
+  // Allow authenticated requests bearing a Firebase ID token
+  if (req.headers.authorization?.startsWith('Bearer ')) {
     return next();
   }
 
