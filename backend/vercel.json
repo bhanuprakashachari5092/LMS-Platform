@@ -1,0 +1,5 @@
+{
+  "version": 2,
+  "buildCommand": "echo 'Backend is deployed on Render - skipping Vercel build'",
+  "outputDirectory": "."
+}

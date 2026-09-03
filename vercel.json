@@ -1,6 +1,5 @@
 {
-  "installCommand": "npm install && npm install --prefix frontend",
-  "buildCommand": "npm run build --workspace=frontend",
+  "buildCommand": "node scripts/build-frontend.js",
   "outputDirectory": "frontend/dist",
   "rewrites": [
     {
