@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { auth } from '@/firebase';
 import { motion } from 'framer-motion';
 
 export const Login: React.FC = () => {
@@ -12,7 +13,7 @@ export const Login: React.FC = () => {
   const [rememberMe, setRememberMe] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { login, signInWithGithub, user, userProfile } = useAuth();
+  const { login, signInWithGithub, user, userProfile, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -33,17 +34,19 @@ export const Login: React.FC = () => {
 
   // Redirect if user is already logged in
   useEffect(() => {
-    if (user && userProfile) {
+    const activeUser = user || auth?.currentUser;
+    if (activeUser && !loading) {
       const from = (location.state as any)?.from?.pathname;
-      if (from) {
+      const role = userProfile?.role || (activeUser.email?.toLowerCase().includes('admin') ? 'admin' : 'student');
+      if (from && from !== '/auth/login' && from !== '/login') {
         navigate(from, { replace: true });
-      } else if (userProfile.role === 'admin') {
+      } else if (role === 'admin') {
         navigate('/admin/dashboard', { replace: true });
       } else {
         navigate('/dashboard', { replace: true });
       }
     }
-  }, [user, userProfile, navigate, location]);
+  }, [user, userProfile, loading, navigate, location]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,7 +91,8 @@ export const Login: React.FC = () => {
     try {
       const profile = await signInWithGithub();
       toast.success('Signed in with GitHub successfully!');
-      if (profile?.role === 'admin') {
+      const role = profile?.role || (auth?.currentUser?.email?.toLowerCase().includes('admin') ? 'admin' : 'student');
+      if (role === 'admin') {
         navigate('/admin/dashboard', { replace: true });
       } else {
         navigate('/dashboard', { replace: true });
