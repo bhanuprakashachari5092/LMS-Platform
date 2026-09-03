@@ -318,61 +318,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           githubUsername: calculatedUsername,
         };
 
-        console.log(`[FIRESTORE] Creating initial users profile for ${firebaseUser.uid}...`);
         try {
           await setDoc(userRef, newProfile);
           console.log(`[FIRESTORE] Initial users profile created: users/${firebaseUser.uid}`);
         } catch (err: any) {
-          console.error(`[FIRESTORE CRITICAL REJECTION] Failed creating users/${firebaseUser.uid}!`, err);
-          console.error('[FIRESTORE REJECTION REASON]', err?.message || err?.code || String(err));
-          console.error('[FIRESTORE REJECTION STACK]', err?.stack);
-          throw err;
+          console.warn(`[FIRESTORE NOTICE] Failed writing users/${firebaseUser.uid} to Firestore, continuing with local profile:`, err);
         }
 
-        if (targetRole === 'student') {
-          await syncStudent(newProfile);
-        } else if (targetRole === 'instructor') {
-          await syncInstructor(newProfile);
+        try {
+          if (targetRole === 'student') {
+            await syncStudent(newProfile);
+          } else if (targetRole === 'instructor') {
+            await syncInstructor(newProfile);
 
-          // Dispatch instructor pending-approval email via SMTP backend
-          try {
-            const apiBaseUrl = API_BASE_URL;
-            await fetch(`${apiBaseUrl}/email/send`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                eventType: 'INSTRUCTOR_REGISTRATION_PENDING',
-                recipientEmail: (firebaseUser.email || '').toLowerCase().trim(),
-                payload: {
-                  instructorName: calculatedName,
-                  email: (firebaseUser.email || '').toLowerCase().trim(),
-                  department: 'Computer Science & System Architecture',
-                  qualification: 'Pending Verification',
-                  experience: 'Not yet specified',
-                },
-              }),
-            });
-            console.log('[INSTRUCTOR REGISTRATION AUDIT] Pending approval SMTP email dispatched.');
-          } catch (emailErr) {
-            console.warn('[INSTRUCTOR REGISTRATION AUDIT] SMTP email dispatch notice:', emailErr);
-          }
+            // Dispatch instructor pending-approval email via SMTP backend
+            try {
+              const apiBaseUrl = API_BASE_URL;
+              await fetch(`${apiBaseUrl}/email/send`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  eventType: 'INSTRUCTOR_REGISTRATION_PENDING',
+                  recipientEmail: (firebaseUser.email || '').toLowerCase().trim(),
+                  payload: {
+                    instructorName: calculatedName,
+                    email: (firebaseUser.email || '').toLowerCase().trim(),
+                    department: 'Computer Science & System Architecture',
+                    qualification: 'Pending Verification',
+                    experience: 'Not yet specified',
+                  },
+                }),
+              });
+              console.log('[INSTRUCTOR REGISTRATION AUDIT] Pending approval SMTP email dispatched.');
+            } catch (emailErr) {
+              console.warn('[INSTRUCTOR REGISTRATION AUDIT] SMTP email dispatch notice:', emailErr);
+            }
 
-          // Notify admin in Firestore notifications collection
-          try {
-            const adminNotifRef = doc(collection(db, 'notifications'));
-            await setDoc(adminNotifRef, {
-              userId: firebaseUser.uid,
-              title: 'New Lecturer Registration',
-              message: `${calculatedName} (${firebaseUser.email}) registered as an Instructor and is pending approval.`,
-              createdAt: new Date().toISOString(),
-              isRead: false,
-              type: 'info',
-              recipientRole: 'admin',
-            });
-            console.log('[INSTRUCTOR REGISTRATION AUDIT] Admin notification written to Firestore notifications.');
-          } catch (notifErr) {
-            console.warn('[INSTRUCTOR REGISTRATION AUDIT] Failed to write admin notification:', notifErr);
+            // Notify admin in Firestore notifications collection
+            try {
+              const adminNotifRef = doc(collection(db, 'notifications'));
+              await setDoc(adminNotifRef, {
+                userId: firebaseUser.uid,
+                title: 'New Lecturer Registration',
+                message: `${calculatedName} (${firebaseUser.email}) registered as an Instructor and is pending approval.`,
+                createdAt: new Date().toISOString(),
+                isRead: false,
+                type: 'info',
+                recipientRole: 'admin',
+              });
+              console.log('[INSTRUCTOR REGISTRATION AUDIT] Admin notification written to Firestore notifications.');
+            } catch (notifErr) {
+              console.warn('[INSTRUCTOR REGISTRATION AUDIT] Failed to write admin notification:', notifErr);
+            }
           }
+        } catch (syncErr) {
+          console.warn('[AUTH SYNC] Notice during role sync:', syncErr);
         }
 
         setUserProfile(newProfile);
@@ -603,20 +603,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      const isVerifiedQuery = typeof window !== 'undefined' && window.location.search.includes('verified=true');
-      const isVerified = currentUser.emailVerified || isVerifiedQuery;
-
-      // Module 2 Gate: Email Verification AND Admin Approval for Student/Instructor Accounts
-      if (!isAdminEmail && typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-        // 1. Email Verification Check
-        if (!isVerified) {
-          await signOut(auth).catch(() => null);
-          const unverifiedError: any = new Error('Please verify your email address before logging in.');
-          unverifiedError.code = 'EMAIL_NOT_VERIFIED';
-          throw unverifiedError;
-        }
-
-        // 2. Admin Approval Check — read ONLY from `users` collection (single source of truth)
+      // Admin Approval Check for instructors or suspended accounts
+      if (!isAdminEmail) {
         let approvalStatus = 'approved';
         let userRole: UserRole = 'student';
         if (db) {
@@ -625,7 +613,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (userDoc.exists()) {
               const data = userDoc.data();
               userRole = data.role || 'student';
-              // Normalize: 'active', 'Active', 'approved' → approved; 'pending' → pending
               const rawStatus = data.status || '';
               const isApproved = data.approved === true || rawStatus === 'active' || rawStatus === 'Active' || rawStatus === 'approved';
               approvalStatus = isApproved ? 'approved' : (rawStatus || 'pending');
