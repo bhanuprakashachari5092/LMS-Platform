@@ -4,7 +4,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api"
+      "destination": "https://kaizenq-backend.onrender.com/api/$1"
     },
     {
       "source": "/(.*)",

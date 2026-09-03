@@ -17,7 +17,7 @@ export const DeveloperGateProvider: React.FC<{ children: React.ReactNode }> = ({
   const isLocalHost = typeof window !== 'undefined' && 
     (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
-  const [isPrelaunchMode, setIsPrelaunchMode] = useState<boolean>(!isLocalHost);
+  const [isPrelaunchMode, setIsPrelaunchMode] = useState<boolean>(false);
   const [isDeveloper, setIsDeveloper] = useState<boolean>(() => {
     if (isLocalHost) return true;
     return sessionStorage.getItem('kz_dev_session_active') === 'true';
@@ -40,8 +40,8 @@ export const DeveloperGateProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
     } catch {
+      setIsPrelaunchMode(false);
       if (isLocalHost) {
-        setIsPrelaunchMode(false);
         setIsDeveloper(true);
       }
     } finally {
