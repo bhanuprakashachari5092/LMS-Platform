@@ -3,6 +3,7 @@ import { CodeBlock } from './CodeBlock';
 import { Sparkles, CheckCircle2, AlertTriangle, Lightbulb } from 'lucide-react';
 import { soundService } from '@/services/soundService';
 import { GamifiedArchitectureFlow } from './GamifiedArchitectureFlow';
+import { MermaidDiagram } from './MermaidDiagram';
 
 interface LmsCourseRendererProps {
   content: string;
@@ -508,7 +509,7 @@ const TaskCard: React.FC<{
   content: string;
   isNightMode: boolean;
 }> = ({ title, content, isNightMode }) => {
-  const cleanTitle = title.trim();
+  const cleanTitle = title.trim().toUpperCase();
   const cleanContent = content.trim();
 
   return (
@@ -517,12 +518,12 @@ const TaskCard: React.FC<{
         ? 'bg-slate-900/60 border-slate-800 text-slate-200'
         : 'bg-amber-50/40 border-amber-200/70 text-slate-800'
     }`}>
-      <div className="flex items-center gap-2 font-mono text-xs sm:text-sm font-black text-amber-500 tracking-wider uppercase">
+      <div className="flex items-center gap-2 font-mono text-xs sm:text-sm font-black text-amber-500 tracking-wider uppercase mb-2">
         <span className="p-1 rounded bg-amber-500/10 text-amber-500 font-bold">⚡</span>
         <span>{cleanTitle}</span>
       </div>
       {cleanContent && (
-        <div className="mt-2.5 text-xs sm:text-sm leading-relaxed text-slate-700 dark:text-slate-300 pl-1">
+        <div className="text-sm sm:text-base leading-relaxed text-slate-700 dark:text-slate-300 pl-1 whitespace-pre-line">
           {formatInlineStyles(cleanContent, isNightMode)}
         </div>
       )}
@@ -537,8 +538,8 @@ const NumberedItem: React.FC<{
 }> = ({ number, text, isNightMode }) => {
   return (
     <div className="flex items-start gap-3 ml-1 my-2.5 text-sm sm:text-base leading-relaxed">
-      <span className="shrink-0 w-6 h-6 rounded-lg bg-primary/10 text-primary border border-primary/20 font-mono text-xs font-bold flex items-center justify-center mt-0.5">
-        {number}
+      <span className="shrink-0 font-bold font-mono text-sm text-primary flex items-center justify-center mt-0.5">
+        {number}.
       </span>
       <span className={isNightMode ? 'text-slate-200' : 'text-slate-750'}>
         {formatInlineStyles(text, isNightMode)}
@@ -557,6 +558,10 @@ const QuestionCard: React.FC<{
   isLinux?: boolean;
 }> = ({ question, answer, isNightMode, isK8s = false, isGit = false, isReact = false, isLinux = false }) => {
   const cleanQ = question.trim();
+  const numMatch = cleanQ.match(/^(?:Q\s*)?(\d+)\.?\s*(.*)$/i);
+  const qNum = numMatch ? numMatch[1] : null;
+  const qText = numMatch && numMatch[2] ? numMatch[2] : cleanQ;
+
   const cleanAnswerLines = answer
     .map((ans) => ans.trim().replace(/```(?:bash|sh|cmd|yaml|json|python|js|jsx|sql|c|java)?/g, '').trim())
     .filter(Boolean);
@@ -567,18 +572,22 @@ const QuestionCard: React.FC<{
         ? 'bg-slate-900/80 border-slate-800 text-slate-200 shadow-[0_0_12px_rgba(0,0,0,0.3)]' 
         : 'bg-sky-50/50 border-sky-100/80 text-slate-800 shadow-sm'
     }`}>
-      {/* Bold Question Header */}
-      <div className="flex items-start gap-2.5">
+      {/* Question Header */}
+      <div className="flex items-center gap-2 mb-2">
         <span className="shrink-0 text-primary text-base">❓</span>
-        <h4 className="text-sm sm:text-base font-heading font-bold text-primary leading-snug">
-          {cleanQ}
-        </h4>
+        <span className="px-2 py-0.5 rounded text-[11px] font-black font-mono tracking-wider uppercase bg-primary/10 text-primary border border-primary/20">
+          {qNum ? `QUESTION ${qNum}` : 'QUESTION'}
+        </span>
       </div>
+
+      <h4 className="text-sm sm:text-base font-heading font-bold text-primary leading-snug">
+        {formatInlineStyles(qText, isNightMode)}
+      </h4>
 
       {/* Visually Separated Answer Section */}
       {cleanAnswerLines.length > 0 && (
         <div className="mt-3.5 pt-3 border-t border-slate-200 dark:border-slate-800/80 space-y-2">
-          <div className="font-semibold text-slate-800 dark:text-slate-200 text-xs sm:text-sm">
+          <div className="font-semibold text-slate-800 dark:text-slate-200 text-xs sm:text-sm uppercase font-mono tracking-wide">
             Answer:
           </div>
           <div className="space-y-2 pl-1">
@@ -601,7 +610,7 @@ const QuestionCard: React.FC<{
                 const cleanText = trimmed.replace(/^[-*•●]\s*/, '');
                 return (
                   <div key={idx} className="flex items-start gap-2 ml-1 my-1.5 text-xs sm:text-sm">
-                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-0.5 text-primary" />
+                    <span className="text-primary font-bold mt-0.5">•</span>
                     <span>{formatInlineStyles(cleanText, isNightMode)}</span>
                   </div>
                 );
@@ -713,9 +722,9 @@ function splitInlineCodeStatements(line: string, isK8s: boolean): string[] {
 
 function formatInlineStyles(text: string, isNightMode: boolean): React.ReactNode {
   if (!text) return null;
-  const parts = text.split(/(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/g);
+  const parts = text.split(/(`[^`]+`|\*\*[^*]+\*\*|\*[^*\n]+\*|__[^_]+__)/g);
   return parts.map((part, i) => {
-    if (part.startsWith('`') && part.endsWith('`')) {
+    if (part.startsWith('`') && part.endsWith('`') && part.length >= 2) {
       return (
         <code key={i} className={`px-1.5 py-0.5 rounded-md font-mono text-xs ${
           isNightMode ? 'bg-slate-900 text-cyan-300 border border-slate-800' : 'bg-sky-50 text-sky-700 border border-sky-100'
@@ -724,11 +733,12 @@ function formatInlineStyles(text: string, isNightMode: boolean): React.ReactNode
         </code>
       );
     }
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={i} className="font-bold">{part.slice(2, -2)}</strong>;
+    if ((part.startsWith('**') && part.endsWith('**') && part.length >= 4) ||
+        (part.startsWith('__') && part.endsWith('__') && part.length >= 4)) {
+      return <strong key={i} className={`font-bold ${isNightMode ? 'text-white' : 'text-slate-900'}`}>{part.slice(2, -2)}</strong>;
     }
-    if (part.startsWith('*') && part.endsWith('*')) {
-      return <em key={i} className="italic">{part.slice(1, -1)}</em>;
+    if (part.startsWith('*') && part.endsWith('*') && part.length >= 2 && !part.startsWith('**')) {
+      return <em key={i} className={`italic ${isNightMode ? 'text-slate-200' : 'text-slate-700'}`}>{part.slice(1, -1)}</em>;
     }
     return part;
   });
@@ -851,6 +861,7 @@ export const LmsCourseRenderer: React.FC<LmsCourseRendererProps> = ({ content, i
   const blocks = useMemo(() => {
     let cleanContent = content
       .replace(/\r/g, '')
+      .replace(/[\u200B-\u200D\uFEFF]/g, '')
       .trim();
 
     if (isLinux) {
@@ -872,6 +883,7 @@ export const LmsCourseRenderer: React.FC<LmsCourseRendererProps> = ({ content, i
     cleanContent = cleanContent.replace(/(\S)\s+(Scenario\s+\d+\b)/gi, '$1\n$2');
     cleanContent = cleanContent.replace(/(\S)\s+(Practical\s+Task\s+\d+\b)/gi, '$1\n$2');
     cleanContent = cleanContent.replace(/(\S)\s+(Lab\s+Task\s+\d+\b)/gi, '$1\n$2');
+    cleanContent = cleanContent.replace(/(\S)\s+(Exercise\s+\d+\b)/gi, '$1\n$2');
 
     // 2. Pre-normalize numbered lists & questions: "1. First point 2. Second point" -> separate lines
     cleanContent = cleanContent.replace(/(\S)\s+(\d+\.\s+)/g, '$1\n$2');
@@ -998,6 +1010,13 @@ export const LmsCourseRenderer: React.FC<LmsCourseRendererProps> = ({ content, i
         continue;
       }
 
+      // Horizontal Rule / Divider (---, ***, ___)
+      if (/^[-*_]{3,}$/.test(trimmed)) {
+        flushAllAccumulators();
+        parsedBlocks.push({ type: 'divider' });
+        continue;
+      }
+
       if (trimmed.startsWith('```')) {
         if (inCodeBlock) {
           parsedBlocks.push({ type: 'code', code: codeBuffer.join('\n'), lang: codeLang });
@@ -1030,7 +1049,7 @@ export const LmsCourseRenderer: React.FC<LmsCourseRendererProps> = ({ content, i
       // 1. Heading check
       const isMarkdownHeading = trimmed.startsWith('#');
       const isModuleTitleHeading = /^Module\s+\d+\s*[:—]/i.test(trimmed);
-      const isSpecialSectionHeading = /^(interview questions|top interview questions|practical lab|practical tasks|practical exercise|real-time scenario|common mistakes|common misconceptions)\b/i.test(trimmed);
+      const isSpecialSectionHeading = /^(learning objectives|objectives|prerequisites|key concepts|key points|examples|real-time example|real-time scenario|practical exercise|practical lab|practical tasks|interview questions|top interview questions|tasks|summary|conclusion|common mistakes|common misconceptions|best practices)\b/i.test(trimmed);
 
       if (isMarkdownHeading || isModuleTitleHeading || isSpecialSectionHeading) {
         flushAllAccumulators();
@@ -1232,11 +1251,17 @@ export const LmsCourseRenderer: React.FC<LmsCourseRendererProps> = ({ content, i
                 const isSubSub = block.level >= 3;
                 if (isSubSub) {
                   blockContent = (
-                    <h4
-                      className="text-base sm:text-lg font-heading font-bold mt-5 mb-2 flex items-center gap-1.5 text-primary/90"
-                    >
-                      <span>{block.text}</span>
-                    </h4>
+                    <h3 className="text-lg sm:text-xl font-semibold mt-5 mb-2 text-slate-800 dark:text-slate-200">
+                      {formatInlineStyles(block.text, isNightMode)}
+                    </h3>
+                  );
+                } else if (block.level === 2) {
+                  blockContent = (
+                    <div className="mt-7 mb-3">
+                      <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 font-sans">
+                        {formatInlineStyles(block.text, isNightMode)}
+                      </h2>
+                    </div>
                   );
                 } else {
                   const headingNum = String(idx + 1).padStart(2, '0');
@@ -1250,12 +1275,12 @@ export const LmsCourseRenderer: React.FC<LmsCourseRendererProps> = ({ content, i
                           <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_var(--color-primary)]" />
                         </div>
                       </div>
-                      <h2 
-                        className="text-xl sm:text-2xl font-black text-primary tracking-tight uppercase font-sans"
+                      <h1 
+                        className="text-2xl sm:text-3xl font-black text-primary tracking-tight uppercase font-sans"
                         style={{ textShadow: '0 0 8px var(--kq-glow)' }}
                       >
-                        {block.text}
-                      </h2>
+                        {formatInlineStyles(block.text, isNightMode)}
+                      </h1>
                     </div>
                   );
                 }
@@ -1264,11 +1289,17 @@ export const LmsCourseRenderer: React.FC<LmsCourseRendererProps> = ({ content, i
               case 'subheading':
                 blockContent = (
                   <h3
-                    className="text-md sm:text-lg font-heading font-black mt-6 mb-3 flex items-center gap-2 border-l-2 border-primary pl-2.5 text-primary"
+                    className="text-base sm:text-lg font-heading font-black mt-6 mb-3 flex items-center gap-2 border-l-2 border-primary pl-2.5 text-primary"
                     style={{ textShadow: '0 0 6px var(--kq-glow)' }}
                   >
-                    <span>{block.text}</span>
+                    <span>{formatInlineStyles(block.text, isNightMode)}</span>
                   </h3>
+                );
+                break;
+
+              case 'divider':
+                blockContent = (
+                  <hr className={`my-6 border-t ${isNightMode ? 'border-slate-800' : 'border-slate-200'}`} />
                 );
                 break;
 
@@ -1293,12 +1324,21 @@ export const LmsCourseRenderer: React.FC<LmsCourseRendererProps> = ({ content, i
                 break;
 
               case 'code':
-                blockContent = (
-                  <CodeBlock
-                    code={block.code}
-                    language={block.lang || (isDbms ? 'sql' : ((isGit || isLinux) ? 'bash' : (isK8s ? 'yaml' : (isReact ? 'jsx' : 'python'))))}
-                  />
-                );
+                if (block.lang === 'mermaid') {
+                  blockContent = (
+                    <MermaidDiagram
+                      chart={block.code}
+                      isNightMode={isNightMode}
+                    />
+                  );
+                } else {
+                  blockContent = (
+                    <CodeBlock
+                      code={block.code}
+                      language={block.lang || (isDbms ? 'sql' : ((isGit || isLinux) ? 'bash' : (isK8s ? 'yaml' : (isReact ? 'jsx' : 'python'))))}
+                    />
+                  );
+                }
                 break;
 
               case 'flowchart':
@@ -1338,9 +1378,9 @@ export const LmsCourseRenderer: React.FC<LmsCourseRendererProps> = ({ content, i
                 blockContent = (
                   <div className="flex items-start gap-2.5 ml-3 my-2 text-sm sm:text-base leading-relaxed">
                     {isCross ? (
-                      <span className="shrink-0 mt-0.5 text-base">❌</span>
+                      <span className="shrink-0 mt-0.5 text-base text-rose-500">❌</span>
                     ) : (
-                      <CheckCircle2 className="w-4 h-4 shrink-0 mt-1 text-primary" />
+                      <span className="shrink-0 text-primary font-bold text-base leading-none mt-1">•</span>
                     )}
                     <span className={isNightMode ? 'text-slate-200' : 'text-slate-700'}>
                       {formatInlineStyles(block.text, isNightMode)}

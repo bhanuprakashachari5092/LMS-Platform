@@ -59,6 +59,29 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, isNig
   const plugins = useMemo(() => [remarkGfm], []);
   const rehypePlugins = useMemo(() => [rehypeHighlight], []);
 
+  const processedContent = useMemo(() => {
+    if (!content) return '';
+    let text = content
+      .replace(/\r/g, '')
+      .replace(/[\u200B-\u200D\uFEFF]/g, '');
+
+    // 1. Separate tasks so they don't merge into text
+    text = text.replace(/(\S)\s+(Task\s+\d+\b)/gi, '$1\n\n$2');
+    text = text.replace(/(\S)\s+(Scenario\s+\d+\b)/gi, '$1\n\n$2');
+    text = text.replace(/(\S)\s+(Practical\s+Task\s+\d+\b)/gi, '$1\n\n$2');
+    text = text.replace(/(\S)\s+(Lab\s+Task\s+\d+\b)/gi, '$1\n\n$2');
+    text = text.replace(/(\S)\s+(Exercise\s+\d+\b)/gi, '$1\n\n$2');
+
+    // 2. Separate Q&A if on the same line
+    text = text.replace(/(\?|[a-zA-Z0-9])\s+(Answer\s*:)/gi, '$1\n\n**Answer:**');
+
+    // 3. Normalize unicode bullets to markdown list items
+    text = text.replace(/^[ \t]*[●•✔❌]\s*/gm, '- ');
+    text = text.replace(/(\S)\s+([●•✔❌]\s*)/g, '$1\n- ');
+
+    return text;
+  }, [content]);
+
   return (
     <div className={`markdown-content prose-custom ${isNightMode ? 'dark-mode' : 'light-mode'}`}>
       <ReactMarkdown
@@ -448,7 +471,7 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, isNig
           ),
         }}
       >
-        {content}
+        {processedContent}
       </ReactMarkdown>
     </div>
   );
