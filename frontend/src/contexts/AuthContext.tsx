@@ -636,8 +636,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
 
-        const isPending = (userRole === 'instructor' && (approvalStatus === 'pending' || approvalStatus === 'Pending')) || 
-                          (userRole === 'student' && (approvalStatus === 'pending' || approvalStatus === 'Pending Approval'));
+        const isPending = (userRole === 'instructor' && (approvalStatus === 'pending' || approvalStatus === 'Pending'));
 
         if (isPending) {
           if (auth) {
