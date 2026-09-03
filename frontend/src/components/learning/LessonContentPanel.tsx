@@ -60,6 +60,7 @@ const getThemeIconComp = (iconName?: string | null) => {
 
 interface LessonContentPanelProps {
   lessonTitle: string;
+  moduleTitle?: string;
   lessonContent: string;
   shortDescription?: string;
   lessonIndex: number;
@@ -122,6 +123,7 @@ function estimateReadingTime(content: string): string {
  */
 export const LessonContentPanel: React.FC<LessonContentPanelProps> = ({
   lessonTitle,
+  moduleTitle,
   lessonContent,
   shortDescription,
   lessonIndex,
@@ -202,6 +204,14 @@ export const LessonContentPanel: React.FC<LessonContentPanelProps> = ({
               ${isNightMode ? 'text-slate-500' : 'text-slate-400'}`}>
               Unit {lessonIndex + 1} of {totalLessons}
             </span>
+            {moduleTitle && (
+              <>
+                <span className={`text-xs ${isNightMode ? 'text-slate-700' : 'text-slate-300'}`}>•</span>
+                <span className={`text-xs font-bold uppercase tracking-wider ${isNightMode ? 'text-sky-400' : 'text-sky-600'}`}>
+                  {moduleTitle.replace(/^(🟢|🟡|🔵|🔴)\s*/, '')}
+                </span>
+              </>
+            )}
             {themeColor && (
               <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border flex items-center gap-1.5 ${getThemeColorClass(themeColor)}`}>
                 {(() => {

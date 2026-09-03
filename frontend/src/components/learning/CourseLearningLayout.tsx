@@ -242,21 +242,24 @@ export const CourseLearningLayout: React.FC<CourseLearningLayoutProps> = ({
     return allLessons[0]?.id || '';
   });
 
-  // Reset selected lesson when courseId or allLessons change
+  // Only sync selected lesson if current selectedLessonId is invalid or not found in allLessons
   useEffect(() => {
     if (allLessons.length > 0) {
-      const lastActive = localStorage.getItem(`shaivika_last_active_${courseId}`);
-      if (lastActive && allLessons.some((l) => String(l.id) === String(lastActive))) {
-        setSelectedLessonId(lastActive);
-      } else {
-        const saved = localStorage.getItem(`shaivika_completed_${courseId}`);
-        let completedIds: (string | number)[] = [];
-        try { completedIds = saved ? JSON.parse(saved) : []; } catch {}
-        const firstUncompleted = allLessons.find((l) => !completedIds.includes(l.id));
-        setSelectedLessonId(firstUncompleted ? firstUncompleted.id : allLessons[0].id);
+      const isValidCurrent = allLessons.some((l) => String(l.id) === String(selectedLessonId));
+      if (!isValidCurrent) {
+        const lastActive = localStorage.getItem(`shaivika_last_active_${courseId}`);
+        if (lastActive && allLessons.some((l) => String(l.id) === String(lastActive))) {
+          setSelectedLessonId(lastActive);
+        } else {
+          const saved = localStorage.getItem(`shaivika_completed_${courseId}`);
+          let completedIds: (string | number)[] = [];
+          try { completedIds = saved ? JSON.parse(saved) : []; } catch {}
+          const firstUncompleted = allLessons.find((l) => !completedIds.includes(l.id));
+          setSelectedLessonId(firstUncompleted ? firstUncompleted.id : allLessons[0].id);
+        }
       }
     }
-  }, [courseId, allLessons]);
+  }, [courseId, allLessons, selectedLessonId]);
 
   // ── Sidebar state ──────────────────────────────────────────────────────
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -762,7 +765,9 @@ export const CourseLearningLayout: React.FC<CourseLearningLayoutProps> = ({
             </div>
           ) : (
             <LessonContentPanel
+              key={String(selectedLessonId)}
               lessonTitle={activeLessonFull.title}
+              moduleTitle={currentLessonData?.moduleTitle}
               lessonContent={activeLessonFull.content}
               shortDescription={activeLessonFull.shortDescription}
               topicImageUrl={activeLessonFull.topicImageUrl}
