@@ -32,12 +32,13 @@ export const Login: React.FC = () => {
     }
   }, [location.search]);
 
-  // Redirect if user is already logged in
+  // Redirect if user is already logged in — only after userProfile is available
+  // so role detection is accurate and we don't redirect before the profile loads.
   useEffect(() => {
     const activeUser = user || auth?.currentUser;
-    if (activeUser && !loading) {
+    if (activeUser && !loading && userProfile) {
       const from = (location.state as any)?.from?.pathname;
-      const role = userProfile?.role || (activeUser.email?.toLowerCase().includes('admin') ? 'admin' : 'student');
+      const role = userProfile.role || 'student';
       if (from && from !== '/auth/login' && from !== '/login' && from !== '/student/login' && !from.includes('login')) {
         navigate(from, { replace: true });
       } else if (role === 'admin') {
@@ -59,10 +60,11 @@ export const Login: React.FC = () => {
     try {
       const profile = await login(email, password, rememberMe);
       toast.success('Signed in successfully!');
+      // Hard redirect — bypasses any React Router state race conditions
       if (profile?.role === 'admin') {
-        navigate('/admin/dashboard', { replace: true });
+        window.location.href = '/admin/dashboard';
       } else {
-        navigate('/dashboard', { replace: true });
+        window.location.href = '/dashboard';
       }
     } catch (err: any) {
       console.error('Login error:', err);
@@ -91,11 +93,15 @@ export const Login: React.FC = () => {
     try {
       const profile = await signInWithGithub();
       toast.success('Signed in with GitHub successfully!');
+      // Small delay to ensure onAuthStateChanged fires and localStorage is populated
+      // before navigating, preventing the StudentRoute guard from seeing a null user.
+      await new Promise(resolve => setTimeout(resolve, 300));
       const role = profile?.role || (auth?.currentUser?.email?.toLowerCase().includes('admin') ? 'admin' : 'student');
+      // Hard redirect — bypasses React Router race conditions on the live server
       if (role === 'admin') {
-        navigate('/admin/dashboard', { replace: true });
+        window.location.href = '/admin/dashboard';
       } else {
-        navigate('/dashboard', { replace: true });
+        window.location.href = '/dashboard';
       }
     } catch (err: any) {
       console.error('GitHub authentication error:', err);
@@ -109,6 +115,7 @@ export const Login: React.FC = () => {
       setIsSubmitting(false);
     }
   };
+
 
   return (
     <motion.div
