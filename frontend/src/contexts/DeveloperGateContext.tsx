@@ -89,7 +89,13 @@ export const DeveloperGateProvider: React.FC<{ children: React.ReactNode }> = ({
     if (cleanPasscode === 'googlemanoj') {
       setIsDeveloper(true);
       saveDevSession();
-      apiClient.post('/developer-access/verify', { passcode: cleanPasscode }).catch(() => null);
+      apiClient.post('/developer-access/verify', { passcode: cleanPasscode })
+        .then((res) => {
+          if (res?.data?.token) {
+            saveDevSession(res.data.token);
+          }
+        })
+        .catch(() => null);
       toast.success('Developer access authorized!');
       return { success: true, message: 'Developer environment authorized.' };
     }
