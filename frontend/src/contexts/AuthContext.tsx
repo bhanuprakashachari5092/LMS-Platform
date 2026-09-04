@@ -442,6 +442,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const storedSignupRole = typeof window !== 'undefined' ? sessionStorage.getItem('kaizenq_signup_role') as UserRole : undefined;
             const profile = await fetchUserProfile(currentUser, undefined, storedSignupRole);
             if (profile) {
+              localStorage.setItem('shaivika_user', JSON.stringify(profile));
               // Enforce account status check on initialization (Only instructors require pending approval; suspended/rejected accounts are blocked)
               const isPending = profile.role === 'instructor' && (profile.status === 'pending' || profile.status === 'Pending');
               const statusStr = (profile.status as string) || '';
@@ -462,6 +463,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setUserProfile(null);
                 localStorage.removeItem('shaivika_auth_token');
                 localStorage.removeItem('token');
+                localStorage.removeItem('shaivika_user');
               } else {
                 console.log(`[Dashboard Access Granted] Persistence session approved for ${currentUser.email} (Role: ${profile.role}).`);
               }
@@ -470,6 +472,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUserProfile(null);
             localStorage.removeItem('shaivika_auth_token');
             localStorage.removeItem('token');
+            localStorage.removeItem('shaivika_user');
           }
         } catch (err) {
           console.warn('Auth state sync notice:', err);
@@ -715,6 +718,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       );
       setUser(currentUser);
       setUserProfile(profile);
+
+      try {
+        const token = await currentUser.getIdToken(true);
+        localStorage.setItem('shaivika_auth_token', token);
+        localStorage.setItem('token', token);
+        if (profile) {
+          localStorage.setItem('shaivika_user', JSON.stringify(profile));
+        }
+      } catch (e) {}
+      setLoading(false);
+
       return profile;
     } catch (err: any) {
       // Throw credentials error if password is wrong or user invalid
@@ -764,85 +778,67 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      // 1. If user is ALREADY signed in (e.g. Email/Password user connecting GitHub)
-      if (auth.currentUser) {
-        try {
-          if (import.meta.env.DEV) {
-            console.log('🔗 [AUTH AUDIT] Attempting linkWithPopup for active user session:', auth.currentUser.email);
-          }
-          const linkResult = await linkWithPopup(auth.currentUser, provider);
-          const additionalInfo = getAdditionalUserInfo(linkResult);
-          const ghProfile = additionalInfo?.profile as Record<string, any> | undefined;
-          const githubUsername = additionalInfo?.username || ghProfile?.login || (linkResult.user as any).reloadUserInfo?.screenName;
-          const githubDisplayName = ghProfile?.name || linkResult.user.displayName || (ghProfile?.login ? ghProfile.login : githubUsername);
+      if (import.meta.env.DEV) {
+        console.log('🚀 [AUTH AUDIT] Opening GitHub OAuth popup...');
+      }
+      const result = await signInWithPopup(auth, provider);
+      const additionalInfo = getAdditionalUserInfo(result);
+      const ghProfile = additionalInfo?.profile as Record<string, any> | undefined;
+      const githubUsername = additionalInfo?.username || ghProfile?.login || (result.user as any).reloadUserInfo?.screenName;
+      const githubDisplayName = ghProfile?.name || result.user.displayName || (ghProfile?.login ? ghProfile.login : githubUsername);
 
-          if (import.meta.env.DEV) {
-            console.log('✅ [AUTH AUDIT] linkWithPopup succeeded! GitHub handle:', githubUsername, 'Name:', githubDisplayName);
-          }
+      if (import.meta.env.DEV) {
+        console.log('✅ [AUTH AUDIT] GitHub OAuth sign-in succeeded:', {
+          uid: result.user.uid,
+          email: result.user.email,
+          githubUsername,
+          githubDisplayName,
+        });
+      }
 
-          const profile = await fetchUserProfile(linkResult.user, githubUsername, targetRole, githubDisplayName);
-          setUser(linkResult.user);
-          setUserProfile(profile);
-          return profile;
-        } catch (linkErr: any) {
-          if (import.meta.env.DEV) {
-            console.warn('⚠️ [AUTH AUDIT] linkWithPopup notice:', linkErr?.code, linkErr?.message);
-          }
-          if (linkErr.code === 'auth/credential-already-in-use') {
-            throw new Error('This GitHub account is already linked to another user profile.');
+      const profile = await fetchUserProfile(result.user, githubUsername, targetRole, githubDisplayName);
+      setUser(result.user);
+      setUserProfile(profile);
+
+      // Cache token and user profile in localStorage for instant API and guard authorization
+      try {
+        const token = await result.user.getIdToken(true);
+        localStorage.setItem('shaivika_auth_token', token);
+        localStorage.setItem('token', token);
+        if (profile) {
+          localStorage.setItem('shaivika_user', JSON.stringify(profile));
+        }
+      } catch (tokenErr) {
+        console.warn('Could not cache auth token:', tokenErr);
+      }
+      setLoading(false);
+
+      if (profile) {
+        const cleanEmail = (result.user.email || '').toLowerCase().trim();
+        const isAdminEmail = cleanEmail === 'admin@gmail.com' || cleanEmail.startsWith('admin@');
+        if (!isAdminEmail) {
+          const isPending = (profile.role === 'instructor' && (profile.status === 'pending' || profile.status === 'Pending'));
+          const isRejected = profile.status === 'rejected';
+
+          if (isPending) {
+            if (auth) {
+              await signOut(auth).catch(() => null);
+            }
+            const pendingErr: any = new Error('Your instructor account is under review. You will receive an approval email once the administrator approves your application.');
+            pendingErr.code = 'ADMIN_APPROVAL_PENDING';
+            throw pendingErr;
+          } else if (isRejected) {
+            if (auth) {
+              await signOut(auth).catch(() => null);
+            }
+            const rejectedErr: any = new Error('Your instructor application has not been approved.');
+            rejectedErr.code = 'APPLICATION_REJECTED';
+            throw rejectedErr;
           }
         }
       }
-
-      // 2. Standard OAuth Sign-in flow
-      try {
-        if (import.meta.env.DEV) {
-          console.log('🚀 [AUTH AUDIT] Opening GitHub OAuth popup...');
-        }
-        const result = await signInWithPopup(auth, provider);
-        const additionalInfo = getAdditionalUserInfo(result);
-        const ghProfile = additionalInfo?.profile as Record<string, any> | undefined;
-        const githubUsername = additionalInfo?.username || ghProfile?.login || (result.user as any).reloadUserInfo?.screenName;
-        const githubDisplayName = ghProfile?.name || result.user.displayName || (ghProfile?.login ? ghProfile.login : githubUsername);
-
-        if (import.meta.env.DEV) {
-          console.log('✅ [AUTH AUDIT] GitHub OAuth sign-in succeeded:', {
-            uid: result.user.uid,
-            email: result.user.email,
-            githubUsername,
-            githubDisplayName,
-          });
-        }
-
-        const profile = await fetchUserProfile(result.user, githubUsername, targetRole, githubDisplayName);
-        setUser(result.user);
-        setUserProfile(profile);
-        if (profile) {
-          const cleanEmail = (result.user.email || '').toLowerCase().trim();
-          const isAdminEmail = cleanEmail === 'admin@gmail.com' || cleanEmail.startsWith('admin@');
-          if (!isAdminEmail) {
-            const isPending = (profile.role === 'instructor' && (profile.status === 'pending' || profile.status === 'Pending'));
-            const isRejected = profile.status === 'rejected';
-
-            if (isPending) {
-              if (auth) {
-                await signOut(auth).catch(() => null);
-              }
-              const pendingErr: any = new Error('Your instructor account is under review. You will receive an approval email once the administrator approves your application.');
-              pendingErr.code = 'ADMIN_APPROVAL_PENDING';
-              throw pendingErr;
-            } else if (isRejected) {
-              if (auth) {
-                await signOut(auth).catch(() => null);
-              }
-              const rejectedErr: any = new Error('Your instructor application has not been approved.');
-              rejectedErr.code = 'APPLICATION_REJECTED';
-              throw rejectedErr;
-            }
-          }
-        }
-        return profile;
-      } catch (error: any) {
+      return profile;
+    } catch (error: any) {
         if (import.meta.env.DEV) {
           console.error('🚨 [AUTH AUDIT] signInWithPopup error caught:', {
             code: error.code,
@@ -921,7 +917,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         throw error;
-      }
     } finally {
       if (typeof window !== 'undefined') {
         sessionStorage.removeItem('kaizenq_signup_role');

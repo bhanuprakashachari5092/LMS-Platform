@@ -167,11 +167,9 @@ const router = createBrowserRouter([
   {
     path: '/',
     element: (
-      <DeveloperGate>
-        <ProtectedRoute>
-          <DashboardLayout />
-        </ProtectedRoute>
-      </DeveloperGate>
+      <ProtectedRoute>
+        <DashboardLayout />
+      </ProtectedRoute>
     ),
     children: [
       { path: 'profile', element: <Profile /> },
@@ -181,11 +179,9 @@ const router = createBrowserRouter([
   {
     path: '/',
     element: (
-      <DeveloperGate>
-        <StudentRoute>
-          <DashboardLayout />
-        </StudentRoute>
-      </DeveloperGate>
+      <StudentRoute>
+        <DashboardLayout />
+      </StudentRoute>
     ),
     children: [
       { path: 'dashboard', element: <Dashboard /> },
@@ -202,11 +198,9 @@ const router = createBrowserRouter([
   {
     path: '/admin',
     element: (
-      <DeveloperGate>
-        <AdminRoute allowInstructor={true}>
-          <DashboardLayout />
-        </AdminRoute>
-      </DeveloperGate>
+      <AdminRoute allowInstructor={true}>
+        <DashboardLayout />
+      </AdminRoute>
     ),
     children: [
       { path: 'courses', element: <Courses /> },
@@ -233,11 +227,9 @@ const router = createBrowserRouter([
   {
     path: '/admin',
     element: (
-      <DeveloperGate>
-        <AdminRoute>
-          <DashboardLayout />
-        </AdminRoute>
-      </DeveloperGate>
+      <AdminRoute>
+        <DashboardLayout />
+      </AdminRoute>
     ),
     children: [
       { path: 'dashboard', element: <AdminDashboard /> },
@@ -261,62 +253,50 @@ const router = createBrowserRouter([
   {
     path: '/admin/course-content/:courseId?',
     element: (
-      <DeveloperGate>
-        <AdminRoute allowInstructor={true}>
-          <AdminContentStudio />
-        </AdminRoute>
-      </DeveloperGate>
+      <AdminRoute allowInstructor={true}>
+        <AdminContentStudio />
+      </AdminRoute>
     ),
   },
   {
     path: '/admin/content/:courseId?',
     element: (
-      <DeveloperGate>
-        <AdminRoute allowInstructor={true}>
-          <AdminContentStudio />
-        </AdminRoute>
-      </DeveloperGate>
+      <AdminRoute allowInstructor={true}>
+        <AdminContentStudio />
+      </AdminRoute>
     ),
   },
   // Dedicated Full-screen Protected Live Classroom routes
   {
     path: '/student/live-class/:liveClassId',
     element: (
-      <DeveloperGate>
-        <ProtectedRoute>
-          <LiveClassPage />
-        </ProtectedRoute>
-      </DeveloperGate>
+      <ProtectedRoute>
+        <LiveClassPage />
+      </ProtectedRoute>
     ),
   },
   {
     path: '/live-class/:liveClassId',
     element: (
-      <DeveloperGate>
-        <ProtectedRoute>
-          <LiveClassPage />
-        </ProtectedRoute>
-      </DeveloperGate>
+      <ProtectedRoute>
+        <LiveClassPage />
+      </ProtectedRoute>
     ),
   },
   {
     path: '/live-classroom/room/:classId',
     element: (
-      <DeveloperGate>
-        <ProtectedRoute>
-          <LiveClassroomScreen />
-        </ProtectedRoute>
-      </DeveloperGate>
+      <ProtectedRoute>
+        <LiveClassroomScreen />
+      </ProtectedRoute>
     ),
   },
   {
     path: '/live-classroom/:classId',
     element: (
-      <DeveloperGate>
-        <ProtectedRoute>
-          <LiveClassroomScreen />
-        </ProtectedRoute>
-      </DeveloperGate>
+      <ProtectedRoute>
+        <LiveClassroomScreen />
+      </ProtectedRoute>
     ),
   },
   // Fallback 404
