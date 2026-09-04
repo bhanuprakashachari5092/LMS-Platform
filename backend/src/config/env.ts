@@ -28,6 +28,9 @@ const envSchema = z.object({
   // Stripe Payments
   STRIPE_SECRET_KEY: z.string().optional(),
 
+  // Optional MongoDB for caching/live classroom
+  MONGODB_URI: z.string().optional(),
+
   // Email Notification System Configurations (Brevo HTTP Transactional API)
   EMAIL_PROVIDER: z.enum(['brevo', 'nodemailer', 'resend', 'mock']).default('brevo'),
   BREVO_API_KEY: z.string().optional(),
@@ -57,7 +60,7 @@ const envSchema = z.object({
   REDIS_URL: z.string().default('redis://localhost:6379'),
 
   // Pre-Launch Gate & Developer Access Configuration
-  PRELAUNCH_MODE: z.string().default('true'),
+  PRELAUNCH_MODE: z.string().default('false'),
   DEVELOPER_ACCESS_PASSCODE: z.string().default('googlemanoj'),
   DEVELOPER_SESSION_TTL: z.string().default('8h'),
   DEVELOPER_SESSION_SECRET: z.string().default('kz_dev_session_sign_secret_2026'),

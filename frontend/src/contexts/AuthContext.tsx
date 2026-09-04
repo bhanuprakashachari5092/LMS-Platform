@@ -136,7 +136,14 @@ console.log("🚀 ACTIVE AUTH CONTEXT: frontend/src/contexts/AuthContext.tsx (Au
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(() => {
+    try {
+      const cached = localStorage.getItem('shaivika_user');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
   const [loading, setLoading] = useState<boolean>(true);
 
   // Fetch or create user document from Firestore
@@ -420,10 +427,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const safetyTimer = setTimeout(() => {
       setLoading(false);
-    }, 600);
+    }, 4000);
 
     try {
       const unsubscribe = onAuthStateChanged(auth, async (currentUser: User | null) => {
+        clearTimeout(safetyTimer);
         try {
           setUser(currentUser);
           if (currentUser) {
@@ -488,77 +496,79 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     password: string,
     role: UserRole = 'student'
   ): Promise<void> => {
-    const apiBaseUrl = API_BASE_URL;
-    const endpoint = role === 'instructor' ? `${apiBaseUrl}/auth/signup/lecturer` : `${apiBaseUrl}/auth/signup/student`;
+    if (!auth) {
+      throw new Error('Authentication service is currently unavailable.');
+    }
 
-    console.log(`[SIGNUP] Dispatching ${role} registration to backend endpoint: ${endpoint}...`);
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fullName: name,
-          email: email.toLowerCase().trim(),
-          password,
-          branch: 'AI & Computer Science',
-          specialty: 'Computer Science & System Architecture',
-          experience: 'Pending Verification',
-        }),
-      });
+    const cleanEmail = email.toLowerCase().trim();
 
-      const resData = await response.json();
-      if (!response.ok || !resData.success) {
-        console.error(`[SIGNUP ERROR] Backend ${role} signup failed:`, resData);
-        throw new Error(resData.error || resData.message || `Failed to submit ${role} registration.`);
-      }
+    // 1. Direct client-side Firebase Auth registration
+    const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+    await updateProfile(userCredential.user, { displayName: name });
 
-      console.log(`[SIGNUP SUCCESS] ${role} registration completed via backend:`, resData);
-      if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('kaizenq_signup_role');
-      }
-    } catch (fetchErr: any) {
-      console.warn(`[SIGNUP FAILOVER] Backend endpoint notice: ${fetchErr?.message}. Initiating resilient direct Firebase registration...`);
-      
-      if (!auth) {
-        throw new Error(fetchErr?.message || 'Authentication service is currently unavailable.');
-      }
+    const newProfile: UserProfile = {
+      uid: userCredential.user.uid,
+      email: cleanEmail,
+      name,
+      fullName: name,
+      role,
+      provider: 'password',
+      providerId: 'password',
+      isVerified: true,
+      emailVerified: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: role === 'instructor' ? 'pending' : 'active',
+      approved: role !== 'instructor',
+    };
 
-      // Resilient Client-Side Fallback via Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(auth, email.toLowerCase().trim(), password);
-      await updateProfile(userCredential.user, { displayName: name });
+    if (db) {
+      try {
+        const userRef = doc(db, 'users', userCredential.user.uid);
+        await setDoc(userRef, newProfile, { merge: true });
 
-      const newProfile: UserProfile = {
-        uid: userCredential.user.uid,
-        email: email.toLowerCase().trim(),
-        name,
-        fullName: name,
-        role,
-        provider: 'password',
-        providerId: 'password',
-        isVerified: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        status: 'Active',
-      };
-
-      if (db) {
-        try {
-          const userRef = doc(db, 'users', userCredential.user.uid);
-          await setDoc(userRef, newProfile, { merge: true });
-
-          if (role === 'student') {
-            await syncStudent(newProfile);
-          }
-        } catch (dbErr) {
-          console.warn('[SIGNUP FAILOVER] Firestore profile write notice:', dbErr);
+        if (role === 'student') {
+          await syncStudent(newProfile);
+        } else if (role === 'instructor') {
+          await syncInstructor(newProfile);
         }
+      } catch (dbErr) {
+        console.warn('[SIGNUP] Firestore profile write notice:', dbErr);
       }
+    }
 
-      setUser(userCredential.user);
-      setUserProfile(newProfile);
-      if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('kaizenq_signup_role');
-      }
+    // Optional backend notification for instructor applications
+    if (role === 'instructor') {
+      try {
+        const apiBaseUrl = API_BASE_URL;
+        fetch(`${apiBaseUrl}/auth/signup/lecturer`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fullName: name,
+            email: cleanEmail,
+            password,
+            branch: 'AI & Computer Science',
+            specialty: 'Computer Science & System Architecture',
+            experience: 'Pending Verification',
+          }),
+        }).catch(() => null);
+      } catch (e) {}
+    }
+
+    setUser(userCredential.user);
+    setUserProfile(newProfile);
+    setLoading(false);
+
+    try {
+      const token = await userCredential.user.getIdToken(true);
+      localStorage.setItem('shaivika_auth_token', token);
+      localStorage.setItem('token', token);
+      localStorage.setItem('shaivika_user', JSON.stringify(newProfile));
+    } catch (e) {}
+
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('kaizenq_signup_role');
     }
   };
 

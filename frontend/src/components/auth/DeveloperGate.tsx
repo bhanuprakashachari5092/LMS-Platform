@@ -1,5 +1,7 @@
 import React from 'react';
 import { useDeveloperGate } from '@/contexts/DeveloperGateContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { auth } from '@/firebase';
 import { LaunchingSoonPage } from '@/pages/prelaunch/LaunchingSoonPage';
 
 interface DeveloperGateProps {
@@ -7,9 +9,12 @@ interface DeveloperGateProps {
 }
 
 export const DeveloperGate: React.FC<DeveloperGateProps> = ({ children }) => {
-  const { isPrelaunchMode, isDeveloper, isLoading } = useDeveloperGate();
+  const { isPrelaunchMode, isDeveloper, isLoading: devGateLoading } = useDeveloperGate();
+  const { user, loading: authLoading } = useAuth();
+  const activeUser = user || auth?.currentUser;
 
-  if (isLoading) {
+  // Show security loading spinner only when initial checks are processing
+  if (devGateLoading || authLoading) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-3 select-none">
         <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 animate-pulse">
@@ -23,8 +28,13 @@ export const DeveloperGate: React.FC<DeveloperGateProps> = ({ children }) => {
     );
   }
 
-  // If prelaunch mode is enabled and user has not authenticated as developer, block LMS and show Launching Soon page
-  if (isPrelaunchMode && !isDeveloper) {
+  // If user is authenticated (student, instructor, admin) OR developer session is active, grant access
+  if (activeUser || isDeveloper) {
+    return <>{children}</>;
+  }
+
+  // If prelaunch mode is enabled and visitor is unauthenticated, show Launching Soon page
+  if (isPrelaunchMode) {
     return <LaunchingSoonPage />;
   }
 
