@@ -135,7 +135,11 @@ console.log("🚀 ACTIVE FIRESTORE INSTANCE: frontend/src/firebase.ts (db)");
 console.log("🚀 ACTIVE AUTH CONTEXT: frontend/src/contexts/AuthContext.tsx (AuthContext)");
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  // Seed user from Firebase's synchronous currentUser so route guards never see
+  // a blank user during the Firebase SDK hydration gap (prevents 1-minute kick).
+  const [user, setUser] = useState<User | null>(() => {
+    try { return auth?.currentUser ?? null; } catch { return null; }
+  });
   const [userProfile, setUserProfile] = useState<UserProfile | null>(() => {
     try {
       const cached = localStorage.getItem('shaivika_user');
@@ -144,7 +148,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return null;
     }
   });
-  const [loading, setLoading] = useState<boolean>(true);
+  // Start as false if we already have a user from cache — avoids the loading
+  // spinner when the user refreshes while already authenticated.
+  const [loading, setLoading] = useState<boolean>(() => {
+    try {
+      const hasCache = !!localStorage.getItem('shaivika_user') || !!auth?.currentUser;
+      return !hasCache;
+    } catch {
+      return true;
+    }
+  });
 
   // Fetch or create user document from Firestore
   const fetchUserProfile = async (
@@ -425,9 +438,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
+    // Generous 10-second safety timer to handle AWS EC2 cold-start latency.
+    // If Firebase + Firestore take longer than 10s, we fall through with
+    // whatever we have from localStorage rather than kicking the user out.
     const safetyTimer = setTimeout(() => {
+      console.warn('[AUTH] Safety timer fired — falling through with cached state.');
       setLoading(false);
-    }, 4000);
+    }, 10000);
 
     try {
       const unsubscribe = onAuthStateChanged(auth, async (currentUser: User | null) => {
@@ -435,9 +452,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           setUser(currentUser);
           if (currentUser) {
-            const token = await currentUser.getIdToken(true);
-            localStorage.setItem('shaivika_auth_token', token);
-            localStorage.setItem('token', token);
+            // Use lazy token fetch (no forced refresh) to avoid network round-trips
+            // that can fail on slow connections and cause spurious sign-outs.
+            try {
+              const token = await currentUser.getIdToken();
+              localStorage.setItem('shaivika_auth_token', token);
+              localStorage.setItem('token', token);
+            } catch (tokenErr) {
+              console.warn('[AUTH] Token fetch notice (non-fatal):', tokenErr);
+              // Non-fatal — continue with profile fetch; token refreshes lazily.
+            }
 
             const storedSignupRole = typeof window !== 'undefined' ? sessionStorage.getItem('kaizenq_signup_role') as UserRole : undefined;
             const profile = await fetchUserProfile(currentUser, undefined, storedSignupRole);
@@ -469,13 +493,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               }
             }
           } else {
-            setUserProfile(null);
-            localStorage.removeItem('shaivika_auth_token');
-            localStorage.removeItem('token');
-            localStorage.removeItem('shaivika_user');
+            // Only clear localStorage if there is genuinely no cached user.
+            // This prevents the brief Firebase null-fire from clearing a valid session.
+            const cachedUser = localStorage.getItem('shaivika_user');
+            if (!cachedUser) {
+              setUserProfile(null);
+              localStorage.removeItem('shaivika_auth_token');
+              localStorage.removeItem('token');
+            }
           }
         } catch (err) {
           console.warn('Auth state sync notice:', err);
+          // On error, restore from cache so the user is not kicked out
+          try {
+            const cached = localStorage.getItem('shaivika_user');
+            if (cached && !userProfile) setUserProfile(JSON.parse(cached));
+          } catch {}
         } finally {
           setLoading(false);
           clearTimeout(safetyTimer);
