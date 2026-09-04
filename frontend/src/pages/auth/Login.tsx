@@ -38,7 +38,7 @@ export const Login: React.FC = () => {
     if (activeUser && !loading) {
       const from = (location.state as any)?.from?.pathname;
       const role = userProfile?.role || (activeUser.email?.toLowerCase().includes('admin') ? 'admin' : 'student');
-      if (from && from !== '/auth/login' && from !== '/login') {
+      if (from && from !== '/auth/login' && from !== '/login' && from !== '/student/login' && !from.includes('login')) {
         navigate(from, { replace: true });
       } else if (role === 'admin') {
         navigate('/admin/dashboard', { replace: true });

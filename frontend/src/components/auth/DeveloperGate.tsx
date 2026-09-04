@@ -14,7 +14,7 @@ export const DeveloperGate: React.FC<DeveloperGateProps> = ({ children }) => {
   const activeUser = user || auth?.currentUser;
 
   // Show security loading spinner only when initial checks are processing
-  if (devGateLoading && authLoading) {
+  if (devGateLoading || authLoading) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-3 select-none">
         <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 animate-pulse">

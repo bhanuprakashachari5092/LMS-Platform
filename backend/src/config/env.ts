@@ -60,7 +60,7 @@ const envSchema = z.object({
   REDIS_URL: z.string().default('redis://localhost:6379'),
 
   // Pre-Launch Gate & Developer Access Configuration
-  PRELAUNCH_MODE: z.string().default('true'),
+  PRELAUNCH_MODE: z.string().default('false'),
   DEVELOPER_ACCESS_PASSCODE: z.string().default('googlemanoj'),
   DEVELOPER_SESSION_TTL: z.string().default('8h'),
   DEVELOPER_SESSION_SECRET: z.string().default('kz_dev_session_sign_secret_2026'),

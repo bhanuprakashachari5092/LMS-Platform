@@ -47,7 +47,7 @@ const clearDevSession = () => {
 };
 
 export const DeveloperGateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isPrelaunchMode, setIsPrelaunchMode] = useState<boolean>(true);
+  const [isPrelaunchMode, setIsPrelaunchMode] = useState<boolean>(false);
   const [isDeveloper, setIsDeveloper] = useState<boolean>(() => getStoredDevSession());
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -65,9 +65,9 @@ export const DeveloperGateProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
     } catch {
-      // If backend is waking up or offline, maintain existing valid session from localStorage
+      // If backend is waking up or offline, do not block students from the platform
+      setIsPrelaunchMode(false);
       const localActive = getStoredDevSession();
-      setIsPrelaunchMode(true);
       if (localActive) {
         setIsDeveloper(true);
       }
