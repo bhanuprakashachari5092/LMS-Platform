@@ -40,11 +40,14 @@ export class AuthController {
         fullName,
         name: fullName,
         email: normalizedEmail,
-        status: 'pending',
+        status: 'active',
         role: 'student',
-        approved: false,
+        approved: true,
+        emailVerified: true,
+        isVerified: true,
         createdAt: now,
-        approvedAt: null,
+        updatedAt: now,
+        approvedAt: now,
       };
 
       // Store in Firestore collections

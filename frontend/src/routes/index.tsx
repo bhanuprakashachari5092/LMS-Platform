@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import { PublicLayout } from '@/layouts/PublicLayout';
 import { AuthLayout } from '@/layouts/AuthLayout';
@@ -153,6 +153,16 @@ const router = createBrowserRouter([
       { path: 'verify-email', element: <VerifyEmail /> },
     ],
   },
+  // Public Direct Access Aliases for Student Portal & Auth
+  { path: '/login', element: <Navigate to="/auth/login" replace /> },
+  { path: '/signup', element: <Navigate to="/auth/signup" replace /> },
+  { path: '/register', element: <Navigate to="/auth/register" replace /> },
+  { path: '/student-login', element: <Navigate to="/auth/login" replace /> },
+  { path: '/student/login', element: <Navigate to="/auth/login" replace /> },
+  { path: '/student-signup', element: <Navigate to="/auth/signup" replace /> },
+  { path: '/student/signup', element: <Navigate to="/auth/signup" replace /> },
+  { path: '/student', element: <Navigate to="/dashboard" replace /> },
+  { path: '/student/dashboard', element: <Navigate to="/dashboard" replace /> },
   // Shared Authenticated Routes (Profile, etc.)
   {
     path: '/',
