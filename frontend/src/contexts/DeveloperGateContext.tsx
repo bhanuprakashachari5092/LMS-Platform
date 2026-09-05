@@ -49,14 +49,19 @@ const clearDevSession = () => {
 export const DeveloperGateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isPrelaunchMode, setIsPrelaunchMode] = useState<boolean>(false);
   const [isDeveloper, setIsDeveloper] = useState<boolean>(() => getStoredDevSession());
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  // IMPORTANT: Start as NOT loading so authenticated students are never blocked
+  // by a slow backend API call. The status check runs in the background and
+  // only updates state if prelaunch mode is actually active.
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const checkStatus = useCallback(async () => {
     try {
       const storedToken = getStoredDevToken();
       const res = await apiClient.get('/developer-access/status', {
         headers: storedToken ? { 'x-developer-token': storedToken } : {},
-      });
+        // Short timeout so a cold-start backend never blocks the UI
+        timeout: 5000,
+      } as any);
       if (res.data && res.data.success) {
         setIsPrelaunchMode(Boolean(res.data.prelaunchMode));
         if (res.data.isDeveloper) {
@@ -71,9 +76,8 @@ export const DeveloperGateProvider: React.FC<{ children: React.ReactNode }> = ({
       if (localActive) {
         setIsDeveloper(true);
       }
-    } finally {
-      setIsLoading(false);
     }
+    // isLoading stays false — we never block the UI for this background check
   }, []);
 
   useEffect(() => {
