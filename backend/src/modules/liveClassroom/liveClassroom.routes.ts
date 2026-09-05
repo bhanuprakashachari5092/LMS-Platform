@@ -13,9 +13,9 @@ router.put('/:classId', (req, res, next) => liveClassroomController.updateClass(
 router.delete('/:classId', (req, res, next) => liveClassroomController.deleteClass(req, res, next));
 
 // --- 2. STATE TRANSITIONS & YOUTUBE STREAM ---
-router.post('/:classId/start', (req, res, next) => liveClassroomController.startClass(req, res, next));
-router.post('/:classId/end', (req, res, next) => liveClassroomController.endClass(req, res, next));
-router.post('/:classId/cancel', (req, res, next) => liveClassroomController.cancelClass(req, res, next));
+router.post('/:classId/start', extractOptionalUser as any, (req, res, next) => liveClassroomController.startClass(req, res, next));
+router.post('/:classId/end', extractOptionalUser as any, (req, res, next) => liveClassroomController.endClass(req, res, next));
+router.post('/:classId/cancel', extractOptionalUser as any, (req, res, next) => liveClassroomController.cancelClass(req, res, next));
 router.put('/:classId/youtube', (req, res, next) => liveClassroomController.updateYoutube(req, res, next));
 router.post('/:classId/youtube', (req, res, next) => liveClassroomController.updateYoutube(req, res, next));
 router.post('/:classId/join', extractOptionalUser as any, (req, res, next) => liveClassroomController.joinClass(req, res, next));
@@ -28,8 +28,16 @@ router.get('/:classId/announcements', (req, res, next) => liveClassroomControlle
 router.post('/:classId/announcements', extractOptionalUser as any, (req, res, next) => liveClassroomController.createAnnouncement(req, res, next));
 router.delete('/:classId/announcements/:annId', (req, res, next) => liveClassroomController.deleteAnnouncement(req, res, next));
 
-// --- 4. ATTENDANCE ---
-router.get('/:classId/attendance', (req, res, next) => liveClassroomController.getAttendanceReport(req, res, next));
+// --- 4. ATTENDANCE & ANALYTICS ---
+router.get('/:classId/attendance', extractOptionalUser as any, (req, res, next) => liveClassroomController.getAttendanceReport(req, res, next));
+router.get('/:classId/attendance/student/:studentId', extractOptionalUser as any, (req, res, next) => liveClassroomController.getStudentAttendance(req, res, next));
+router.get('/:classId/attendance/me', extractOptionalUser as any, (req, res, next) => liveClassroomController.getStudentAttendance(req, res, next));
+router.get('/:classId/analytics', extractOptionalUser as any, (req, res, next) => liveClassroomController.getClassAnalytics(req, res, next));
+
+// --- 5. RECORDING ---
+router.get('/:classId/recording', extractOptionalUser as any, (req, res, next) => liveClassroomController.getRecording(req, res, next));
+router.post('/:classId/recording', extractOptionalUser as any, (req, res, next) => liveClassroomController.updateRecording(req, res, next));
+router.put('/:classId/recording', extractOptionalUser as any, (req, res, next) => liveClassroomController.updateRecording(req, res, next));
 
 // --- 5. QUIZZES ---
 router.get('/:classId/quizzes', (req, res, next) => liveClassroomController.getQuizzes(req, res, next));

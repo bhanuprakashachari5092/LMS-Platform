@@ -4,7 +4,8 @@ import type {
   MediaClientConfig, 
   MediaConnectionState, 
   MediaParticipant, 
-  MediaRole 
+  MediaRole,
+  AvailableMediaDevices
 } from './mediaTypes';
 
 type EventListener<T = any> = (data: T) => void;
@@ -13,12 +14,15 @@ const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
   { urls: 'stun:stun2.l.google.com:19302' },
+  { urls: 'stun:stun3.l.google.com:19302' },
+  { urls: 'stun:stun4.l.google.com:19302' },
 ];
 
 export class MediaClient {
   private config: MediaClientConfig;
   private socket: Socket | null = null;
   private peerConnections: Map<string, RTCPeerConnection> = new Map();
+  private pendingCandidates: Map<string, RTCIceCandidateInit[]> = new Map();
   private localStream: MediaStream = new MediaStream();
   private localScreenStream: MediaStream | null = null;
   private participants: Map<string, MediaParticipant> = new Map();
@@ -28,6 +32,9 @@ export class MediaClient {
   private isAudioEnabled = false;
   private isVideoEnabled = false;
   private isScreenSharing = false;
+
+  private selectedCameraId: string | null = null;
+  private selectedMicrophoneId: string | null = null;
 
   constructor(config: MediaClientConfig) {
     this.config = {
@@ -44,9 +51,10 @@ export class MediaClient {
 
       this.setupSocketListeners();
 
-      // Emit join class request
+      // Emit join class request to socket signaling room
       this.socket.emit('join_class', {
         classId: this.config.classId,
+        liveClassId: this.config.classId,
         userId: this.config.userId,
         name: this.config.userName,
         role: this.config.role,
@@ -75,19 +83,36 @@ export class MediaClient {
   }
 
   public disconnect(): void {
-    // Stop local tracks
-    this.localStream.getTracks().forEach((t) => t.stop());
+    // Stop local camera and microphone tracks
+    this.localStream.getTracks().forEach((t) => {
+      try {
+        t.stop();
+      } catch {}
+    });
+
+    // Stop screen sharing tracks
     if (this.localScreenStream) {
-      this.localScreenStream.getTracks().forEach((t) => t.stop());
+      this.localScreenStream.getTracks().forEach((t) => {
+        try {
+          t.stop();
+        } catch {}
+      });
+      this.localScreenStream = null;
     }
 
-    // Close peer connections
-    this.peerConnections.forEach((pc) => pc.close());
+    // Close and remove all peer connections
+    this.peerConnections.forEach((pc) => {
+      try {
+        pc.close();
+      } catch {}
+    });
     this.peerConnections.clear();
+    this.pendingCandidates.clear();
 
     if (this.socket) {
       this.socket.emit('leave_class', {
         classId: this.config.classId,
+        liveClassId: this.config.classId,
         userId: this.config.userId,
       });
     }
@@ -96,24 +121,55 @@ export class MediaClient {
     this.setConnectionState('disconnected');
   }
 
+  // --- AUDIO CONTROLS ---
+
   public async toggleMicrophone(): Promise<boolean> {
     if (this.isAudioEnabled) {
-      // Disable audio
+      // Disable local audio tracks
       this.localStream.getAudioTracks().forEach((track) => {
         track.enabled = false;
         track.stop();
         this.localStream.removeTrack(track);
       });
       this.isAudioEnabled = false;
+
+      // Update active peer senders
+      this.peerConnections.forEach((pc) => {
+        const audioSender = pc.getSenders().find((s) => s.track?.kind === 'audio');
+        if (audioSender) {
+          audioSender.replaceTrack(null).catch(() => {});
+        }
+      });
     } else {
-      // Enable audio
+      // Enable microphone
       try {
-        const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const audioTrack = audioStream.getAudioTracks()[0];
-        this.localStream.addTrack(audioTrack);
-        this.isAudioEnabled = true;
-      } catch (err) {
-        console.warn('[MediaClient] Microphone access denied:', err);
+        const constraints: MediaStreamConstraints = {
+          audio: this.selectedMicrophoneId
+            ? { deviceId: { exact: this.selectedMicrophoneId } }
+            : true,
+        };
+        const audioStream = await navigator.mediaDevices.getUserMedia(constraints);
+        const newTrack = audioStream.getAudioTracks()[0];
+
+        if (newTrack) {
+          this.localStream.addTrack(newTrack);
+          this.isAudioEnabled = true;
+
+          // Replace track on all active peer senders
+          this.peerConnections.forEach((pc) => {
+            const audioSender = pc.getSenders().find((s) => s.track?.kind === 'audio' || !s.track);
+            if (audioSender) {
+              audioSender.replaceTrack(newTrack).catch(() => {});
+            } else {
+              try {
+                pc.addTrack(newTrack, this.localStream);
+              } catch {}
+            }
+          });
+        }
+      } catch (err: any) {
+        console.warn('[MediaClient] Microphone access error:', err);
+        this.handleMediaError(err, 'microphone');
         return false;
       }
     }
@@ -123,26 +179,55 @@ export class MediaClient {
     return this.isAudioEnabled;
   }
 
+  // --- CAMERA CONTROLS ---
+
   public async toggleCamera(): Promise<boolean> {
     if (this.isVideoEnabled) {
-      // Disable video
+      // Disable local video tracks
       this.localStream.getVideoTracks().forEach((track) => {
         track.enabled = false;
         track.stop();
         this.localStream.removeTrack(track);
       });
       this.isVideoEnabled = false;
+
+      // Replace track on all active peer senders
+      this.peerConnections.forEach((pc) => {
+        const videoSender = pc.getSenders().find((s) => s.track?.kind === 'video');
+        if (videoSender) {
+          videoSender.replaceTrack(null).catch(() => {});
+        }
+      });
     } else {
-      // Enable video
+      // Enable camera
       try {
-        const videoStream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-        });
-        const videoTrack = videoStream.getVideoTracks()[0];
-        this.localStream.addTrack(videoTrack);
-        this.isVideoEnabled = true;
-      } catch (err) {
-        console.warn('[MediaClient] Camera access denied:', err);
+        const constraints: MediaStreamConstraints = {
+          video: this.selectedCameraId
+            ? { deviceId: { exact: this.selectedCameraId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+            : { width: { ideal: 1280 }, height: { ideal: 720 } },
+        };
+        const videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+        const newTrack = videoStream.getVideoTracks()[0];
+
+        if (newTrack) {
+          this.localStream.addTrack(newTrack);
+          this.isVideoEnabled = true;
+
+          // Replace track on all active peer senders
+          this.peerConnections.forEach((pc) => {
+            const videoSender = pc.getSenders().find((s) => s.track?.kind === 'video' || !s.track);
+            if (videoSender) {
+              videoSender.replaceTrack(newTrack).catch(() => {});
+            } else {
+              try {
+                pc.addTrack(newTrack, this.localStream);
+              } catch {}
+            }
+          });
+        }
+      } catch (err: any) {
+        console.warn('[MediaClient] Camera access error:', err);
+        this.handleMediaError(err, 'camera');
         return false;
       }
     }
@@ -152,6 +237,8 @@ export class MediaClient {
     return this.isVideoEnabled;
   }
 
+  // --- SCREEN SHARING ---
+
   public async startScreenShare(): Promise<MediaStream | null> {
     try {
       this.localScreenStream = await navigator.mediaDevices.getDisplayMedia({
@@ -160,11 +247,24 @@ export class MediaClient {
       });
 
       this.isScreenSharing = true;
+      const screenTrack = this.localScreenStream.getVideoTracks()[0];
 
-      // Handle user stopping screen share via browser UI bar
-      this.localScreenStream.getVideoTracks()[0].onended = () => {
+      // Handle user stopping screen share via browser floating bar
+      screenTrack.onended = () => {
         this.stopScreenShare();
       };
+
+      // Replace video track on active peer connections with screen track
+      this.peerConnections.forEach((pc) => {
+        const videoSender = pc.getSenders().find((s) => s.track?.kind === 'video');
+        if (videoSender) {
+          videoSender.replaceTrack(screenTrack).catch(() => {});
+        } else {
+          try {
+            pc.addTrack(screenTrack, this.localScreenStream!);
+          } catch {}
+        }
+      });
 
       this.updateLocalParticipantState();
       this.broadcastMediaState();
@@ -177,13 +277,67 @@ export class MediaClient {
 
   public stopScreenShare(): void {
     if (this.localScreenStream) {
-      this.localScreenStream.getTracks().forEach((t) => t.stop());
+      this.localScreenStream.getTracks().forEach((t) => {
+        try {
+          t.stop();
+        } catch {}
+      });
       this.localScreenStream = null;
     }
     this.isScreenSharing = false;
+
+    // Restore camera video track on peer connections if camera was enabled
+    const camTrack = this.localStream.getVideoTracks()[0] || null;
+    this.peerConnections.forEach((pc) => {
+      const videoSender = pc.getSenders().find((s) => s.track?.kind === 'video');
+      if (videoSender) {
+        videoSender.replaceTrack(camTrack).catch(() => {});
+      }
+    });
+
     this.updateLocalParticipantState();
     this.broadcastMediaState();
   }
+
+  // --- DEVICE MANAGEMENT ---
+
+  public async getAvailableDevices(): Promise<AvailableMediaDevices> {
+    try {
+      if (!navigator.mediaDevices?.enumerateDevices) {
+        return { audioInputs: [], videoInputs: [], audioOutputs: [] };
+      }
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      return {
+        audioInputs: devices.filter((d) => d.kind === 'audioinput'),
+        videoInputs: devices.filter((d) => d.kind === 'videoinput'),
+        audioOutputs: devices.filter((d) => d.kind === 'audiooutput'),
+      };
+    } catch {
+      return { audioInputs: [], videoInputs: [], audioOutputs: [] };
+    }
+  }
+
+  public async switchCamera(deviceId: string): Promise<boolean> {
+    this.selectedCameraId = deviceId;
+    if (this.isVideoEnabled) {
+      // Re-acquire camera with specific deviceId
+      await this.toggleCamera(); // turn off
+      return await this.toggleCamera(); // turn on with new deviceId
+    }
+    return false;
+  }
+
+  public async switchMicrophone(deviceId: string): Promise<boolean> {
+    this.selectedMicrophoneId = deviceId;
+    if (this.isAudioEnabled) {
+      // Re-acquire microphone with specific deviceId
+      await this.toggleMicrophone(); // turn off
+      return await this.toggleMicrophone(); // turn on with new deviceId
+    }
+    return false;
+  }
+
+  // --- MODERATION ACTIONS ---
 
   public muteParticipant(userId: string): void {
     if (this.socket && (this.config.role === 'instructor' || this.config.role === 'mentor')) {
@@ -204,6 +358,8 @@ export class MediaClient {
     }
   }
 
+  // --- ACCESSORS ---
+
   public getParticipants(): MediaParticipant[] {
     return Array.from(this.participants.values());
   }
@@ -220,6 +376,20 @@ export class MediaClient {
     return this.connectionState;
   }
 
+  public getIsAudioEnabled(): boolean {
+    return this.isAudioEnabled;
+  }
+
+  public getIsVideoEnabled(): boolean {
+    return this.isVideoEnabled;
+  }
+
+  public getIsScreenSharing(): boolean {
+    return this.isScreenSharing;
+  }
+
+  // --- EVENT EMITTER ---
+
   public on(event: string, listener: EventListener): () => void {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, new Set());
@@ -234,7 +404,13 @@ export class MediaClient {
   private emit(event: string, data: any): void {
     const listeners = this.eventListeners.get(event);
     if (listeners) {
-      listeners.forEach((fn) => fn(data));
+      listeners.forEach((fn) => {
+        try {
+          fn(data);
+        } catch (e) {
+          console.error('[MediaClient] Error in listener:', e);
+        }
+      });
     }
   }
 
@@ -267,11 +443,201 @@ export class MediaClient {
     }
   }
 
+  // --- WEBRTC PEER CONNECTION MESH ---
+
+  private getOrCreatePeerConnection(targetUserId: string): RTCPeerConnection {
+    if (this.peerConnections.has(targetUserId)) {
+      return this.peerConnections.get(targetUserId)!;
+    }
+
+    const pc = new RTCPeerConnection({
+      iceServers: this.config.iceServers || DEFAULT_ICE_SERVERS,
+    });
+
+    // Add local media tracks to peer connection
+    this.localStream.getTracks().forEach((track) => {
+      try {
+        pc.addTrack(track, this.localStream);
+      } catch (e) {
+        console.warn('[MediaClient] Track addition warning:', e);
+      }
+    });
+
+    // If screen share is active, add screen track
+    if (this.localScreenStream) {
+      this.localScreenStream.getTracks().forEach((track) => {
+        try {
+          pc.addTrack(track, this.localScreenStream!);
+        } catch {}
+      });
+    }
+
+    // ICE Candidate Generation
+    pc.onicecandidate = (event) => {
+      if (event.candidate && this.socket) {
+        this.socket.emit('webrtc_ice_candidate', {
+          classId: this.config.classId,
+          targetUserId,
+          candidate: event.candidate,
+        });
+      }
+    };
+
+    // Remote Track Received
+    pc.ontrack = (event) => {
+      const remoteStream = event.streams[0] || new MediaStream([event.track]);
+      const p = this.participants.get(targetUserId);
+      if (p) {
+        p.stream = remoteStream;
+        p.isAudioOn = remoteStream.getAudioTracks().some((t) => t.enabled);
+        p.isVideoOn = remoteStream.getVideoTracks().some((t) => t.enabled);
+        this.emit('participantsUpdate', this.getParticipants());
+      }
+    };
+
+    // Connection State Change
+    pc.onconnectionstatechange = () => {
+      const state = pc.connectionState;
+      if (state === 'connected') {
+        const p = this.participants.get(targetUserId);
+        if (p) p.connectionState = 'connected';
+        this.emit('participantsUpdate', this.getParticipants());
+      } else if (state === 'disconnected' || state === 'failed') {
+        const p = this.participants.get(targetUserId);
+        if (p) p.connectionState = 'disconnected';
+        this.emit('participantsUpdate', this.getParticipants());
+      }
+    };
+
+    this.peerConnections.set(targetUserId, pc);
+    return pc;
+  }
+
+  private async initiateOffer(targetUserId: string): Promise<void> {
+    if (!this.socket) return;
+    try {
+      const pc = this.getOrCreatePeerConnection(targetUserId);
+      const offer = await pc.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true,
+      });
+      await pc.setLocalDescription(offer);
+
+      this.socket.emit('webrtc_offer', {
+        classId: this.config.classId,
+        targetUserId,
+        offer,
+      });
+    } catch (err) {
+      console.warn(`[MediaClient] Failed to initiate offer to ${targetUserId}:`, err);
+    }
+  }
+
+  private async handleReceiveOffer(senderUserId: string, offer: RTCSessionDescriptionInit): Promise<void> {
+    if (!this.socket) return;
+    try {
+      const pc = this.getOrCreatePeerConnection(senderUserId);
+      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+
+      // Flush queued ICE candidates
+      const queued = this.pendingCandidates.get(senderUserId) || [];
+      for (const cand of queued) {
+        try {
+          await pc.addIceCandidate(new RTCIceCandidate(cand));
+        } catch {}
+      }
+      this.pendingCandidates.delete(senderUserId);
+
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      this.socket.emit('webrtc_answer', {
+        classId: this.config.classId,
+        targetUserId: senderUserId,
+        answer,
+      });
+    } catch (err) {
+      console.warn(`[MediaClient] Error handling offer from ${senderUserId}:`, err);
+    }
+  }
+
+  private async handleReceiveAnswer(senderUserId: string, answer: RTCSessionDescriptionInit): Promise<void> {
+    const pc = this.peerConnections.get(senderUserId);
+    if (!pc) return;
+    try {
+      await pc.setRemoteDescription(new RTCSessionDescription(answer));
+
+      // Flush queued ICE candidates
+      const queued = this.pendingCandidates.get(senderUserId) || [];
+      for (const cand of queued) {
+        try {
+          await pc.addIceCandidate(new RTCIceCandidate(cand));
+        } catch {}
+      }
+      this.pendingCandidates.delete(senderUserId);
+    } catch (err) {
+      console.warn(`[MediaClient] Error handling answer from ${senderUserId}:`, err);
+    }
+  }
+
+  private async handleReceiveIceCandidate(senderUserId: string, candidate: RTCIceCandidateInit): Promise<void> {
+    const pc = this.peerConnections.get(senderUserId);
+    if (pc && pc.remoteDescription && pc.remoteDescription.type) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (e) {
+        console.warn('[MediaClient] Error adding ICE candidate:', e);
+      }
+    } else {
+      // Queue candidate until remote description is set
+      if (!this.pendingCandidates.has(senderUserId)) {
+        this.pendingCandidates.set(senderUserId, []);
+      }
+      this.pendingCandidates.get(senderUserId)!.push(candidate);
+    }
+  }
+
+  private handleMediaError(err: any, type: 'camera' | 'microphone'): void {
+    let friendlyMessage = `Unable to access your ${type}.`;
+    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+      friendlyMessage = `${type === 'camera' ? 'Camera' : 'Microphone'} access was denied. Please allow permission in your browser URL bar settings.`;
+    } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+      friendlyMessage = `No ${type} device was found on your system.`;
+    } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+      friendlyMessage = `Your ${type} is in use by another application.`;
+    }
+    this.emit('mediaError', { type, message: friendlyMessage, originalError: err });
+  }
+
+  // --- SOCKET SIGNALING SETUP ---
+
   private setupSocketListeners(): void {
     if (!this.socket) return;
 
+    // A new peer joined the live class
     this.socket.on('user_joined', (data: { userId: string; name: string; role: MediaRole }) => {
       if (data.userId !== this.config.userId) {
+        if (!this.participants.has(data.userId)) {
+          this.participants.set(data.userId, {
+            userId: data.userId,
+            name: data.name,
+            role: data.role,
+            isAudioOn: false,
+            isVideoOn: false,
+            isScreenSharing: false,
+            isHandRaised: false,
+            connectionState: 'connecting',
+          });
+          this.emit('participantsUpdate', this.getParticipants());
+        }
+        // Initiate peer connection to the newly joined peer
+        this.initiateOffer(data.userId);
+      }
+    });
+
+    // Legacy alias
+    this.socket.on('student:joined', (data: { userId: string; name: string; role: MediaRole }) => {
+      if (data.userId !== this.config.userId && !this.participants.has(data.userId)) {
         this.participants.set(data.userId, {
           userId: data.userId,
           name: data.name,
@@ -280,41 +646,67 @@ export class MediaClient {
           isVideoOn: false,
           isScreenSharing: false,
           isHandRaised: false,
-          connectionState: 'connected',
+          connectionState: 'connecting',
         });
         this.emit('participantsUpdate', this.getParticipants());
-        this.emit('participantJoined', data);
+        this.initiateOffer(data.userId);
       }
     });
 
+    // Participant left the classroom
     this.socket.on('user_left', (data: { userId: string }) => {
-      this.participants.delete(data.userId);
-      this.peerConnections.get(data.userId)?.close();
-      this.peerConnections.delete(data.userId);
-      this.emit('participantsUpdate', this.getParticipants());
-      this.emit('participantLeft', data);
+      this.handleUserLeft(data.userId);
     });
 
+    this.socket.on('student:left', (data: { userId: string }) => {
+      this.handleUserLeft(data.userId);
+    });
+
+    // Participants roster update
     this.socket.on('participants_update', (data: { users: Array<{ userId: string; name: string; role: MediaRole }> }) => {
       if (data.users && Array.isArray(data.users)) {
         data.users.forEach((u) => {
-          if (!this.participants.has(u.userId)) {
-            this.participants.set(u.userId, {
-              userId: u.userId,
-              name: u.name,
-              role: u.role,
-              isAudioOn: false,
-              isVideoOn: false,
-              isScreenSharing: false,
-              isHandRaised: false,
-              connectionState: 'connected',
-            });
+          if (u.userId !== this.config.userId) {
+            if (!this.participants.has(u.userId)) {
+              this.participants.set(u.userId, {
+                userId: u.userId,
+                name: u.name,
+                role: u.role,
+                isAudioOn: false,
+                isVideoOn: false,
+                isScreenSharing: false,
+                isHandRaised: false,
+                connectionState: 'connecting',
+              });
+              // Initiate connection if we are in the room
+              this.initiateOffer(u.userId);
+            }
           }
         });
         this.emit('participantsUpdate', this.getParticipants());
       }
     });
 
+    // WebRTC Signaling Messages
+    this.socket.on('webrtc_offer', async (data: { senderUserId: string; offer: RTCSessionDescriptionInit }) => {
+      if (data.senderUserId && data.offer) {
+        await this.handleReceiveOffer(data.senderUserId, data.offer);
+      }
+    });
+
+    this.socket.on('webrtc_answer', async (data: { senderUserId: string; answer: RTCSessionDescriptionInit }) => {
+      if (data.senderUserId && data.answer) {
+        await this.handleReceiveAnswer(data.senderUserId, data.answer);
+      }
+    });
+
+    this.socket.on('webrtc_ice_candidate', async (data: { senderUserId: string; candidate: RTCIceCandidateInit }) => {
+      if (data.senderUserId && data.candidate) {
+        await this.handleReceiveIceCandidate(data.senderUserId, data.candidate);
+      }
+    });
+
+    // Remote Track State Changes
     this.socket.on('webrtc_track_change', (data: { userId: string; isAudioOn: boolean; isVideoOn: boolean; isScreenSharing: boolean }) => {
       const p = this.participants.get(data.userId);
       if (p) {
@@ -325,15 +717,30 @@ export class MediaClient {
       }
     });
 
+    // Instructor muted local microphone
     this.socket.on('student_muted', (data: { userId: string; isMuted: boolean }) => {
       if (data.userId === this.config.userId && data.isMuted && this.isAudioEnabled) {
         this.toggleMicrophone();
       }
     });
 
+    // Kicked by instructor
     this.socket.on('kicked', () => {
       this.disconnect();
       this.emit('kicked', true);
     });
+  }
+
+  private handleUserLeft(userId: string): void {
+    this.participants.delete(userId);
+    const pc = this.peerConnections.get(userId);
+    if (pc) {
+      try {
+        pc.close();
+      } catch {}
+      this.peerConnections.delete(userId);
+    }
+    this.pendingCandidates.delete(userId);
+    this.emit('participantsUpdate', this.getParticipants());
   }
 }

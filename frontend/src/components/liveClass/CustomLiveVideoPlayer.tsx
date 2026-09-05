@@ -1,8 +1,10 @@
 import React, { useMemo } from 'react';
-import { VideoOff, Sparkles, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { VideoOff, Sparkles, Clock, CheckCircle2, AlertCircle, Radio } from 'lucide-react';
 import { extractYouTubeVideoId } from './YouTubePlayer';
 
 export interface CustomLiveVideoPlayerProps {
+  classId?: string;
+  mode?: string;
   youtubeVideoId?: string;
   title?: string;
   status?: string; // 'SCHEDULED' | 'LIVE' | 'ENDED' | 'CANCELLED'
@@ -12,6 +14,8 @@ export interface CustomLiveVideoPlayerProps {
 }
 
 export const CustomLiveVideoPlayer: React.FC<CustomLiveVideoPlayerProps> = ({
+  classId,
+  mode,
   youtubeVideoId,
   title = 'KaizenQ Live Classroom',
   status = 'SCHEDULED',
@@ -61,21 +65,38 @@ export const CustomLiveVideoPlayer: React.FC<CustomLiveVideoPlayerProps> = ({
     );
   }
 
-  // 3. No Video ID / Stream Not Configured State
-  if (!cleanVideoId) {
+  // 3. Interactive Mode or No Video ID State
+  if (!cleanVideoId || mode === 'interactive') {
     return (
-      <div className="relative w-full aspect-video rounded-2xl bg-slate-900/90 border border-slate-800 flex flex-col items-center justify-center p-6 sm:p-8 text-center overflow-hidden shadow-2xl backdrop-blur-md">
-        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-800/80 border border-slate-700/60 flex items-center justify-center mb-3 text-slate-400 shadow-inner">
-          <VideoOff className="w-7 h-7 text-slate-400" />
+      <div className="relative w-full aspect-video rounded-2xl bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 border border-slate-800 flex flex-col items-center justify-center p-6 sm:p-8 text-center overflow-hidden shadow-2xl backdrop-blur-md">
+        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-3 text-blue-400 shadow-inner">
+          <Radio className="w-7 h-7 text-blue-400 animate-pulse" />
         </div>
-        <h3 className="text-lg sm:text-xl font-bold text-white mb-1.5">Live stream not configured</h3>
-        <p className="text-slate-400 text-xs sm:text-sm max-w-md mb-4 leading-relaxed">
-          The broadcast channel has not been connected yet. The stream will automatically display when {instructorName} begins transmitting.
+        <span className="px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold uppercase tracking-wider mb-2">
+          {isLive ? '🔴 Live Now' : 'Interactive Realtime Classroom'}
+        </span>
+        <h3 className="text-lg sm:text-xl font-bold text-white mb-1.5">
+          {title || 'Interactive Live Classroom'}
+        </h3>
+        <p className="text-slate-400 text-xs sm:text-sm max-w-md mb-5 leading-relaxed">
+          {isLive
+            ? `Class is currently in session with ${instructorName}. Click below to join the real-time interactive classroom.`
+            : `Scheduled session with ${instructorName}. Standby mode until instructor starts the live broadcast.`}
         </p>
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-800/80 border border-slate-700 text-xs font-semibold text-slate-300">
-          <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-          <span>Auto-syncing broadcast channel</span>
-        </div>
+
+        {classId && (
+          <a
+            href={`/live-classroom/room/${classId}`}
+            className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-xs shadow-lg transition-all cursor-pointer ${
+              isLive
+                ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/30'
+                : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+            }`}
+          >
+            <Radio className="w-4 h-4" />
+            <span>{isLive ? 'JOIN LIVE CLASS' : 'ENTER CLASSROOM STANDBY'}</span>
+          </a>
+        )}
       </div>
     );
   }

@@ -32,15 +32,73 @@ export const registerLiveClassHandlers = (io: SocketServer, socket: Authenticate
         return;
       }
 
-      // Query class status from DB with non-blocking fallback
+      // Query class status from DB with authorization verification
       let classStatus = 'SCHEDULED';
+      let liveClass: any = null;
       try {
-        const liveClass = await liveClassroomService.getLiveClassById(liveClassId);
+        liveClass = await liveClassroomService.getLiveClassById(liveClassId);
         if (liveClass && liveClass.status) {
           classStatus = liveClass.status;
         }
       } catch (dbErr: any) {
         logger.warn(`[SOCKET] Notice fetching live class ${liveClassId}: ${dbErr?.message}`);
+      }
+
+      if (!liveClass) {
+        const errPayload = { success: false, error: 'NOT_FOUND', message: 'Live class session not found.' };
+        socket.emit('liveClass:error', errPayload);
+        if (callback) callback(errPayload);
+        return;
+      }
+
+      const normClassStatus = (classStatus || '').toUpperCase();
+      const userRole = (user.role || 'student').toLowerCase();
+
+      // Authorization checks for students
+      if (userRole === 'student') {
+        if (normClassStatus === 'CANCELLED') {
+          const errPayload = { success: false, error: 'CLASS_CANCELLED', message: 'This live class has been cancelled.' };
+          socket.emit('liveClass:error', errPayload);
+          if (callback) callback(errPayload);
+          return;
+        }
+
+        if (normClassStatus === 'COMPLETED' || normClassStatus === 'ENDED') {
+          socket.emit('liveClass:status', { liveClassId, status: 'COMPLETED' });
+          socket.emit('live_class_ended', { classId: liveClassId, endedAt: liveClass.endedAt || new Date().toISOString() });
+          const errPayload = { success: false, error: 'CLASS_COMPLETED', message: 'This live class session has ended.' };
+          socket.emit('liveClass:error', errPayload);
+          if (callback) callback(errPayload);
+          return;
+        }
+
+        // Verify enrollment
+        const { isEnrolled, reason } = await liveClassroomService.verifyCourseEnrollment(
+          user.uid || user.id,
+          liveClass.courseId,
+          user.role,
+          user.email
+        );
+        if (!isEnrolled) {
+          const errPayload = { success: false, error: 'NOT_ENROLLED', message: reason || 'You are not enrolled in this course.' };
+          socket.emit('liveClass:error', errPayload);
+          if (callback) callback(errPayload);
+          return;
+        }
+      }
+
+      // Authorization checks for instructors: prevent managing classes assigned to other instructors
+      if (userRole === 'instructor') {
+        const isAssigned =
+          liveClass.instructorId === (user.uid || user.id) ||
+          liveClass.createdBy === (user.uid || user.id) ||
+          (liveClass.instructorName && user.name && liveClass.instructorName.toLowerCase().includes(user.name.toLowerCase()));
+        if (!isAssigned) {
+          const errPayload = { success: false, error: 'UNAUTHORIZED_INSTRUCTOR', message: 'You are not assigned to conduct this live class.' };
+          socket.emit('liveClass:error', errPayload);
+          if (callback) callback(errPayload);
+          return;
+        }
       }
 
       const roomName = `live-class:${liveClassId}`;
@@ -89,12 +147,22 @@ export const registerLiveClassHandlers = (io: SocketServer, socket: Authenticate
         users: currentRoster.map((p) => ({ userId: p.userId, name: p.name, role: p.role })),
       });
 
-      // Broadcast student:joined
+      io.to(roomName).emit('participant_count', {
+        count: activeCount,
+        liveClassId,
+      });
+
+      // Broadcast student:joined and user_joined
       socket.to(roomName).emit('student:joined', {
         userId: participant.userId,
         name: participant.name,
         role: participant.role,
         timestamp: new Date().toISOString(),
+      });
+      socket.to(roomName).emit('user_joined', {
+        userId: participant.userId,
+        name: participant.name,
+        role: participant.role,
       });
     } catch (err: any) {
       logger.error('[SOCKET] liveClass:join exception:', err);
@@ -128,6 +196,11 @@ export const registerLiveClassHandlers = (io: SocketServer, socket: Authenticate
       io.to(roomName).emit('participants_update', {
         count: activeCount,
         users: currentRoster.map((p) => ({ userId: p.userId, name: p.name, role: p.role })),
+      });
+
+      io.to(roomName).emit('participant_count', {
+        count: activeCount,
+        liveClassId,
       });
 
       if (leftParticipant) {
@@ -177,6 +250,24 @@ export const registerLiveClassHandlers = (io: SocketServer, socket: Authenticate
     }
 
     const { liveClassId, status } = data;
+
+    // Enforce instructor assignment
+    if (user.role === 'instructor') {
+      try {
+        const liveClass = await liveClassroomService.getLiveClassById(liveClassId);
+        if (liveClass) {
+          const isAssigned =
+            liveClass.instructorId === (user.uid || user.id) ||
+            liveClass.createdBy === (user.uid || user.id) ||
+            (liveClass.instructorName && user.name && liveClass.instructorName.toLowerCase().includes(user.name.toLowerCase()));
+          if (!isAssigned) {
+            socket.emit('liveClass:error', { error: 'UNAUTHORIZED_INSTRUCTOR', message: 'You are not assigned to manage this live class.' });
+            return;
+          }
+        }
+      } catch (e) {}
+    }
+
     const normStatus = status.toUpperCase();
     const roomName = `live-class:${liveClassId}`;
 
@@ -196,6 +287,20 @@ export const registerLiveClassHandlers = (io: SocketServer, socket: Authenticate
       updatedAt: new Date().toISOString(),
       updatedBy: user.name || user.email,
     });
+
+    if (normStatus === 'LIVE') {
+      io.to(roomName).emit('live_class_started', {
+        liveClassId,
+        status: 'LIVE',
+        startedAt: new Date().toISOString(),
+      });
+    } else if (normStatus === 'ENDED' || normStatus === 'COMPLETED') {
+      io.to(roomName).emit('live_class_ended', {
+        liveClassId,
+        status: normStatus,
+        endedAt: new Date().toISOString(),
+      });
+    }
   });
 
   // 4. Whiteboard Controls & Drawing Sync
@@ -288,7 +393,7 @@ export const registerLiveClassHandlers = (io: SocketServer, socket: Authenticate
     }
   });
 
-  // 7. WebRTC Track State Sync
+  // 7. WebRTC Track State Sync & Signaling
   socket.on('webrtc_track_change', (data: { classId: string; liveClassId?: string; userId?: string; isAudioOn: boolean; isVideoOn: boolean; isScreenSharing: boolean }) => {
     const user = socket.user;
     const classId = data.liveClassId || data.classId;
@@ -299,6 +404,71 @@ export const registerLiveClassHandlers = (io: SocketServer, socket: Authenticate
       isVideoOn: data.isVideoOn,
       isScreenSharing: data.isScreenSharing,
     });
+  });
+
+  // WebRTC Signaling: Offer
+  socket.on('webrtc_offer', (data: { classId: string; liveClassId?: string; targetUserId: string; offer: any }) => {
+    const user = socket.user;
+    const classId = data.liveClassId || data.classId;
+    if (!user || !classId || !data.targetUserId || !data.offer) return;
+
+    const roomMap = activeRoomPresences.get(classId);
+    if (!roomMap || !roomMap.has(socket.id)) return; // Verify sender is in room
+
+    for (const [targetSocketId, participant] of roomMap.entries()) {
+      if (participant.userId === data.targetUserId) {
+        io.to(targetSocketId).emit('webrtc_offer', {
+          senderUserId: user.uid || user.id,
+          senderName: user.name || 'User',
+          offer: data.offer,
+          classId,
+        });
+        break;
+      }
+    }
+  });
+
+  // WebRTC Signaling: Answer
+  socket.on('webrtc_answer', (data: { classId: string; liveClassId?: string; targetUserId: string; answer: any }) => {
+    const user = socket.user;
+    const classId = data.liveClassId || data.classId;
+    if (!user || !classId || !data.targetUserId || !data.answer) return;
+
+    const roomMap = activeRoomPresences.get(classId);
+    if (!roomMap || !roomMap.has(socket.id)) return; // Verify sender is in room
+
+    for (const [targetSocketId, participant] of roomMap.entries()) {
+      if (participant.userId === data.targetUserId) {
+        io.to(targetSocketId).emit('webrtc_answer', {
+          senderUserId: user.uid || user.id,
+          senderName: user.name || 'User',
+          answer: data.answer,
+          classId,
+        });
+        break;
+      }
+    }
+  });
+
+  // WebRTC Signaling: ICE Candidate
+  socket.on('webrtc_ice_candidate', (data: { classId: string; liveClassId?: string; targetUserId: string; candidate: any }) => {
+    const user = socket.user;
+    const classId = data.liveClassId || data.classId;
+    if (!user || !classId || !data.targetUserId || !data.candidate) return;
+
+    const roomMap = activeRoomPresences.get(classId);
+    if (!roomMap || !roomMap.has(socket.id)) return; // Verify sender is in room
+
+    for (const [targetSocketId, participant] of roomMap.entries()) {
+      if (participant.userId === data.targetUserId) {
+        io.to(targetSocketId).emit('webrtc_ice_candidate', {
+          senderUserId: user.uid || user.id,
+          candidate: data.candidate,
+          classId,
+        });
+        break;
+      }
+    }
   });
 
   // 8. Typing Indicator Sync
