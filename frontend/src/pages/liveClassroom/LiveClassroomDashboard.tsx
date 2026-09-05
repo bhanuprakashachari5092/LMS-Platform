@@ -401,7 +401,7 @@ export const LiveClassroomDashboard: React.FC = () => {
                   <img src={c.banner || c.thumbnail || 'https://images.unsplash.com/photo-1629654297299-c8506221ca97?w=800&q=80'} alt={c.title} className="w-full h-full object-cover opacity-80" />
                   <div className="absolute inset-0 bg-linear-to-t from-slate-950 via-slate-950/40 to-transparent" />
                   <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
-                    <span className="px-2.5 py-0.5 rounded-full bg-slate-900/80 backdrop-blur-md text-cyan-300 font-mono text-[10px] font-bold border border-slate-700">{c.meetingProvider.toUpperCase()}</span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-slate-900/80 backdrop-blur-md text-cyan-300 font-mono text-[10px] font-bold border border-slate-700">{(c.meetingProvider || 'LIVE').toUpperCase()}</span>
                     <span className={`px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${c.status === 'Live' ? 'bg-rose-600 text-white animate-pulse' : c.status === 'Scheduled' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-200'}`}>
                       {c.status === 'Live' ? '🔴 LIVE NOW' : c.status}
                     </span>

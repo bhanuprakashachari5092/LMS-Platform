@@ -598,7 +598,7 @@ export const AdminLiveClassList: React.FC = () => {
                     : 'bg-blue-600 hover:bg-blue-700'
                 }`}
               >
-                {actionSubmitting ? 'Processing...' : `Confirm ${actionModal.type.toUpperCase()}`}
+                {actionSubmitting ? 'Processing...' : `Confirm ${(actionModal?.type || '').toUpperCase()}`}
               </button>
             </div>
           </div>

@@ -655,7 +655,7 @@ export const AdminLiveClassroom: React.FC = () => {
                   {/* Top Badges */}
                   <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2">
                     <span className="px-2.5 py-0.5 rounded-full bg-slate-900/80 backdrop-blur-md text-cyan-300 font-mono text-[10px] font-bold border border-slate-700">
-                      {c.meetingProvider.toUpperCase()}
+                      {(c.meetingProvider || 'LIVE').toUpperCase()}
                     </span>
 
                     <span
