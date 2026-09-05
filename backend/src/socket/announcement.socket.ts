@@ -58,6 +58,7 @@ export const registerAnnouncementHandlers = (io: SocketServer, socket: Authentic
 
         // Broadcast announcement to entire room
         io.to(roomName).emit('announcement:receive', announcementPayload);
+        io.to(roomName).emit('announcement_created', announcementPayload);
 
         if (callback) callback({ success: true, announcement: announcementPayload });
       } catch (err: any) {

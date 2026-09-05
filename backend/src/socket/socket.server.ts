@@ -10,6 +10,10 @@ import { registerQuizHandlers } from './quiz.socket';
 import { registerAttendanceHandlers } from './attendance.socket';
 import logger from '../config/logger';
 
+let liveNS: any = null;
+
+export const getLiveNamespace = () => liveNS;
+
 /**
  * Initialize Modular Production-Ready Socket.IO Server
  */
@@ -17,7 +21,7 @@ export const setupSocketServer = (io: SocketServer) => {
   logger.info('[SOCKET SERVER] Initializing Production Real-Time Interaction Layer...');
 
   // Configure Live Classroom Namespace
-  const liveNS = io.of('/live-classroom');
+  liveNS = io.of('/live-classroom');
 
   // Attach Handshake Authentication Middleware
   liveNS.use(socketAuthMiddleware);

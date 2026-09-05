@@ -453,6 +453,15 @@ export const AdminLiveClassList: React.FC = () => {
                         <span>End Class</span>
                       </button>
                     )}
+                    {isEnded && (
+                      <button
+                        onClick={() => navigate(`/admin/live-classes/${classId}/control`)}
+                        className="flex-1 py-1.5 px-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 text-[11px] font-bold flex items-center justify-center gap-1 transition-colors"
+                      >
+                        <BarChart3 className="w-3 h-3" />
+                        <span>Attendance & Analytics</span>
+                      </button>
+                    )}
                     {!isEnded && !isCancelled && (
                       <button
                         onClick={() => setActionModal({ type: 'cancel', targetClass: c })}

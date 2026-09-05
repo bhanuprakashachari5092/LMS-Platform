@@ -117,4 +117,5 @@ backend/config/google-drive.json
 # Local nested repository directory
 LMS-Platform/
 
-
+# IDE Snapshots & Audit Logs
+.animoria/

@@ -1,9 +1,11 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { auth } from '@/firebase';
 
 export const AdminRoute: React.FC<{ children: React.ReactNode; allowInstructor?: boolean }> = ({ children, allowInstructor = false }) => {
   const { user, userProfile, loading } = useAuth();
+  const activeUser = user || auth?.currentUser;
 
   if (loading) {
     return (
@@ -13,7 +15,7 @@ export const AdminRoute: React.FC<{ children: React.ReactNode; allowInstructor?:
     );
   }
 
-  if (!user) {
+  if (!activeUser) {
     return <Navigate to="/auth/login" replace />;
   }
 

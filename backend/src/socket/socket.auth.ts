@@ -18,10 +18,17 @@ export interface AuthenticatedSocket extends Socket {
 
 const VALID_ROLES = new Set<UserRole>(['admin', 'instructor', 'mentor', 'student']);
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 /**
  * Socket.IO Handshake Authentication Middleware
+ *
+ * In production: rejects any socket that does not carry a valid Firebase ID token.
+ * In development: falls back to client-supplied identity for local testing convenience.
+ *
  * Strictly validates Firebase ID tokens via Firebase Admin SDK,
- * resolves user role from Firestore, and binds authenticated identity to socket.user and socket.data.user.
+ * resolves user role from Firestore, and binds authenticated identity
+ * to socket.user and socket.data.user.
  */
 export const socketAuthMiddleware = async (
   socket: AuthenticatedSocket,
@@ -60,31 +67,43 @@ export const socketAuthMiddleware = async (
       token = trimmed.startsWith('Bearer ') ? trimmed.split('Bearer ')[1]?.trim() : trimmed;
     }
 
+    // 2. Production: require a valid Firebase token — reject if missing or invalid
+    const hasToken =
+      token &&
+      token !== 'undefined' &&
+      token !== 'null' &&
+      token.length > 20;
+
+    if (isProduction && !hasToken) {
+      logger.warn(`[SOCKET AUTH] Production: Rejected unauthenticated socket ${socket.id} — no Firebase token provided.`);
+      return next(new Error('Authentication required. Please log in to join the live classroom.'));
+    }
+
     let uid = fallbackUserId;
     let resolvedEmail = fallbackEmail;
     let resolvedName = fallbackName;
     let normalizedRole: UserRole = VALID_ROLES.has(fallbackRole as UserRole)
       ? (fallbackRole as UserRole)
       : 'student';
+    let tokenVerified = false;
 
-    // 2. If token is provided, verify with Firebase Admin Auth
+    // 3. If token is provided, verify with Firebase Admin Auth
     if (
-      token &&
-      token !== 'undefined' &&
-      token !== 'null' &&
+      hasToken &&
       adminAuth &&
       typeof adminAuth.verifyIdToken === 'function'
     ) {
       try {
-        const decodedToken = await adminAuth.verifyIdToken(token);
+        const decodedToken = await adminAuth.verifyIdToken(token!);
         if (decodedToken && decodedToken.uid) {
           uid = decodedToken.uid;
+          tokenVerified = true;
           if (decodedToken.email) resolvedEmail = decodedToken.email;
           if (decodedToken.name || (decodedToken as any).displayName) {
             resolvedName = decodedToken.name || (decodedToken as any).displayName;
           }
 
-          // Check user document in Firestore for role
+          // Check user document in Firestore for authoritative role
           if (db && typeof db.collection === 'function') {
             try {
               const userDoc = await db.collection('users').doc(uid).get();
@@ -103,7 +122,13 @@ export const socketAuthMiddleware = async (
           }
         }
       } catch (tokenErr: any) {
-        logger.warn(`[SOCKET AUTH] Token verification notice: ${tokenErr?.message || tokenErr} - connecting with client identity`);
+        // In production, reject on invalid token
+        if (isProduction) {
+          logger.warn(`[SOCKET AUTH] Production: Rejected socket ${socket.id} — invalid Firebase token: ${tokenErr?.message}`);
+          return next(new Error('Invalid authentication token. Please log in again.'));
+        }
+        // In development, log warning but continue with fallback identity
+        logger.warn(`[SOCKET AUTH] Dev: Token verification failed for ${socket.id}: ${tokenErr?.message} — using fallback identity.`);
       }
     }
 
@@ -118,9 +143,21 @@ export const socketAuthMiddleware = async (
     socket.user = authUser;
     socket.data = { ...socket.data, user: authUser };
 
+    if (tokenVerified) {
+      logger.info(`[SOCKET AUTH] ✅ Authenticated: ${resolvedName} (${normalizedRole}) — UID: ${uid}`);
+    } else {
+      logger.info(`[SOCKET AUTH] ⚠️ Dev fallback: ${resolvedName} (${normalizedRole}) — ID: ${uid}`);
+    }
+
     return next();
   } catch (err: any) {
     logger.error(`[SOCKET AUTH] Exception in auth middleware:`, err.message);
+
+    if (isProduction) {
+      return next(new Error('Authentication error. Please refresh and try again.'));
+    }
+
+    // Development fallback only
     const fallbackUser: AuthenticatedSocketUser = {
       id: `usr_${socket.id.substring(0, 8)}`,
       uid: `usr_${socket.id.substring(0, 8)}`,
@@ -132,4 +169,3 @@ export const socketAuthMiddleware = async (
     return next();
   }
 };
-

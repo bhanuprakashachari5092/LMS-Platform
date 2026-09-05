@@ -3,6 +3,7 @@ import { db, isFirebaseAdminInitialized } from '../../firebase';
 import { GoogleGenAI } from '@google/genai';
 import { env } from '../../config/env';
 import logger from '../../config/logger';
+import { flushClassAttendance } from '../../socket/attendance.socket';
 
 export class LiveClassroomService {
   private aiClient?: GoogleGenAI;
@@ -202,6 +203,9 @@ export class LiveClassroomService {
       throw new Error('Live Class not found.');
     }
     const currentStatus = (existing.status || '').toUpperCase();
+    if (currentStatus === 'LIVE') {
+      return existing;
+    }
     if (currentStatus === 'ENDED' || currentStatus === 'COMPLETED') {
       throw new Error('Cannot restart a class that has already ended.');
     }
@@ -212,10 +216,10 @@ export class LiveClassroomService {
     const now = new Date().toISOString();
     const updated = await liveClassroomRepository.updateLiveClass(id, {
       status: 'LIVE',
-      startedAt: now,
+      startedAt: existing.startedAt || now,
       startTime: existing.startTime || now,
     });
-    return updated;
+    return updated || existing;
   }
 
   public async endLiveClass(id: string) {
@@ -232,12 +236,38 @@ export class LiveClassroomService {
     }
 
     const now = new Date().toISOString();
+
+    // 1. Flush active in-memory socket attendance sessions
+    try {
+      await flushClassAttendance(id);
+    } catch (err) {
+      logger.warn(`[LiveClassroomService] Socket attendance flush warning:`, err);
+    }
+
+    // 2. Finalize all attendance records and compute aggregate summary
+    const classDurationMins = existing.duration || 60;
+    const { summary } = await liveClassroomRepository.finalizeClassAttendance(
+      id,
+      existing.startTime || existing.startedAt,
+      classDurationMins
+    );
+
+    // 3. Determine recording status
+    let recStatus: 'NOT_AVAILABLE' | 'RECORDING' | 'PROCESSING' | 'READY' | 'FAILED' = 'NOT_AVAILABLE';
+    if (existing.recordingUrl && existing.recordingUrl.trim().length > 0) {
+      recStatus = 'READY';
+    } else if (existing.isRecordingEnabled) {
+      recStatus = 'PROCESSING';
+    }
+
     const updated = await liveClassroomRepository.updateLiveClass(id, {
-      status: 'ENDED',
+      status: 'COMPLETED',
       endedAt: now,
       endTime: now,
+      recordingStatus: recStatus,
+      attendanceSummary: summary,
     });
-    return updated;
+    return updated || existing;
   }
 
   public async cancelLiveClass(id: string) {
@@ -309,7 +339,7 @@ export class LiveClassroomService {
     if (!liveClass) {
       throw new Error('Live Class session not found.');
     }
-    if (liveClass.status === 'cancelled') {
+    if ((liveClass.status || '').toUpperCase() === 'CANCELLED') {
       throw new Error('This live class session has been cancelled by the instructor.');
     }
 
@@ -462,10 +492,134 @@ export class LiveClassroomService {
   }
 
   public async recordAttendance(data: any) {
-    if (data.userId) {
-      return liveClassroomRepository.recordLeaveAttendance(data.classId, data.userId);
+    const studentId = data.studentId || data.userId;
+    if (studentId) {
+      return liveClassroomRepository.recordLeaveAttendance(data.classId, studentId);
     }
     return null;
+  }
+
+  public async getStudentAttendance(classId: string, studentId: string) {
+    return liveClassroomRepository.getStudentAttendance(classId, studentId);
+  }
+
+  public async getClassAnalytics(classId: string) {
+    const liveClass = await liveClassroomRepository.getLiveClassById(classId);
+    if (!liveClass) {
+      throw new Error('Live Class not found.');
+    }
+
+    const attendance = await liveClassroomRepository.getAttendanceReport(classId);
+    const chatMessages = await liveClassroomRepository.getChatMessages(classId);
+    const questions = await liveClassroomRepository.getQuestions(classId);
+    const polls = await liveClassroomRepository.getPolls(classId);
+    const quizzes = await liveClassroomRepository.getQuizzes(classId);
+
+    const totalAttendees = attendance.length;
+    const totalPresent = attendance.filter((a) => a.status === 'present' || a.status === 'COMPLETED').length;
+    const totalLate = attendance.filter((a) => a.status === 'late').length;
+    const totalAbsent = attendance.filter((a) => a.status === 'absent').length;
+    const avgDurationMinutes = totalAttendees > 0
+      ? Math.round(attendance.reduce((sum, a) => sum + (a.durationMinutes || 0), 0) / totalAttendees)
+      : 0;
+    const attendanceRate = totalAttendees > 0
+      ? Math.round(((totalPresent + totalLate) / totalAttendees) * 100)
+      : 0;
+
+    const totalPollVotes = polls.reduce(
+      (sum, p) => sum + p.options.reduce((oSum, o) => oSum + (o.votesCount || o.voters?.length || 0), 0),
+      0
+    );
+    const totalQuizSubmissions = quizzes.reduce(
+      (sum, q) => sum + (q.submissions?.length || 0),
+      0
+    );
+
+    return {
+      classId,
+      title: liveClass.title,
+      courseName: liveClass.courseName,
+      status: (liveClass.status || '').toUpperCase(),
+      startTime: liveClass.startTime,
+      startedAt: liveClass.startedAt,
+      endedAt: liveClass.endedAt,
+      scheduledDurationMinutes: liveClass.duration || 60,
+      recordingStatus: liveClass.recordingStatus || (liveClass.recordingUrl ? 'READY' : 'NOT_AVAILABLE'),
+      recordingUrl: liveClass.recordingUrl || null,
+      attendance: {
+        totalAttendees,
+        totalPresent,
+        totalLate,
+        totalAbsent,
+        averageDurationMinutes: avgDurationMinutes,
+        attendanceRate,
+      },
+      engagement: {
+        totalChatMessages: chatMessages.length,
+        totalQuestions: questions.length,
+        answeredQuestions: questions.filter((q) => q.status === 'answered').length,
+        pendingQuestions: questions.filter((q) => q.status === 'pending').length,
+        totalPolls: polls.length,
+        totalPollVotes,
+        totalQuizzes: quizzes.length,
+        totalQuizSubmissions,
+      },
+    };
+  }
+
+  public async getAuthorizedRecording(
+    classId: string,
+    user: { uid: string; role?: string; email?: string }
+  ) {
+    const liveClass = await liveClassroomRepository.getLiveClassById(classId);
+    if (!liveClass) {
+      throw new Error('Live Class not found.');
+    }
+
+    const userRole = (user.role || 'student').toLowerCase();
+    const isAdmin = userRole === 'admin' || Boolean(user.email && user.email.includes('admin'));
+    const isInstructor = await this.verifyInstructorOwnership(classId, user.uid, userRole);
+
+    if (!isAdmin && !isInstructor) {
+      const { isEnrolled, reason } = await this.verifyCourseEnrollment(
+        user.uid,
+        liveClass.courseId,
+        userRole,
+        user.email
+      );
+      if (!isEnrolled) {
+        throw new Error(reason || 'Unauthorized: You do not have permission to access this recording.');
+      }
+    }
+
+    const status = liveClass.recordingStatus || (liveClass.recordingUrl ? 'READY' : (liveClass.isRecordingEnabled ? 'PROCESSING' : 'NOT_AVAILABLE'));
+    return {
+      classId,
+      title: liveClass.title,
+      courseName: liveClass.courseName,
+      recordingStatus: status,
+      recordingUrl: status === 'READY' ? (liveClass.recordingUrl || null) : null,
+      recordingDuration: liveClass.recordingDuration || liveClass.duration || null,
+      endedAt: liveClass.endedAt,
+    };
+  }
+
+  public async updateRecording(
+    classId: string,
+    data: { recordingUrl: string; recordingStatus?: 'NOT_AVAILABLE' | 'RECORDING' | 'PROCESSING' | 'READY' | 'FAILED'; recordingDuration?: number }
+  ) {
+    const liveClass = await liveClassroomRepository.getLiveClassById(classId);
+    if (!liveClass) {
+      throw new Error('Live Class not found.');
+    }
+
+    const status = data.recordingStatus || (data.recordingUrl && data.recordingUrl.trim().length > 0 ? 'READY' : 'NOT_AVAILABLE');
+    const updated = await liveClassroomRepository.updateLiveClass(classId, {
+      recordingUrl: data.recordingUrl,
+      recordingStatus: status,
+      recordingDuration: data.recordingDuration || liveClass.duration,
+    });
+    return updated;
   }
 
   // --- AI Insights ---
