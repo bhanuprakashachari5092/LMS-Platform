@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { liveClassroomService } from './liveClassroom.service';
+import { getLiveNamespace } from '../../socket/socket.server';
 
 export class LiveClassroomController {
   // Generate KaizenQ Secure Room Token
@@ -130,7 +131,40 @@ export class LiveClassroomController {
   public async startClass(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const classId = (req.params.classId || req.params.id) as string;
+      const user = (req as any).user;
+
+      // 1. Authorize: Only assigned instructor or administrator can start
+      if (user && user.uid) {
+        const isAuthorized = await liveClassroomService.verifyInstructorOwnership(classId, user.uid, user.role);
+        if (!isAuthorized) {
+          res.status(403).json({
+            success: false,
+            error: 'Forbidden: Only the assigned instructor or an administrator can start this live class.',
+          });
+          return;
+        }
+      }
+
       const liveClass = await liveClassroomService.startLiveClass(classId);
+
+      // Realtime Socket.IO Broadcast to room
+      const liveNS = getLiveNamespace();
+      if (liveNS) {
+        const roomName = `live-class:${classId}`;
+        liveNS.to(roomName).emit('liveClass:status', {
+          liveClassId: classId,
+          status: 'LIVE',
+          startedAt: liveClass?.startedAt,
+          updatedAt: new Date().toISOString(),
+          updatedBy: user?.name || user?.email || 'Instructor',
+        });
+        liveNS.to(roomName).emit('live_class_started', {
+          liveClassId: classId,
+          status: 'LIVE',
+          startedAt: liveClass?.startedAt,
+        });
+      }
+
       res.json({ success: true, message: 'Class set to live status', data: liveClass, liveClass });
     } catch (err: any) {
       res.status(400).json({ success: false, error: err.message });
@@ -140,7 +174,40 @@ export class LiveClassroomController {
   public async endClass(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const classId = (req.params.classId || req.params.id) as string;
+      const user = (req as any).user;
+
+      // 1. Authorize: Only assigned instructor or administrator can end
+      if (user && user.uid) {
+        const isAuthorized = await liveClassroomService.verifyInstructorOwnership(classId, user.uid, user.role);
+        if (!isAuthorized) {
+          res.status(403).json({
+            success: false,
+            error: 'Forbidden: Only the assigned instructor or an administrator can end this live class.',
+          });
+          return;
+        }
+      }
+
       const liveClass = await liveClassroomService.endLiveClass(classId);
+
+      // Realtime Socket.IO Broadcast to room
+      const liveNS = getLiveNamespace();
+      if (liveNS) {
+        const roomName = `live-class:${classId}`;
+        liveNS.to(roomName).emit('liveClass:status', {
+          liveClassId: classId,
+          status: 'ENDED',
+          endedAt: liveClass?.endedAt,
+          updatedAt: new Date().toISOString(),
+          updatedBy: user?.name || user?.email || 'Instructor',
+        });
+        liveNS.to(roomName).emit('live_class_ended', {
+          liveClassId: classId,
+          status: 'ENDED',
+          endedAt: liveClass?.endedAt,
+        });
+      }
+
       res.json({ success: true, message: 'Class session ended', data: liveClass, liveClass });
     } catch (err: any) {
       res.status(400).json({ success: false, error: err.message });
@@ -150,7 +217,33 @@ export class LiveClassroomController {
   public async cancelClass(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const classId = (req.params.classId || req.params.id) as string;
+      const user = (req as any).user;
+
+      if (user && user.uid) {
+        const isAuthorized = await liveClassroomService.verifyInstructorOwnership(classId, user.uid, user.role);
+        if (!isAuthorized) {
+          res.status(403).json({
+            success: false,
+            error: 'Forbidden: Only the assigned instructor or an administrator can cancel this live class.',
+          });
+          return;
+        }
+      }
+
       const liveClass = await liveClassroomService.cancelLiveClass(classId);
+
+      // Realtime Socket.IO Broadcast to room
+      const liveNS = getLiveNamespace();
+      if (liveNS) {
+        const roomName = `live-class:${classId}`;
+        liveNS.to(roomName).emit('liveClass:status', {
+          liveClassId: classId,
+          status: 'CANCELLED',
+          updatedAt: new Date().toISOString(),
+          updatedBy: user?.name || user?.email || 'Instructor',
+        });
+      }
+
       res.json({ success: true, message: 'Class cancelled', data: liveClass, liveClass });
     } catch (err: any) {
       res.status(400).json({ success: false, error: err.message });
@@ -298,10 +391,122 @@ export class LiveClassroomController {
   public async getAttendanceReport(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const classId = (req.params.classId || req.params.id) as string;
+      const user = (req as any).user;
+
+      if (user && user.uid) {
+        const userRole = (user.role || 'student').toLowerCase();
+        const isAdmin = userRole === 'admin' || Boolean(user.email && user.email.includes('admin'));
+        const isInstructor = await liveClassroomService.verifyInstructorOwnership(classId, user.uid, userRole);
+
+        if (!isAdmin && !isInstructor) {
+          res.status(403).json({
+            success: false,
+            error: 'Forbidden: Only assigned instructors or administrators can view the full class attendance report.',
+          });
+          return;
+        }
+      }
+
       const attendance = await liveClassroomService.getAttendanceReport(classId);
       res.json({ success: true, data: attendance });
     } catch (err) {
       next(err);
+    }
+  }
+
+  public async getStudentAttendance(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const classId = (req.params.classId || req.params.id) as string;
+      const user = (req as any).user;
+      const targetStudentId = (req.params.studentId || user?.uid) as string;
+
+      if (!targetStudentId) {
+        res.status(400).json({ success: false, error: 'Student ID is required.' });
+        return;
+      }
+
+      // Authorization: student can only view own attendance, admin/instructor can view any
+      if (user && user.uid) {
+        const userRole = (user.role || 'student').toLowerCase();
+        const isAdmin = userRole === 'admin' || Boolean(user.email && user.email.includes('admin'));
+        const isInstructor = await liveClassroomService.verifyInstructorOwnership(classId, user.uid, userRole);
+
+        if (!isAdmin && !isInstructor && user.uid !== targetStudentId) {
+          res.status(403).json({
+            success: false,
+            error: 'Forbidden: Students can only view their own attendance records.',
+          });
+          return;
+        }
+      }
+
+      const attendance = await liveClassroomService.getStudentAttendance(classId, targetStudentId);
+      res.json({ success: true, data: attendance });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  }
+
+  public async getClassAnalytics(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const classId = (req.params.classId || req.params.id) as string;
+      const user = (req as any).user;
+
+      if (user && user.uid) {
+        const userRole = (user.role || 'student').toLowerCase();
+        const isAdmin = userRole === 'admin' || Boolean(user.email && user.email.includes('admin'));
+        const isInstructor = await liveClassroomService.verifyInstructorOwnership(classId, user.uid, userRole);
+
+        if (!isAdmin && !isInstructor) {
+          res.status(403).json({
+            success: false,
+            error: 'Forbidden: Only assigned instructors or administrators can view class analytics.',
+          });
+          return;
+        }
+      }
+
+      const analytics = await liveClassroomService.getClassAnalytics(classId);
+      res.json({ success: true, data: analytics });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  }
+
+  public async getRecording(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const classId = (req.params.classId || req.params.id) as string;
+      const user = (req as any).user || { uid: 'guest', role: 'student' };
+      const recording = await liveClassroomService.getAuthorizedRecording(classId, user);
+      res.json({ success: true, data: recording });
+    } catch (err: any) {
+      res.status(403).json({ success: false, error: err.message });
+    }
+  }
+
+  public async updateRecording(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const classId = (req.params.classId || req.params.id) as string;
+      const user = (req as any).user;
+
+      if (user && user.uid) {
+        const userRole = (user.role || 'student').toLowerCase();
+        const isAdmin = userRole === 'admin' || Boolean(user.email && user.email.includes('admin'));
+        const isInstructor = await liveClassroomService.verifyInstructorOwnership(classId, user.uid, userRole);
+
+        if (!isAdmin && !isInstructor) {
+          res.status(403).json({
+            success: false,
+            error: 'Forbidden: Only assigned instructors or administrators can attach recordings.',
+          });
+          return;
+        }
+      }
+
+      const result = await liveClassroomService.updateRecording(classId, req.body);
+      res.json({ success: true, data: result });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
     }
   }
 

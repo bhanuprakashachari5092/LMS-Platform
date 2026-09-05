@@ -278,6 +278,8 @@ export const LiveClassPage: React.FC = () => {
           <div className="flex-1 w-full space-y-6 min-w-0">
             {/* 16:9 Custom Video Player Shell */}
             <CustomLiveVideoPlayer
+              classId={classId}
+              mode={(liveClass as any).mode || (resolvedVideoId ? 'youtube' : 'interactive')}
               youtubeVideoId={resolvedVideoId}
               title={liveClass.title}
               status={normalizedStatus}

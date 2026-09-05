@@ -59,3 +59,10 @@ export interface WebRTCSignalingMessage {
   classId: string;
   payload?: any;
 }
+
+export interface AvailableMediaDevices {
+  audioInputs: MediaDeviceInfo[];
+  videoInputs: MediaDeviceInfo[];
+  audioOutputs: MediaDeviceInfo[];
+}
+

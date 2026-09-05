@@ -7,6 +7,7 @@ import {
   FileText,
   Crown,
   ArrowRight,
+  CheckCircle2,
 } from 'lucide-react';
 import { liveClassService, normalizeLiveClassStatus, type LiveClass } from '@/services/liveClassService';
 
@@ -301,8 +302,8 @@ export const StudentLiveClassroomSection: React.FC = () => {
                         </>
                       ) : isCompleted ? (
                         <>
-                          <Play className="w-3.5 h-3.5 fill-current text-white" />
-                          <span>View Recording</span>
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
+                          <span>View Post-Class & Replay</span>
                         </>
                       ) : (
                         <>

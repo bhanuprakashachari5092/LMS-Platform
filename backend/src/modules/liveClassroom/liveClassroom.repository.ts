@@ -19,11 +19,14 @@ export interface ILiveClassData {
   endTime?: string;
   endedAt?: string;
   duration: number;
-  status: 'scheduled' | 'live' | 'ended' | 'cancelled' | 'Scheduled' | 'Live' | 'Completed' | 'Cancelled' | 'Draft' | 'SCHEDULED' | 'LIVE' | 'ENDED' | 'CANCELLED';
+  status: 'scheduled' | 'live' | 'ended' | 'cancelled' | 'Scheduled' | 'Live' | 'Completed' | 'Cancelled' | 'Draft' | 'SCHEDULED' | 'LIVE' | 'ENDED' | 'CANCELLED' | 'COMPLETED';
+  mode?: 'interactive' | 'youtube';
   meetingProvider?: 'kaizenq' | 'google_meet' | 'zoom' | 'teams' | 'youtube';
   meetingRoomId?: string;
   meetingUrl: string;
   recordingUrl?: string;
+  recordingStatus?: 'NOT_AVAILABLE' | 'RECORDING' | 'PROCESSING' | 'READY' | 'FAILED';
+  recordingDuration?: number;
   notesUrl?: string;
   maxParticipants?: number;
   isRecordingEnabled?: boolean;
@@ -31,6 +34,7 @@ export interface ILiveClassData {
   isPollEnabled?: boolean;
   isChatEnabled?: boolean;
   isAttendanceEnabled?: boolean;
+  attendanceSummary?: IAttendanceSummary;
   resourceDownloadEnabled?: boolean;
   certificateEligible?: boolean;
   tags?: string[];
@@ -38,6 +42,21 @@ export interface ILiveClassData {
   createdBy?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface IAttendanceSessionInterval {
+  joinedAt: string;
+  leftAt?: string;
+  durationSeconds?: number;
+}
+
+export interface IAttendanceSummary {
+  totalAttendees: number;
+  totalPresent: number;
+  totalLate: number;
+  totalAbsent: number;
+  averageDurationMinutes: number;
+  attendanceRate: number;
 }
 
 export interface IAttendanceData {
@@ -50,7 +69,9 @@ export interface IAttendanceData {
   leftAt?: string;
   durationMinutes?: number;
   durationSeconds?: number;
-  status: 'present' | 'late' | 'absent';
+  sessions?: IAttendanceSessionInterval[];
+  status: 'present' | 'late' | 'absent' | 'JOINED' | 'LEFT' | 'COMPLETED';
+  attendancePercentage?: number;
 }
 
 export interface IChatMessageData {
@@ -231,8 +252,9 @@ export class LiveClassroomRepository {
       endedAt: data.endedAt,
       duration: data.duration || 60,
       status: (data.status as any) || 'scheduled',
-      meetingProvider: data.meetingProvider || (data.youtubeVideoId ? 'youtube' : 'kaizenq'),
-      meetingRoomId: data.meetingRoomId || `kaizenq-room-${Date.now().toString().slice(-4)}`,
+      mode: (data as any).mode || (data.youtubeVideoId ? 'youtube' : 'interactive'),
+      meetingProvider: data.meetingProvider || ((data as any).mode === 'youtube' || data.youtubeVideoId ? 'youtube' : 'kaizenq'),
+      meetingRoomId: data.meetingRoomId || `live-class:${classId}`,
       meetingUrl: data.meetingUrl || `/student/live-class/${classId}`,
       recordingUrl: data.recordingUrl || '',
       notesUrl: data.notesUrl || '',
@@ -329,14 +351,17 @@ export class LiveClassroomRepository {
     const now = new Date().toISOString();
     const docId = `${classId}_${studentId}`;
 
-    const record: IAttendanceData = {
+    let record: IAttendanceData = {
       id: docId,
       classId,
       studentId,
       studentName,
       studentEmail,
       joinedAt: now,
-      status: 'present',
+      sessions: [{ joinedAt: now }],
+      status: 'JOINED',
+      durationMinutes: 0,
+      durationSeconds: 0,
     };
 
     if (isFirebaseAdminInitialized()) {
@@ -344,9 +369,22 @@ export class LiveClassroomRepository {
         const docRef = db.collection('liveClasses').doc(classId).collection('attendance').doc(studentId);
         const snap = await docRef.get();
         if (snap.exists) {
-          // Reconnect logic: preserve original joinedAt
           const existing = snap.data() as IAttendanceData;
-          record.joinedAt = existing.joinedAt;
+          const existingSessions = existing.sessions || [];
+          
+          // Reconnection: preserve original joinedAt and append new open session interval
+          const updatedSessions: IAttendanceSessionInterval[] = [
+            ...existingSessions,
+            { joinedAt: now }
+          ];
+
+          record = {
+            ...existing,
+            studentName: studentName || existing.studentName,
+            studentEmail: studentEmail || existing.studentEmail,
+            sessions: updatedSessions,
+            status: 'JOINED',
+          };
         }
         await docRef.set(record, { merge: true });
       } catch (err) {
@@ -357,7 +395,20 @@ export class LiveClassroomRepository {
     const currentList = memoryDb.attendance.get(classId) || [];
     const idx = currentList.findIndex((a) => a.studentId === studentId);
     if (idx >= 0) {
-      currentList[idx] = { ...currentList[idx], ...record };
+      const existing = currentList[idx];
+      const existingSessions = existing.sessions || [];
+      const updatedSessions: IAttendanceSessionInterval[] = [
+        ...existingSessions,
+        { joinedAt: now }
+      ];
+      record = {
+        ...existing,
+        studentName: studentName || existing.studentName,
+        studentEmail: studentEmail || existing.studentEmail,
+        sessions: updatedSessions,
+        status: 'JOINED',
+      };
+      currentList[idx] = record;
     } else {
       currentList.push(record);
     }
@@ -367,7 +418,6 @@ export class LiveClassroomRepository {
 
   public async recordLeaveAttendance(classId: string, studentId: string): Promise<IAttendanceData | null> {
     const now = new Date().toISOString();
-
     let record: IAttendanceData | null = null;
 
     if (isFirebaseAdminInitialized()) {
@@ -376,22 +426,30 @@ export class LiveClassroomRepository {
         const snap = await docRef.get();
         if (snap.exists) {
           const existing = snap.data() as IAttendanceData;
-          const joinedMs = new Date(existing.joinedAt).getTime();
-          const leftMs = new Date(now).getTime();
-          const durationMins = Math.max(1, Math.round((leftMs - joinedMs) / 60000));
-          const durationSecs = Math.max(1, Math.round((leftMs - joinedMs) / 1000));
+          const sessions = existing.sessions || [{ joinedAt: existing.joinedAt }];
+
+          // Close the latest session if not already closed
+          if (sessions.length > 0) {
+            const lastSession = sessions[sessions.length - 1];
+            if (!lastSession.leftAt) {
+              lastSession.leftAt = now;
+              lastSession.durationSeconds = Math.max(1, Math.round((new Date(now).getTime() - new Date(lastSession.joinedAt).getTime()) / 1000));
+            }
+          }
+
+          // Compute aggregated total duration across all session intervals
+          const totalSecs = sessions.reduce((sum, s) => sum + (s.durationSeconds || 0), 0);
+          const durationMins = Math.round(totalSecs / 60);
 
           record = {
             ...existing,
             leftAt: now,
+            sessions,
+            durationSeconds: totalSecs,
             durationMinutes: durationMins,
-            durationSeconds: durationSecs,
+            status: 'LEFT',
           };
-          await docRef.update({
-            leftAt: now,
-            durationMinutes: durationMins,
-            durationSeconds: durationSecs,
-          });
+          await docRef.set(record, { merge: true });
         }
       } catch (err) {
         logger.error('[REPO] Failed to record leave attendance in Firestore:', err);
@@ -402,16 +460,26 @@ export class LiveClassroomRepository {
     const idx = currentList.findIndex((a) => a.studentId === studentId);
     if (idx >= 0) {
       const existing = currentList[idx];
-      const joinedMs = new Date(existing.joinedAt).getTime();
-      const leftMs = new Date(now).getTime();
-      const durationMins = Math.max(1, Math.round((leftMs - joinedMs) / 60000));
-      const durationSecs = Math.max(1, Math.round((leftMs - joinedMs) / 1000));
+      const sessions = existing.sessions || [{ joinedAt: existing.joinedAt }];
+
+      if (sessions.length > 0) {
+        const lastSession = sessions[sessions.length - 1];
+        if (!lastSession.leftAt) {
+          lastSession.leftAt = now;
+          lastSession.durationSeconds = Math.max(1, Math.round((new Date(now).getTime() - new Date(lastSession.joinedAt).getTime()) / 1000));
+        }
+      }
+
+      const totalSecs = sessions.reduce((sum, s) => sum + (s.durationSeconds || 0), 0);
+      const durationMins = Math.round(totalSecs / 60);
 
       record = {
         ...existing,
         leftAt: now,
+        sessions,
+        durationSeconds: totalSecs,
         durationMinutes: durationMins,
-        durationSeconds: durationSecs,
+        status: 'LEFT',
       };
       currentList[idx] = record;
       memoryDb.attendance.set(classId, currentList);
@@ -432,6 +500,119 @@ export class LiveClassroomRepository {
       }
     }
     return memoryDb.attendance.get(classId) || [];
+  }
+
+  public async getStudentAttendance(classId: string, studentId: string): Promise<IAttendanceData | null> {
+    if (isFirebaseAdminInitialized()) {
+      try {
+        const doc = await db.collection('liveClasses').doc(classId).collection('attendance').doc(studentId).get();
+        if (doc.exists) {
+          return doc.data() as IAttendanceData;
+        }
+      } catch (err) {
+        logger.error('[REPO] Failed to get student attendance from Firestore:', err);
+      }
+    }
+    const list = memoryDb.attendance.get(classId) || [];
+    return list.find((a) => a.studentId === studentId) || null;
+  }
+
+  public async finalizeClassAttendance(
+    classId: string,
+    classStartTime?: string,
+    classDurationMinutes: number = 60
+  ): Promise<{ attendance: IAttendanceData[]; summary: IAttendanceSummary }> {
+    const now = new Date().toISOString();
+    const records = await this.getAttendanceReport(classId);
+
+    const finalizedRecords: IAttendanceData[] = [];
+    const classStartMs = classStartTime ? new Date(classStartTime).getTime() : Date.now() - (classDurationMinutes * 60000);
+
+    for (const rec of records) {
+      const sessions = rec.sessions || [{ joinedAt: rec.joinedAt }];
+      
+      // Close any session still open
+      for (const s of sessions) {
+        if (!s.leftAt) {
+          s.leftAt = now;
+          s.durationSeconds = Math.max(1, Math.round((new Date(now).getTime() - new Date(s.joinedAt).getTime()) / 1000));
+        }
+      }
+
+      const totalSecs = sessions.reduce((sum, s) => sum + (s.durationSeconds || 0), 0);
+      const totalMins = Math.round(totalSecs / 60);
+
+      // Percentage of class attended
+      const percent = Math.min(100, Math.round((totalMins / Math.max(1, classDurationMinutes)) * 100));
+
+      // Threshold evaluation:
+      // - Joined > 15 mins late -> late
+      // - Attended < 10% -> absent
+      // - Attended >= 50% -> present / COMPLETED
+      const firstJoinMs = new Date(rec.joinedAt).getTime();
+      const joinedLate = (firstJoinMs - classStartMs) > (15 * 60 * 1000);
+
+      let status: 'present' | 'late' | 'absent' = 'present';
+      if (percent < 10) {
+        status = 'absent';
+      } else if (joinedLate) {
+        status = 'late';
+      } else {
+        status = 'present';
+      }
+
+      const updated: IAttendanceData = {
+        ...rec,
+        leftAt: rec.leftAt || now,
+        sessions,
+        durationSeconds: totalSecs,
+        durationMinutes: totalMins,
+        attendancePercentage: percent,
+        status,
+      };
+
+      finalizedRecords.push(updated);
+
+      // Update in Firestore
+      if (isFirebaseAdminInitialized()) {
+        try {
+          await db.collection('liveClasses').doc(classId).collection('attendance').doc(rec.studentId).set(updated, { merge: true });
+        } catch (e) {
+          logger.warn('[REPO] Failed to persist finalized attendance item:', e);
+        }
+      }
+    }
+
+    // Update memory
+    memoryDb.attendance.set(classId, finalizedRecords);
+
+    // Compute aggregate summary
+    const totalAttendees = finalizedRecords.length;
+    const totalPresent = finalizedRecords.filter((r) => r.status === 'present').length;
+    const totalLate = finalizedRecords.filter((r) => r.status === 'late').length;
+    const totalAbsent = finalizedRecords.filter((r) => r.status === 'absent').length;
+    const averageDurationMinutes = totalAttendees > 0
+      ? Math.round(finalizedRecords.reduce((sum, r) => sum + (r.durationMinutes || 0), 0) / totalAttendees)
+      : 0;
+    const attendanceRate = totalAttendees > 0
+      ? Math.round(((totalPresent + totalLate) / totalAttendees) * 100)
+      : 0;
+
+    const summary: IAttendanceSummary = {
+      totalAttendees,
+      totalPresent,
+      totalLate,
+      totalAbsent,
+      averageDurationMinutes,
+      attendanceRate,
+    };
+
+    // Save summary onto the liveClass document
+    await this.updateLiveClass(classId, {
+      attendanceSummary: summary,
+    });
+
+    return { attendance: finalizedRecords, summary };
   }
 
   // --- 3. Live Chat Operations ---

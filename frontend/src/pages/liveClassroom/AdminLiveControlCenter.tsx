@@ -417,9 +417,60 @@ export const AdminLiveControlCenter: React.FC = () => {
 
       {/* Main Grid: YouTube Preview & Control Modules */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: YouTube Embedded Live Preview & Quick Updater */}
+        {/* Left Column: Media & Live Classroom Controls */}
         <div className="lg:col-span-6 xl:col-span-7 space-y-6">
-          {/* YouTube Preview Card */}
+          {/* Interactive Classroom Direct Access Card */}
+          <div className="bg-gradient-to-br from-blue-950/40 via-slate-900 to-indigo-950/30 border border-blue-800/40 rounded-3xl p-5 shadow-xl space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Radio className="w-5 h-5 text-blue-400 animate-pulse" />
+                <div>
+                  <h3 className="text-xs font-extrabold text-white uppercase tracking-wider">
+                    {liveClass?.mode === 'interactive' ? 'Kaizen Q Interactive Classroom' : 'Real-time Live Classroom'}
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Real-time audio/video, interactive whiteboard, live chat, Q&A, and attendance.
+                  </p>
+                </div>
+              </div>
+              <span className="px-2.5 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-[10px] font-bold uppercase tracking-wider">
+                {liveClass?.mode === 'youtube' ? 'YouTube Mode' : 'Interactive Mode'}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5 pt-1">
+              {isEnded ? (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/live-classroom/room/${classId}`)}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/25 transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>View Post-Class Attendance & Analytics</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/live-classroom/room/${classId}`)}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-600/25 transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  <Radio className="w-3.5 h-3.5" />
+                  <span>Enter Live Classroom</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => navigate(`/student/live-class/${classId}`)}
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition-colors flex items-center gap-1.5"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Student View</span>
+              </button>
+            </div>
+          </div>
+
+          {/* YouTube Preview Card (shown if YouTube mode or video ID present) */}
+          {(liveClass?.youtubeVideoId || liveClass?.mode === 'youtube') && (
           <div className="bg-slate-950 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -465,6 +516,7 @@ export const AdminLiveControlCenter: React.FC = () => {
               </div>
             </form>
           </div>
+          )}
         </div>
 
         {/* Right Column: Interactive Management Modules */}

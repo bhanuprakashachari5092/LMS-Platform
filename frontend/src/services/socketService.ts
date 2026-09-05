@@ -1,4 +1,5 @@
 import { io, Socket } from 'socket.io-client';
+import type { User as FirebaseUser } from 'firebase/auth';
 
 const getSocketUrl = (): string => {
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
@@ -11,12 +12,63 @@ const getSocketUrl = (): string => {
   return 'http://localhost:5000';
 };
 
+export type ConnectionStatus = 'connected' | 'reconnecting' | 'disconnected' | 'idle';
+
+type StatusListener = (status: ConnectionStatus) => void;
+
 class SocketService {
   private socket: Socket | null = null;
   private currentLiveClassId: string | null = null;
+  private connectionStatus: ConnectionStatus = 'idle';
+  private statusListeners: Set<StatusListener> = new Set();
 
   public getSocket(): Socket | null {
     return this.socket;
+  }
+
+  public getConnectionStatus(): ConnectionStatus {
+    return this.connectionStatus;
+  }
+
+  /** Subscribe to connection status changes. Returns an unsubscribe function. */
+  public onStatusChange(listener: StatusListener): () => void {
+    this.statusListeners.add(listener);
+    listener(this.connectionStatus);
+    return () => this.statusListeners.delete(listener);
+  }
+
+  private emitStatus(status: ConnectionStatus): void {
+    this.connectionStatus = status;
+    this.statusListeners.forEach((l) => l(status));
+  }
+
+  /**
+   * Connect using a Firebase User object.
+   * Forces a fresh ID token via getIdToken(true) to prevent 1-hour expiry issues
+   * that would silently drop students from long live class sessions.
+   */
+  public async connectWithFirebaseUser(
+    firebaseUser: FirebaseUser,
+    userInfo?: { name?: string; role?: string }
+  ): Promise<Socket> {
+    let freshToken = '';
+    try {
+      freshToken = await firebaseUser.getIdToken(true);
+    } catch (e) {
+      console.warn('[SocketService] Could not get fresh Firebase token, falling back to localStorage:', e);
+      freshToken =
+        localStorage.getItem('token') ||
+        localStorage.getItem('shaivika_auth_token') ||
+        localStorage.getItem('firebase_token') ||
+        '';
+    }
+
+    return this.connect(freshToken, {
+      uid: firebaseUser.uid,
+      email: firebaseUser.email || '',
+      name: userInfo?.name || firebaseUser.displayName || '',
+      role: userInfo?.role || 'student',
+    });
   }
 
   public connect(token?: string, userInfo?: { uid?: string; name?: string; role?: string; email?: string }): Socket {
@@ -53,12 +105,34 @@ class SocketService {
       timeout: 20000,
     });
 
-    // Automatically rejoin live classroom upon reconnect
+    // Connection lifecycle — drives the connection status indicator in the UI
     this.socket.on('connect', () => {
+      this.emitStatus('connected');
+      // Automatically rejoin live classroom upon reconnect
       if (this.currentLiveClassId && this.socket) {
         this.socket.emit('liveClass:join', { liveClassId: this.currentLiveClassId });
         this.socket.emit('attendance:join', { liveClassId: this.currentLiveClassId });
       }
+    });
+
+    this.socket.on('disconnect', () => {
+      this.emitStatus('disconnected');
+    });
+
+    this.socket.on('connect_error', () => {
+      this.emitStatus('disconnected');
+    });
+
+    this.socket.io.on('reconnect_attempt', () => {
+      this.emitStatus('reconnecting');
+    });
+
+    this.socket.io.on('reconnect', () => {
+      this.emitStatus('connected');
+    });
+
+    this.socket.io.on('reconnect_failed', () => {
+      this.emitStatus('disconnected');
     });
 
     return this.socket;
@@ -72,6 +146,7 @@ class SocketService {
       this.socket.disconnect();
       this.socket = null;
     }
+    this.emitStatus('idle');
   }
 
   public joinLiveClass(liveClassId: string, name?: string): Promise<any> {

@@ -1,17 +1,9 @@
-import { io, Socket } from 'socket.io-client';
-
-const getSocketUrl = (): string => {
-  const envUrl = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL;
-  if (envUrl) {
-    // Remove /api suffix if present in BACKEND/API URLs
-    return envUrl.replace(/\/api\/?$/, '');
-  }
-  return 'http://localhost:5000';
-};
-
-export const getLiveClassroomSocket = (): Socket => {
-  return io(`${getSocketUrl()}/live-classroom`, {
-    autoConnect: false,
-    transports: ['websocket', 'polling'],
-  });
-};
+/**
+ * socket.ts — Canonical re-export of the production-ready SocketService singleton.
+ *
+ * This file previously created a new raw io() connection on each call, which broke
+ * the singleton pattern and caused duplicate connections. It now delegates entirely
+ * to socketService.ts which manages the single shared connection.
+ */
+export { getLiveClassroomSocket, socketService } from './socketService';
+export { socketService as default } from './socketService';

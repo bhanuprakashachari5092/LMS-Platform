@@ -1,4 +1,4 @@
-import { db } from '@/firebase';
+import { db, auth } from '@/firebase';
 import { collection, onSnapshot, query, doc, setDoc, updateDoc, deleteDoc, where } from 'firebase/firestore';
 import { adminNotificationService } from './adminNotificationService';
 import { API_BASE_URL } from '@/config/api';
@@ -56,6 +56,16 @@ export interface LiveClass {
   difficulty?: 'Beginner' | 'Intermediate' | 'Advanced';
   notesUrl?: string;
   recordingUrl?: string;
+  recordingStatus?: 'NOT_AVAILABLE' | 'RECORDING' | 'PROCESSING' | 'READY' | 'FAILED';
+  recordingDuration?: number;
+  attendanceSummary?: {
+    totalParticipants: number;
+    presentCount: number;
+    lateCount: number;
+    absentCount: number;
+    averageParticipationDurationMinutes: number;
+    attendanceRate: number;
+  };
   attendeesCount?: number;
   pinnedMessage?: string;
   isChatMuted?: boolean;
@@ -884,51 +894,76 @@ class LiveClassService {
     return API_BASE_URL;
   }
 
-  async startClass(classId: string): Promise<{ success: boolean; data?: LiveClass; error?: string }> {
+  private async getAuthHeaders(): Promise<Record<string, string>> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
     try {
+      const token = localStorage.getItem('token') || localStorage.getItem('shaivika_auth_token') || localStorage.getItem('firebase_token');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    } catch {}
+    return headers;
+  }
+
+  async startClass(classId: string, token?: string): Promise<{ success: boolean; data?: LiveClass; error?: string }> {
+    try {
+      const headers = await this.getAuthHeaders();
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
       const res = await fetch(`${this.getApiUrl()}/live-classes/${encodeURIComponent(classId)}/start`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || 'Failed to start class');
-      await this.updateLiveClass(classId, { status: 'LIVE' as any });
-      return { success: true, data: data?.data };
+      if (!res.ok) {
+        return { success: false, error: data?.error || 'Failed to start live class' };
+      }
+      await this.updateLiveClass(classId, { status: 'LIVE' as any, startedAt: data?.data?.startedAt || new Date().toISOString() });
+      return { success: true, data: data?.data || data?.liveClass };
     } catch (err: any) {
-      await this.updateLiveClass(classId, { status: 'LIVE' as any });
-      return { success: true };
+      return { success: false, error: err?.message || 'Network error starting class' };
     }
   }
 
-  async endClass(classId: string): Promise<{ success: boolean; data?: LiveClass; error?: string }> {
+  async endClass(classId: string, token?: string): Promise<{ success: boolean; data?: LiveClass; error?: string }> {
     try {
+      const headers = await this.getAuthHeaders();
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
       const res = await fetch(`${this.getApiUrl()}/live-classes/${encodeURIComponent(classId)}/end`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || 'Failed to end class');
-      await this.updateLiveClass(classId, { status: 'ENDED' as any });
-      return { success: true, data: data?.data };
+      if (!res.ok) {
+        return { success: false, error: data?.error || 'Failed to end live class' };
+      }
+      await this.updateLiveClass(classId, { status: 'ENDED' as any, endedAt: data?.data?.endedAt || new Date().toISOString() });
+      return { success: true, data: data?.data || data?.liveClass };
     } catch (err: any) {
-      await this.updateLiveClass(classId, { status: 'ENDED' as any });
-      return { success: true };
+      return { success: false, error: err?.message || 'Network error ending class' };
     }
   }
 
-  async cancelClass(classId: string): Promise<{ success: boolean; data?: LiveClass; error?: string }> {
+  async cancelClass(classId: string, token?: string): Promise<{ success: boolean; data?: LiveClass; error?: string }> {
     try {
+      const headers = await this.getAuthHeaders();
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
       const res = await fetch(`${this.getApiUrl()}/live-classes/${encodeURIComponent(classId)}/cancel`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || 'Failed to cancel class');
+      if (!res.ok) {
+        return { success: false, error: data?.error || 'Failed to cancel live class' };
+      }
       await this.updateLiveClass(classId, { status: 'CANCELLED' as any });
-      return { success: true, data: data?.data };
+      return { success: true, data: data?.data || data?.liveClass };
     } catch (err: any) {
-      await this.updateLiveClass(classId, { status: 'CANCELLED' as any });
-      return { success: true };
+      return { success: false, error: err?.message || 'Network error cancelling class' };
     }
   }
 
@@ -1023,11 +1058,23 @@ class LiveClassService {
     return { success: true, message: 'Answer recorded.' };
   }
 
+  private async getAuthHeaders(): Promise<Record<string, string>> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    try {
+      if (auth.currentUser) {
+        const token = await auth.currentUser.getIdToken();
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    } catch (e) {}
+    return headers;
+  }
+
   async recordJoinAttendance(classId: string, userMeta: { uid: string; name?: string; email?: string }): Promise<void> {
     try {
+      const headers = await this.getAuthHeaders();
       await fetch(`${this.getApiUrl()}/live-classes/${encodeURIComponent(classId)}/join`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           userId: userMeta.uid,
           userName: userMeta.name,
@@ -1036,6 +1083,129 @@ class LiveClassService {
       });
     } catch (e) {}
   }
+
+  async recordLeaveAttendance(classId: string, userId: string): Promise<void> {
+    try {
+      const headers = await this.getAuthHeaders();
+      await fetch(`${this.getApiUrl()}/live-classes/${encodeURIComponent(classId)}/leave`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ userId }),
+      });
+    } catch (e) {}
+  }
+
+  async getAttendanceReport(classId: string): Promise<AttendanceReportItem[]> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const res = await fetch(`${this.getApiUrl()}/live-classes/${encodeURIComponent(classId)}/attendance`, {
+        headers,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.success && Array.isArray(data?.data)) return data.data;
+      }
+    } catch (e) {}
+    return [];
+  }
+
+  async getMyAttendance(classId: string): Promise<AttendanceReportItem | null> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const res = await fetch(`${this.getApiUrl()}/live-classes/${encodeURIComponent(classId)}/attendance/me`, {
+        headers,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.success && data?.data) return data.data;
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  async getLiveClassAnalytics(classId: string): Promise<LiveClassAnalytics | null> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const res = await fetch(`${this.getApiUrl()}/live-classes/${encodeURIComponent(classId)}/analytics`, {
+        headers,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.success && data?.data) return data.data;
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  async getLiveClassRecording(classId: string): Promise<LiveClassRecording | null> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const res = await fetch(`${this.getApiUrl()}/live-classes/${encodeURIComponent(classId)}/recording`, {
+        headers,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.success && data?.data) return data.data;
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  async updateLiveClassRecording(
+    classId: string,
+    data: { recordingUrl?: string; recordingStatus?: 'NOT_AVAILABLE' | 'RECORDING' | 'PROCESSING' | 'READY' | 'FAILED'; recordingDuration?: number }
+  ): Promise<any> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const res = await fetch(`${this.getApiUrl()}/live-classes/${encodeURIComponent(classId)}/recording`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(data),
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {}
+    return null;
+  }
+}
+
+export interface AttendanceReportItem {
+  id: string;
+  liveClassId: string;
+  studentId: string;
+  studentName?: string;
+  studentEmail?: string;
+  joinedAt: string;
+  leftAt?: string;
+  durationMinutes: number;
+  totalDurationSeconds?: number;
+  status: 'present' | 'late' | 'absent' | 'JOINED' | 'LEFT' | 'COMPLETED';
+  sessions?: Array<{ joinedAt: string; leftAt?: string; durationSeconds: number }>;
+  attendancePercentage?: number;
+}
+
+export interface LiveClassAnalytics {
+  totalParticipants: number;
+  attendanceRate: number;
+  averageSessionDurationMinutes: number;
+  presentCount: number;
+  lateCount: number;
+  absentCount: number;
+  questionsCount: number;
+  pollsCount: number;
+  totalPollVotes: number;
+  quizzesCount: number;
+  totalQuizSubmissions: number;
+  chatMessagesCount: number;
+  durationMinutes: number;
+}
+
+export interface LiveClassRecording {
+  recordingUrl?: string;
+  recordingStatus: 'NOT_AVAILABLE' | 'RECORDING' | 'PROCESSING' | 'READY' | 'FAILED';
+  recordingDuration?: number;
+  isRecordingEnabled?: boolean;
 }
 
 export const liveClassService = new LiveClassService();

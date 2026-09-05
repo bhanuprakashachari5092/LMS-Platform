@@ -183,7 +183,7 @@ export const LiveClassConfirmModal: React.FC<LiveClassConfirmModalProps> = ({
                   : 'bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white shadow-rose-900/40'
               }`}
             >
-              <span>{isEnter ? 'Join Live Class' : isInstructor ? 'End Session' : 'Leave Room'}</span>
+              <span>{isEnter ? 'Join Live Class' : isInstructor ? 'End Live Class' : 'Leave Class'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
