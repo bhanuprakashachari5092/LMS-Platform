@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Search,
   UserCheck,
@@ -23,15 +23,22 @@ import {
   Flag,
   FileText,
   BarChart3,
-  Calendar
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { studentService, type StudentUser } from '@/services/studentService';
+import type { UserStatus } from '@/types/user';
 import { StudentProfileDrawer } from '@/components/admin/students/StudentProfileDrawer';
 import { EditStudentModal } from '@/components/admin/students/EditStudentModal';
 import { SendEmailModal } from '@/components/admin/students/SendEmailModal';
 import { GitHubPortfolioDrawer } from '@/components/admin/students/GitHubPortfolioDrawer';
+import { StudentRosterRow } from '@/components/admin/students/StudentRosterRow';
+import { StudentRosterMobileCard } from '@/components/admin/students/StudentRosterMobileCard';
 import { adminNotificationService } from '@/services/adminNotificationService';
 
 const isPendingStudent = (s: any) => {
@@ -52,6 +59,20 @@ export const AdminStudents: React.FC = () => {
   const [students, setStudents] = useState<StudentUser[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [paginationInfo, setPaginationInfo] = useState({
+    total: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPrevPage: false,
+  });
+
+  // Action Pending Tracking (Deduplication & Instant Feedback)
+  const [approvingIds, setApprovingIds] = useState<Set<string>>(new Set());
+  const [rejectingIds, setRejectingIds] = useState<Set<string>>(new Set());
+
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -67,6 +88,11 @@ export const AdminStudents: React.FC = () => {
     const handler = setTimeout(() => setDebouncedSearch(searchQuery), 300);
     return () => clearTimeout(handler);
   }, [searchQuery]);
+
+  // Reset page to 1 when filters or search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, providerFilter, statusFilter, verificationFilter, branchFilter, yearFilter, dateFilter, sortBy]);
 
   // Bulk Selection State
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -92,15 +118,47 @@ export const AdminStudents: React.FC = () => {
   const [newStudentEmail, setNewStudentEmail] = useState('');
   const [newStudentProvider, setNewStudentProvider] = useState<'password' | 'github.com'>('password');
 
-  // Real-time Firestore Subscription
-  useEffect(() => {
+  // Paginated Data Fetching with AbortController
+  const loadStudents = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
-    const unsubscribe = studentService.subscribeToStudents((data) => {
-      setStudents(data);
+    try {
+      const res = await studentService.fetchStudentsPaginated({
+        page: currentPage,
+        limit: pageSize,
+        status: statusFilter === 'ALL' ? 'all' : statusFilter,
+        search: debouncedSearch,
+        sort: sortBy,
+        signal,
+      });
+      setStudents(res.students);
+      setPaginationInfo({
+        total: res.pagination.total,
+        totalPages: res.pagination.totalPages,
+        hasNextPage: res.pagination.hasNextPage,
+        hasPrevPage: res.pagination.hasPrevPage,
+      });
+    } catch (err: any) {
+      if (err.name !== 'AbortError') {
+        console.warn('Student roster load notice:', err);
+      }
+    } finally {
       setLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
+    }
+  }, [currentPage, pageSize, statusFilter, debouncedSearch, sortBy]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadStudents(controller.signal);
+    return () => controller.abort();
+  }, [loadStudents]);
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      loadStudents();
+    };
+    window.addEventListener('shaivika_student_updated', handleUpdate);
+    return () => window.removeEventListener('shaivika_student_updated', handleUpdate);
+  }, [loadStudents]);
 
   // Top Statistics
   const stats = useMemo(() => studentService.calculateStudentStats(students), [students]);
@@ -275,42 +333,106 @@ export const AdminStudents: React.FC = () => {
     }
   };
 
-  const handleApproveStudent = async (id: string) => {
+  const handleApproveStudent = useCallback(async (id: string) => {
+    if (approvingIds.has(id)) return; // Prevent duplicate requests
     const student = students.find((s) => s.id === id || s.uid === id);
+    if (!student) return;
+    const prevStatus = student.status;
+    const prevApproved = student.approved;
+    const studentName = student.name || student.fullName || 'Student';
+
+    // 1. Instant Optimistic UI Update (<100ms)
+    setStudents((prev) =>
+      prev.map((s) =>
+        s.id === id || s.uid === id
+          ? { ...s, status: 'approved' as UserStatus, approved: true, isActive: true }
+          : s
+      )
+    );
+    setApprovingIds((prev) => new Set(prev).add(id));
+
     try {
+      // 2. Async backend API call
       await studentService.approveStudent(id);
       adminNotificationService.addNotification({
         type: 'APPROVAL',
         title: 'Student Approved',
-        message: `${student?.name || 'Student'} application approved with full access.`
+        message: `${studentName} application approved with full access.`
       });
-      toast.success(`🎉 ${student?.name || 'Student'} approved! Welcome email dispatched.`);
+      toast.success(`🎉 ${studentName} approved! Welcome email dispatched.`);
     } catch (e: any) {
-      toast.error(e?.message || 'Failed to approve student');
+      // 3. Rollback on failure
+      setStudents((prev) =>
+        prev.map((s) =>
+          s.id === id || s.uid === id
+            ? { ...s, status: prevStatus, approved: prevApproved, isActive: prevApproved }
+            : s
+        )
+      );
+      toast.error(e?.message || 'Failed to approve student. Reverted status.');
+    } finally {
+      setApprovingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     }
-  };
+  }, [students, approvingIds]);
 
-  const handleRejectStudent = async (id: string) => {
+  const handleRejectStudent = useCallback(async (id: string) => {
     if (!rejectionReason.trim()) {
       toast.error('Please enter a rejection reason.');
       return;
     }
+    if (rejectingIds.has(id)) return;
     const student = students.find((s) => s.id === id || s.uid === id);
+    if (!student) return;
+    const prevStatus = student.status;
+    const prevApproved = student.approved;
+    const studentName = student.name || student.fullName || 'Student';
+    const reasonText = rejectionReason.trim();
+
+    // Close modal immediately
+    setRejectingStudentId(null);
+    setRejectionReason('');
+
+    // 1. Instant Optimistic UI Update (<100ms)
+    setStudents((prev) =>
+      prev.map((s) =>
+        s.id === id || s.uid === id
+          ? { ...s, status: 'rejected' as UserStatus, approved: false, isActive: false }
+          : s
+      )
+    );
+    setRejectingIds((prev) => new Set(prev).add(id));
+
     try {
-      await studentService.rejectStudent(id, rejectionReason.trim());
+      // 2. Async backend API call
+      await studentService.rejectStudent(id, reasonText);
       adminNotificationService.addNotification({
         type: 'REJECTION',
         title: 'Student Rejected',
-        message: `${student?.name || 'Student'} application was rejected.`
+        message: `${studentName} application was rejected.`
       });
-      toast.success('Student application rejected. Status updated.');
+      toast.success(`Student ${studentName} application rejected. Status updated.`);
     } catch (e: any) {
-      toast.error(e?.message || 'Failed to reject student');
+      // 3. Rollback on failure
+      setStudents((prev) =>
+        prev.map((s) =>
+          s.id === id || s.uid === id
+            ? { ...s, status: prevStatus, approved: prevApproved, isActive: prevApproved }
+            : s
+        )
+      );
+      toast.error(e?.message || 'Failed to reject student. Reverted status.');
     } finally {
-      setRejectingStudentId(null);
-      setRejectionReason('');
+      setRejectingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     }
-  };
+  }, [students, rejectionReason, rejectingIds]);
 
   const handleSuspendStudent = async (id: string) => {
     const student = students.find((s) => s.id === id || s.uid === id);
@@ -586,6 +708,8 @@ export const AdminStudents: React.FC = () => {
                 <option value="approved">✓ Approved / Active</option>
                 <option value="rejected">✕ Rejected</option>
                 <option value="suspended">🚫 Suspended</option>
+                <option value="at_risk">⚠️ At Risk (&lt;65% Score)</option>
+                <option value="high_performers">🏆 High Performers (&gt;90% Score)</option>
               </select>
             </div>
 
@@ -683,223 +807,167 @@ export const AdminStudents: React.FC = () => {
               </p>
             </div>
           ) : (
-            <table className="w-full text-left border-collapse text-xs font-medium">
-              <thead>
-                <tr className="border-b border-sky-100 dark:border-slate-800 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider bg-sky-50/50 dark:bg-slate-950/80">
-                  <th className="py-3 px-3 w-10 text-center">
-                    <button onClick={handleSelectAll} className="cursor-pointer text-slate-600 dark:text-slate-400 hover:text-sky-600 dark:hover:text-cyan-400">
-                      {selectedIds.length > 0 && selectedIds.length === filteredStudents.length ? (
-                        <CheckSquare className="w-4 h-4 text-sky-600 dark:text-cyan-400" />
-                      ) : (
-                        <Square className="w-4 h-4 text-slate-400 dark:text-slate-600" />
-                      )}
-                    </button>
-                  </th>
-                  <th className="py-3 px-4">Profile</th>
-                  <th className="py-3 px-4">Full Name</th>
-                  <th className="py-3 px-4">Email</th>
-                  <th className="py-3 px-4">College & Branch</th>
-                  <th className="py-3 px-4">Joined Date</th>
-                  <th className="py-3 px-4">GitHub & Portfolio</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right">{isInstructor ? 'Reporting Actions' : 'Approval Actions'}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-sky-100 dark:divide-slate-800">
-                {filteredStudents.map((st) => {
-                  const id = st.id || st.uid;
-                  const isSelected = selectedIds.includes(id);
-                  const isGithub = st.provider === 'github.com' || Boolean(st.photoURL?.includes('github')) || st.githubUsername;
-                  const status = st.status || (st.approved ? 'approved' : 'pending');
-
-                  return (
-                    <tr
-                      key={id}
-                      className={`transition-colors group ${
-                        isSelected
-                          ? 'bg-sky-50/80 dark:bg-cyan-950/40 font-semibold'
-                          : 'hover:bg-sky-50/40 dark:hover:bg-slate-800/40'
-                      }`}
-                    >
-                      {/* Checkbox */}
-                      <td className="py-3 px-3 text-center">
-                        <button onClick={() => handleToggleSelect(id)} className="cursor-pointer text-slate-600 dark:text-slate-400">
-                          {isSelected ? (
+            <>
+              {/* Desktop Data Table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs font-medium">
+                  <thead>
+                    <tr className="border-b border-sky-100 dark:border-slate-800 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider bg-sky-50/50 dark:bg-slate-950/80">
+                      <th className="py-3 px-3 w-10 text-center">
+                        <button
+                          type="button"
+                          onClick={handleSelectAll}
+                          className="cursor-pointer text-slate-600 dark:text-slate-400 hover:text-sky-600 dark:hover:text-cyan-400 focus:outline-hidden"
+                          aria-label="Select all students"
+                        >
+                          {selectedIds.length > 0 && selectedIds.length === filteredStudents.length ? (
                             <CheckSquare className="w-4 h-4 text-sky-600 dark:text-cyan-400" />
                           ) : (
-                            <Square className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-slate-400" />
+                            <Square className="w-4 h-4 text-slate-400 dark:text-slate-600" />
                           )}
                         </button>
-                      </td>
-
-                      {/* Avatar Profile */}
-                      <td className="py-3 px-4">
-                        <div className="relative inline-block">
-                          {st.photoURL ? (
-                            <img
-                              src={st.photoURL}
-                              alt={st.name}
-                              className="w-9 h-9 rounded-full object-cover border border-sky-300 dark:border-slate-700 shadow-xs"
-                            />
-                          ) : (
-                            <div className="w-9 h-9 rounded-full bg-linear-to-r from-sky-500 to-blue-600 text-white flex items-center justify-center font-extrabold text-xs shadow-xs">
-                              {st.name.charAt(0)}
-                            </div>
-                          )}
-                          {isGithub ? (
-                            <span className="absolute -bottom-1 -right-1 text-[10px]" title="GitHub OAuth">🐱</span>
-                          ) : (
-                            <span className="absolute -bottom-1 -right-1 text-[10px]" title="Email Account">✉️</span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Full Name */}
-                      <td className="py-3 px-4">
-                        <div
-                          onClick={() => setInspectStudent(st)}
-                          className="font-bold text-slate-900 dark:text-white group-hover:text-sky-700 dark:group-hover:text-cyan-400 transition-colors cursor-pointer"
-                        >
-                          {st.name || st.fullName}
-                        </div>
-                      </td>
-
-                      {/* Email */}
-                      <td className="py-3 px-4 text-slate-700 dark:text-slate-300">
-                        <div className="truncate max-w-44 font-mono text-[11px]">{st.email}</div>
-                      </td>
-
-                      {/* College & Branch */}
-                      <td className="py-3 px-4">
-                        <div className="font-bold text-slate-800 dark:text-slate-200">{st.college || 'Shaivika AI Foundation'}</div>
-                        <div className="text-[10px] text-slate-500 dark:text-slate-400">{st.branch || 'AI & Computer Science'}</div>
-                      </td>
-
-                      {/* Joined Date */}
-                      <td className="py-3 px-4 text-slate-700 dark:text-slate-300 whitespace-nowrap text-[11px] font-medium">
-                        <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-                          <Calendar className="w-3.5 h-3.5 text-sky-500 shrink-0" />
-                          <span>{st.joined || (st.createdAt ? new Date(st.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently')}</span>
-                        </div>
-                      </td>
-
-                      {/* GitHub & Portfolio */}
-                      <td className="py-3 px-4">
-                        {st.githubUsername || st.github ? (
-                          <button
-                            onClick={() => setInspectGithubStudent(st)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-900 text-cyan-300 font-mono text-[10px] font-bold border border-slate-700 shadow-xs hover:bg-slate-800 transition-all cursor-pointer"
-                          >
-                            <Code2 className="w-3 h-3 text-cyan-400" />
-                            <span>@{st.githubUsername || 'github'}</span>
-                          </button>
-                        ) : (
-                          <span className="text-[11px] text-slate-400 italic">Not Connected</span>
-                        )}
-                      </td>
-
-                      {/* Status Badge */}
-                      <td className="py-3 px-4">
-                        <span
-                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold border uppercase tracking-wider ${
-                            status === 'pending'
-                              ? 'bg-amber-100 text-amber-800 border-amber-300 animate-pulse'
-                              : status === 'approved' || status === 'Active'
-                              ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                              : status === 'rejected'
-                              ? 'bg-rose-100 text-rose-800 border-rose-300'
-                              : 'bg-slate-200 text-slate-700 border-slate-300'
-                          }`}
-                        >
-                          {status}
-                        </span>
-                      </td>
-
-                      {/* Actions */}
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          
-                          {/* Admin Approve Button */}
-                          {!isInstructor && status === 'pending' && (
-                            <button
-                              onClick={() => handleApproveStudent(id)}
-                              className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white border border-emerald-200 font-bold transition-all cursor-pointer shadow-xs"
-                              title="Approve Student"
-                            >
-                              <Check className="w-4 h-4" />
-                            </button>
-                          )}
-
-                          {/* Admin Reject Button */}
-                          {!isInstructor && status === 'pending' && (
-                            <button
-                              onClick={() => setRejectingStudentId(id)}
-                              className="p-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-600 hover:text-white border border-rose-200 font-bold transition-all cursor-pointer shadow-xs"
-                              title="Reject Application"
-                            >
-                              <XCircle className="w-4 h-4" />
-                            </button>
-                          )}
-
-                          {/* View Profile Telemetry */}
-                          <button
-                            onClick={() => setInspectStudent(st)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-50 transition-all cursor-pointer"
-                            title={isInstructor ? "View Student Telemetry & Progress Report" : "View Student Profile"}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-
-                          {/* Instructor: Submit Academic Concern / Progress Report */}
-                          {isInstructor && (
-                            <button
-                              onClick={() => setFlagStudentModal(st)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-all cursor-pointer"
-                              title="Submit Academic Report / Concern"
-                            >
-                              <Flag className="w-4 h-4" />
-                            </button>
-                          )}
-
-                          {/* Admin Edit Details */}
-                          {!isInstructor && (
-                            <button
-                              onClick={() => setEditingStudent(st)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-50 transition-all cursor-pointer"
-                              title="Edit Student"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                          )}
-
-                          {/* Send Email */}
-                          <button
-                            onClick={() => setEmailStudent(st)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all cursor-pointer"
-                            title="Send Email / Feedback"
-                          >
-                            <Send className="w-4 h-4" />
-                          </button>
-
-                          {/* Admin Delete Account */}
-                          {!isInstructor && (
-                            <button
-                              onClick={() => setDeletingStudentId(id)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all cursor-pointer"
-                              title="Delete Student"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-
-                        </div>
-                      </td>
-
+                      </th>
+                      <th className="py-3 px-4">Profile</th>
+                      <th className="py-3 px-4">Full Name & Telemetry</th>
+                      <th className="py-3 px-4">Email</th>
+                      <th className="py-3 px-4">College & Branch</th>
+                      <th className="py-3 px-4">Joined Date</th>
+                      <th className="py-3 px-4">GitHub & Portfolio</th>
+                      <th className="py-3 px-4">Status</th>
+                      <th className="py-3 px-4 text-right">{isInstructor ? 'Reporting Actions' : 'Approval Actions'}</th>
                     </tr>
+                  </thead>
+                  <tbody className="divide-y divide-sky-100 dark:divide-slate-800">
+                    {filteredStudents.map((st) => {
+                      const id = st.id || st.uid;
+                      return (
+                        <StudentRosterRow
+                          key={id}
+                          student={st}
+                          isSelected={selectedIds.includes(id)}
+                          isInstructor={isInstructor}
+                          isApproving={approvingIds.has(id)}
+                          isRejecting={rejectingIds.has(id)}
+                          onToggleSelect={handleToggleSelect}
+                          onApprove={handleApproveStudent}
+                          onOpenRejectModal={(targetId) => setRejectingStudentId(targetId)}
+                          onInspect={(target) => setInspectStudent(target)}
+                          onInspectGithub={(target) => setInspectGithubStudent(target)}
+                          onEdit={isInstructor ? undefined : (target) => setEditingStudent(target)}
+                          onEmail={(target) => setEmailStudent(target)}
+                          onOpenDeleteModal={isInstructor ? undefined : (targetId) => setDeletingStudentId(targetId)}
+                          onOpenFlagModal={isInstructor ? (target) => setFlagStudentModal(target) : undefined}
+                        />
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Responsive Cards */}
+              <div className="md:hidden space-y-3">
+                {filteredStudents.map((st) => {
+                  const id = st.id || st.uid;
+                  return (
+                    <StudentRosterMobileCard
+                      key={id}
+                      student={st}
+                      isSelected={selectedIds.includes(id)}
+                      isInstructor={isInstructor}
+                      isApproving={approvingIds.has(id)}
+                      isRejecting={rejectingIds.has(id)}
+                      onToggleSelect={handleToggleSelect}
+                      onApprove={handleApproveStudent}
+                      onOpenRejectModal={(targetId) => setRejectingStudentId(targetId)}
+                      onInspect={(target) => setInspectStudent(target)}
+                      onInspectGithub={(target) => setInspectGithubStudent(target)}
+                      onEdit={isInstructor ? undefined : (target) => setEditingStudent(target)}
+                      onEmail={(target) => setEmailStudent(target)}
+                      onOpenDeleteModal={isInstructor ? undefined : (targetId) => setDeletingStudentId(targetId)}
+                      onOpenFlagModal={isInstructor ? (target) => setFlagStudentModal(target) : undefined}
+                    />
                   );
                 })}
-              </tbody>
-            </table>
+              </div>
+
+              {/* High-Performance Pagination Controls Bar */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-sky-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400">
+                <div className="flex items-center gap-3">
+                  <span>
+                    Showing{' '}
+                    <strong className="text-slate-900 dark:text-white font-bold">
+                      {paginationInfo.total === 0 ? 0 : (currentPage - 1) * pageSize + 1}
+                    </strong>{' '}
+                    to{' '}
+                    <strong className="text-slate-900 dark:text-white font-bold">
+                      {Math.min(currentPage * pageSize, paginationInfo.total)}
+                    </strong>{' '}
+                    of{' '}
+                    <strong className="text-slate-900 dark:text-white font-bold">
+                      {paginationInfo.total}
+                    </strong>{' '}
+                    students
+                  </span>
+
+                  <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200 dark:border-slate-700">
+                    <span className="text-[11px] text-slate-500 font-medium">Page Size:</span>
+                    <select
+                      value={pageSize}
+                      onChange={(e) => setPageSize(Number(e.target.value))}
+                      className="bg-slate-50 dark:bg-slate-950 border border-sky-200 dark:border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-900 dark:text-white font-bold focus:outline-hidden cursor-pointer"
+                    >
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    disabled={currentPage <= 1 || loading}
+                    onClick={() => setCurrentPage(1)}
+                    className="p-2 rounded-xl border border-sky-200 dark:border-slate-800 hover:bg-sky-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 dark:text-slate-300 transition-all cursor-pointer"
+                    title="First Page"
+                  >
+                    <ChevronsLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={currentPage <= 1 || loading}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    className="p-2 rounded-xl border border-sky-200 dark:border-slate-800 hover:bg-sky-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 dark:text-slate-300 transition-all cursor-pointer"
+                    title="Previous Page"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+
+                  <div className="px-3 py-1 text-xs font-bold text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 rounded-xl">
+                    Page {currentPage} of {paginationInfo.totalPages || 1}
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={!paginationInfo.hasNextPage || loading}
+                    onClick={() => setCurrentPage((p) => p + 1)}
+                    className="p-2 rounded-xl border border-sky-200 dark:border-slate-800 hover:bg-sky-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 dark:text-slate-300 transition-all cursor-pointer"
+                    title="Next Page"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={currentPage >= paginationInfo.totalPages || loading}
+                    onClick={() => setCurrentPage(paginationInfo.totalPages)}
+                    className="p-2 rounded-xl border border-sky-200 dark:border-slate-800 hover:bg-sky-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 dark:text-slate-300 transition-all cursor-pointer"
+                    title="Last Page"
+                  >
+                    <ChevronsRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </>
           )}
         </div>
       </div>

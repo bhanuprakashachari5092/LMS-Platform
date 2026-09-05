@@ -16,11 +16,23 @@ import type {
   ExtendedStudentStats
 } from '@/types/user';
 
+export interface StudentPerformanceSummary {
+  overallScore: number;
+  attendance: number;
+  quizAverage: number;
+  completion: number;
+  engagement: number;
+  trend: 'improving' | 'stable' | 'declining';
+  riskLevel: 'low' | 'medium' | 'high';
+  lastCalculatedAt: string;
+}
+
 export interface StudentUser extends UserProfile {
   id: string;
   name: string;
   joined: string;
   courses: number;
+  studentPerformanceSummary?: StudentPerformanceSummary;
 }
 
 const LOCAL_STORAGE_KEY = 'shaivika_realtime_students_v3';
@@ -207,7 +219,17 @@ class StudentService {
       },
       recentActivity: data.recentActivity || [
         { id: 'act1', action: 'Joined KaizenQ Learning Platform', timestamp: 'Recently', type: 'login' }
-      ]
+      ],
+      studentPerformanceSummary: data.studentPerformanceSummary || {
+        overallScore: typeof data.learningScore === 'number' ? data.learningScore : 85,
+        attendance: typeof data.attendance === 'number' ? data.attendance : 90,
+        quizAverage: typeof data.quizAverage === 'number' ? data.quizAverage : 82,
+        completion: typeof data.completionRate === 'number' ? data.completionRate : 75,
+        engagement: typeof data.engagement === 'number' ? data.engagement : 88,
+        trend: (data.learningScore || 85) >= 85 ? 'improving' : 'stable',
+        riskLevel: (data.learningScore || 85) < 65 ? 'high' : (data.learningScore || 85) < 80 ? 'medium' : 'low',
+        lastCalculatedAt: data.updatedAt || new Date().toISOString(),
+      },
     };
   }
 
@@ -825,79 +847,313 @@ class StudentService {
     };
   }
 
-  /**
-   * Approve Student Registration
-   */
-  async approveStudent(studentId: string) {
+  // Caching & In-Flight Request Deduplication
+  private inFlightApprovals = new Map<string, Promise<{ success: boolean; studentId: string; status: string; updatedAt?: string }>>();
+  private inFlightRejections = new Map<string, Promise<{ success: boolean; studentId: string; status: string; reason?: string; updatedAt?: string }>>();
+  private rosterCache = new Map<string, { data: any; timestamp: number }>();
+  private readonly CACHE_TTL_MS = 20000; // 20s cache for fast tab navigation
+
+  private async getAuthToken(): Promise<string | null> {
     try {
-      // Use correct admin API endpoint
-      const response = await fetch(`${API_BASE_URL}/admin/user/${studentId}/approve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (response.ok) {
-        const resData = await response.json();
-        const current = this.getLocalStudents();
-        const targetIdx = current.findIndex((s) => s.id === studentId || s.uid === studentId);
-        if (targetIdx !== -1) {
-          current[targetIdx] = { ...current[targetIdx], status: 'approved', isActive: true };
-          this.saveLocalStudents(current);
-        }
-        return resData;
+      if (auth?.currentUser) {
+        return await auth.currentUser.getIdToken();
       }
     } catch (e) {
-      console.warn('API approve notice:', e);
+      console.warn('Failed to retrieve Firebase ID token:', e);
     }
-
-    // Client fallback — write ONLY to users collection
-    const current = this.getLocalStudents();
-    const targetIdx = current.findIndex((s) => s.id === studentId || s.uid === studentId);
-    if (targetIdx !== -1) {
-      current[targetIdx] = { ...current[targetIdx], status: 'approved', isActive: true };
-      this.saveLocalStudents(current);
-      if (db) {
-        await updateDoc(doc(db, 'users', studentId), { status: 'approved', approvedAt: new Date().toISOString() }).catch(() => null);
-      }
-    }
-    return { success: true, message: 'Student account approved' };
+    return null;
   }
 
   /**
-   * Reject Student Registration with Reason
+   * Targeted cache update: updates a student record in local cache without refetching the entire roster
    */
-  async rejectStudent(studentId: string, reason: string) {
-    try {
-      // Use correct admin API endpoint
-      const response = await fetch(`${API_BASE_URL}/admin/user/${studentId}/reject`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason }),
-      });
-      if (response.ok) {
-        const resData = await response.json();
-        const current = this.getLocalStudents();
-        const targetIdx = current.findIndex((s) => s.id === studentId || s.uid === studentId);
-        if (targetIdx !== -1) {
-          current[targetIdx] = { ...current[targetIdx], status: 'rejected', isActive: false };
-          this.saveLocalStudents(current);
-        }
-        return resData;
+  public updateStudentInCache(studentId: string, partial: Partial<StudentUser>): void {
+    // 1. Update in local storage
+    const current = this.getLocalStudents();
+    const idx = current.findIndex((s) => s.id === studentId || s.uid === studentId);
+    if (idx !== -1) {
+      current[idx] = { ...current[idx], ...partial };
+      this.saveLocalStudents(current);
+    }
+    // 2. Update within any cached roster pages in memory
+    this.rosterCache.forEach((cacheEntry) => {
+      if (cacheEntry?.data?.students && Array.isArray(cacheEntry.data.students)) {
+        cacheEntry.data.students = cacheEntry.data.students.map((st: StudentUser) =>
+          (st.id === studentId || st.uid === studentId) ? { ...st, ...partial } : st
+        );
       }
-    } catch (e) {
-      console.warn('API reject notice:', e);
+    });
+  }
+
+  /**
+   * High-performance paginated student fetch with search, filter, and sorting
+   */
+  async fetchStudentsPaginated(params: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    search?: string;
+    sort?: string;
+    order?: string;
+    signal?: AbortSignal;
+    skipCache?: boolean;
+  }): Promise<{
+    success: boolean;
+    students: StudentUser[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+      hasNextPage: boolean;
+      hasPrevPage: boolean;
+    };
+    timing?: { queryMs: number; transformMs: number; totalMs: number };
+  }> {
+    const page = params.page || 1;
+    const limit = params.limit || 25;
+    const status = params.status || 'all';
+    const search = params.search || '';
+    const sort = params.sort || 'newest';
+    const order = params.order || 'desc';
+
+    const cacheKey = `${page}_${limit}_${status}_${search}_${sort}_${order}`;
+    if (!params.skipCache) {
+      const cached = this.rosterCache.get(cacheKey);
+      if (cached && (Date.now() - cached.timestamp < this.CACHE_TTL_MS)) {
+        return cached.data;
+      }
     }
 
-    // Client fallback — write ONLY to users collection
-    const current = this.getLocalStudents();
-    const targetIdx = current.findIndex((s) => s.id === studentId || s.uid === studentId);
-    if (targetIdx !== -1) {
-      current[targetIdx] = { ...current[targetIdx], status: 'rejected', isActive: false };
-      this.saveLocalStudents(current);
-      if (db) {
-        await updateDoc(doc(db, 'users', studentId), { status: 'rejected', rejectionReason: reason, rejectedAt: new Date().toISOString() }).catch(() => null);
+    try {
+      const token = await this.getAuthToken();
+      const queryParams = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+        status,
+        search,
+        sort,
+        order,
+      });
+
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
+
+      const response = await fetch(`${API_BASE_URL}/admin/students?${queryParams.toString()}`, {
+        method: 'GET',
+        headers,
+        signal: params.signal,
+      });
+
+      if (response.ok) {
+        const json = await response.json();
+        const rawList = json.students || json.data || [];
+        const normalizedStudents = rawList.map((st: any) => this.normalizeStudentData(st));
+        const total = json.pagination?.total ?? normalizedStudents.length;
+        const totalPages = json.pagination?.totalPages ?? (Math.ceil(total / limit) || 1);
+
+        const result = {
+          success: true,
+          students: normalizedStudents,
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages,
+            hasNextPage: json.pagination?.hasNextPage ?? (page < totalPages),
+            hasPrevPage: json.pagination?.hasPrevPage ?? (page > 1),
+          },
+          timing: json.timing,
+        };
+
+        this.rosterCache.set(cacheKey, { data: result, timestamp: Date.now() });
+        return result;
+      }
+    } catch (e: any) {
+      if (e.name === 'AbortError') {
+        throw e;
+      }
+      console.warn('API fetchStudentsPaginated notice (falling back):', e?.message || e);
     }
-    return { success: true, message: 'Student account rejected', reason };
+
+    // Client-side fallback if backend API is unreachable
+    const all = this.getLocalStudents();
+    let filtered = [...all];
+
+    if (status && status !== 'all' && status !== 'ALL') {
+      if (status === 'pending') filtered = filtered.filter((s) => !s.approved && s.status !== 'rejected');
+      else if (status === 'approved') filtered = filtered.filter((s) => s.approved || s.status === 'approved' || s.status === 'Active');
+      else if (status === 'rejected') filtered = filtered.filter((s) => s.status === 'rejected');
+      else if (status === 'suspended') filtered = filtered.filter((s) => s.status === 'Suspended');
+      else if (status === 'at_risk') filtered = filtered.filter((s) => (s.learningScore || 80) < 65);
+      else if (status === 'high_performers') filtered = filtered.filter((s) => (s.learningScore || 80) >= 90 || (s.xp || 0) >= 2000);
+    }
+
+    if (search.trim()) {
+      const q = search.toLowerCase().trim();
+      filtered = filtered.filter((s) =>
+        (s.name || s.fullName || '').toLowerCase().includes(q) ||
+        (s.email || '').toLowerCase().includes(q) ||
+        (s.college || '').toLowerCase().includes(q) ||
+        (s.branch || '').toLowerCase().includes(q) ||
+        (s.githubUsername || '').toLowerCase().includes(q)
+      );
+    }
+
+    filtered.sort((a, b) => {
+      let comparison = 0;
+      if (sort === 'newest') comparison = new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      else if (sort === 'oldest') comparison = new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+      else if (sort === 'name') comparison = (a.name || '').localeCompare(b.name || '');
+      else if (sort === 'highest_progress') comparison = (b.learningScore || 0) - (a.learningScore || 0);
+      return order === 'asc' ? -comparison : comparison;
+    });
+
+    const total = filtered.length;
+    const totalPages = Math.ceil(total / limit) || 1;
+    const startIndex = (page - 1) * limit;
+    const paged = filtered.slice(startIndex, startIndex + limit);
+
+    return {
+      success: true,
+      students: paged,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      },
+    };
+  }
+
+  /**
+   * Approve Student Registration with instant deduplication and targeted cache update
+   */
+  async approveStudent(studentId: string): Promise<{ success: boolean; studentId: string; status: string; updatedAt?: string }> {
+    if (this.inFlightApprovals.has(studentId)) {
+      return this.inFlightApprovals.get(studentId)!;
+    }
+
+    const promise = (async () => {
+      // 1. Optimistic targeted cache update
+      this.updateStudentInCache(studentId, { status: 'approved' as UserStatus, approved: true, isActive: true });
+
+      try {
+        const token = await this.getAuthToken();
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(`${API_BASE_URL}/admin/user/${studentId}/approve`, {
+          method: 'POST',
+          headers,
+        });
+
+        if (response.ok) {
+          const resData = await response.json();
+          return {
+            success: true,
+            studentId,
+            status: 'approved',
+            updatedAt: resData.updatedAt || new Date().toISOString(),
+          };
+        }
+      } catch (e) {
+        console.warn('API approve notice:', e);
+      }
+
+      // Client Firestore fallback if backend API is unreachable
+      if (db) {
+        await updateDoc(doc(db, 'users', studentId), {
+          status: 'approved',
+          approved: true,
+          isActive: true,
+          approvedAt: new Date().toISOString()
+        }).catch(() => null);
+      }
+
+      return {
+        success: true,
+        studentId,
+        status: 'approved',
+        updatedAt: new Date().toISOString(),
+      };
+    })().finally(() => {
+      this.inFlightApprovals.delete(studentId);
+    });
+
+    this.inFlightApprovals.set(studentId, promise);
+    return promise;
+  }
+
+  /**
+   * Reject Student Registration with reason, deduplication, and targeted cache update
+   */
+  async rejectStudent(studentId: string, reason: string): Promise<{ success: boolean; studentId: string; status: string; reason?: string; updatedAt?: string }> {
+    if (this.inFlightRejections.has(studentId)) {
+      return this.inFlightRejections.get(studentId)!;
+    }
+
+    const promise = (async () => {
+      // 1. Optimistic targeted cache update
+      this.updateStudentInCache(studentId, { status: 'rejected' as UserStatus, approved: false, isActive: false });
+
+      try {
+        const token = await this.getAuthToken();
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(`${API_BASE_URL}/admin/user/${studentId}/reject`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ reason }),
+        });
+
+        if (response.ok) {
+          const resData = await response.json();
+          return {
+            success: true,
+            studentId,
+            status: 'rejected',
+            reason,
+            updatedAt: resData.updatedAt || new Date().toISOString(),
+          };
+        }
+      } catch (e) {
+        console.warn('API reject notice:', e);
+      }
+
+      // Client Firestore fallback if backend API is unreachable
+      if (db) {
+        await updateDoc(doc(db, 'users', studentId), {
+          status: 'rejected',
+          approved: false,
+          isActive: false,
+          rejectionReason: reason,
+          rejectedAt: new Date().toISOString()
+        }).catch(() => null);
+      }
+
+      return {
+        success: true,
+        studentId,
+        status: 'rejected',
+        reason,
+        updatedAt: new Date().toISOString(),
+      };
+    })().finally(() => {
+      this.inFlightRejections.delete(studentId);
+    });
+
+    this.inFlightRejections.set(studentId, promise);
+    return promise;
   }
 
   exportStudentsToCSV(students: StudentUser[]): void {
