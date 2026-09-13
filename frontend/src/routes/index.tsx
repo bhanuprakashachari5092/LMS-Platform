@@ -92,6 +92,7 @@ const LiveClassPage = lazyLoad(() => import('@/pages/liveClass/LiveClassPage'), 
 const AdminLiveClassList = lazyLoad(() => import('@/pages/liveClassroom/AdminLiveClassList'), 'AdminLiveClassList');
 const AdminCreateLiveClass = lazyLoad(() => import('@/pages/liveClassroom/AdminCreateLiveClass'), 'AdminCreateLiveClass');
 const AdminLiveControlCenter = lazyLoad(() => import('@/pages/liveClassroom/AdminLiveControlCenter'), 'AdminLiveControlCenter');
+const AdminCoupons = lazyLoad(() => import('@/pages/admin/AdminCoupons'), 'AdminCoupons');
 
 // ─── Simple placeholder pages for coming-soon admin sections ─────────────────
 const PlaceholderPage = ({ title, subtitle }: { title: string; subtitle: string }) => (
@@ -167,6 +168,7 @@ const router = createBrowserRouter([
   { path: '/student/signup', element: <Navigate to="/auth/signup" replace /> },
   { path: '/student', element: <Navigate to="/dashboard" replace /> },
   { path: '/student/dashboard', element: <Navigate to="/dashboard" replace /> },
+  { path: '/coupons', element: <Navigate to="/admin/coupons" replace /> },
   // Shared Authenticated Routes (Profile, etc.)
   {
     path: '/',
@@ -198,7 +200,7 @@ const router = createBrowserRouter([
       { path: 'dashboard/live-class/:liveClassId', element: <LiveClassPage /> },
     ],
   },
-  // Instructor & Admin Shared Management Routes
+  // Dedicated Administrative & Instructor Management Routes
   {
     path: '/admin',
     element: (
@@ -207,6 +209,10 @@ const router = createBrowserRouter([
       </AdminRoute>
     ),
     children: [
+      { index: true, element: <Navigate to="/admin/dashboard" replace /> },
+      { path: 'dashboard', element: <AdminDashboard /> },
+      { path: 'coupons', element: <AdminCoupons /> },
+      { path: 'coupon', element: <Navigate to="/admin/coupons" replace /> },
       { path: 'courses', element: <Courses /> },
       { path: 'courses/create', element: <AdminCourseCreate /> },
       { path: 'courses/bulk-import', element: <AdminBulkImport /> },
@@ -215,6 +221,9 @@ const router = createBrowserRouter([
       { path: 'courses/edit/:id', element: <AdminCourseEdit /> },
       { path: 'courses/:courseId', element: <AdminCourseDetails /> },
       { path: 'students', element: <AdminStudents /> },
+      { path: 'instructors', element: <AdminInstructors /> },
+      { path: 'users', element: <AdminUsers /> },
+      { path: 'users/:id', element: <AdminUserProfile /> },
       { path: 'content', element: <AdminContentManagement /> },
       { path: 'content-management', element: <AdminContentManagement /> },
       { path: 'live-classroom', element: <LiveClassroomDashboard /> },
@@ -224,25 +233,8 @@ const router = createBrowserRouter([
       { path: 'live-classes/:id/control', element: <AdminLiveControlCenter /> },
       { path: 'live-control-panel', element: <AdminLiveClassroom /> },
       { path: 'live-classroom/control-panel', element: <AdminLiveClassroom /> },
-      { path: 'live-classroom/mentor-analytics', element: <MentorAnalytics /> },
-    ],
-  },
-  // Strict Admin Only Protected Routes
-  {
-    path: '/admin',
-    element: (
-      <AdminRoute>
-        <DashboardLayout />
-      </AdminRoute>
-    ),
-    children: [
-      { path: 'dashboard', element: <AdminDashboard /> },
-      { path: 'live-classroom/control-panel', element: <AdminLiveClassroom /> },
-      { path: 'live-control-panel', element: <AdminLiveClassroom /> },
       { path: 'live-classroom/studio', element: <LiveClassroomDashboard /> },
-      { path: 'users', element: <AdminUsers /> },
-      { path: 'users/:id', element: <AdminUserProfile /> },
-      { path: 'instructors', element: <AdminInstructors /> },
+      { path: 'live-classroom/mentor-analytics', element: <MentorAnalytics /> },
       {
         path: 'analytics',
         element: <PlaceholderPage title="Analytics" subtitle="Platform analytics, student progress reports, and engagement metrics are coming soon." />,

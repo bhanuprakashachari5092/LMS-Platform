@@ -166,9 +166,32 @@ interface CourseContextType {
   updateCourse: (id: number | string, updates: Partial<CourseItem>) => Promise<void>;
 }
 
+export const DEFAULT_COURSE_PRICES: Record<string, number> = {
+  'c-programming-course-id': 199,
+  'c-programming': 199,
+  'git-github-mastery': 199,
+  'git-github-mastery-course-id': 199,
+  'linux-systems-administration-mastery': 399,
+  'course_linux_101': 399,
+  '1': 399,
+  'dbms-beginner-to-advanced': 299,
+  'database-management-system': 299,
+  'kubernetes-complete-course': 499,
+  'kubernetes-complete-course-beginner-to-advanced': 499,
+  'react-js-complete-course': 299,
+  'python-through-oops': 299,
+  'python-through-oops-course-id': 299,
+  'java-through-oops': 299,
+  'java-through-oops-course-id': 299,
+  'web-development': 299,
+  'web-development-fundamentals': 299,
+  'prompt-engineering': 199,
+};
+
 export const normalizeContextCourse = (c: any): CourseItem => {
   const id = String(c.id || c.courseId || `course_${Date.now()}`);
   const title = c.title || 'Untitled Course';
+  const slug = c.slug || id;
   const statusVal: 'Published' | 'Draft' =
     c.status && String(c.status).toLowerCase() === 'published' ? 'Published' : 'Draft';
   const instructorName =
@@ -176,10 +199,23 @@ export const normalizeContextCourse = (c: any): CourseItem => {
       ? (c.instructor.name || 'Kaizen Q Team')
       : (c.instructor || 'Kaizen Q Team');
 
+  const defaultPrice =
+    DEFAULT_COURSE_PRICES[id] ??
+    DEFAULT_COURSE_PRICES[slug] ??
+    DEFAULT_COURSE_PRICES[String(slug).toLowerCase().trim()] ??
+    DEFAULT_COURSE_PRICES[String(id).toLowerCase().trim()] ??
+    0;
+
+  const rawPrice = typeof c.price === 'number' ? c.price : undefined;
+  // If price is explicitly > 0 in database/object, use it; otherwise fallback to defaultPrice if catalog defines it
+  const price = (rawPrice !== undefined && rawPrice > 0)
+    ? rawPrice
+    : (defaultPrice > 0 ? defaultPrice : (rawPrice !== undefined ? rawPrice : 0));
+
   return {
     id,
     title,
-    slug: c.slug || id,
+    slug,
     subtitle: c.subtitle || title,
     instructor: instructorName,
     role: c.role || (typeof c.instructor === 'object' ? c.instructor?.role : undefined) || 'Senior Technical Instructor',
@@ -193,6 +229,7 @@ export const normalizeContextCourse = (c: any): CourseItem => {
     badge: c.badge || (c.featured ? 'Featured Track' : undefined),
     tracks: c.tracks || `${c.modules?.length || 0} Modules`,
     status: statusVal,
+    price,
     thumbnail: c.thumbnail || c.thumbnailUrl || c.banner || '/assets/images/linux_course_thumbnail.webp',
     thumbnailUrl: c.thumbnailUrl || c.thumbnail,
     thumbnailPublicId: c.thumbnailPublicId,

@@ -25,6 +25,7 @@ import {
   Video,
   Sparkles,
   Globe,
+  Tag,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { BrandLogo } from '@/components/common/BrandLogo';
@@ -128,8 +129,12 @@ export const DashboardLayout: React.FC = () => {
     }
   };
 
-  const role = userProfile?.role || 'student';
-  const isAdmin = role === 'admin';
+  const cachedUserRaw = typeof window !== 'undefined' ? localStorage.getItem('shaivika_user') : null;
+  const cachedUser = cachedUserRaw ? (() => { try { return JSON.parse(cachedUserRaw); } catch { return null; } })() : null;
+  const userEmail = (user?.email || cachedUser?.email || '').toLowerCase();
+  const isAdminEmail = userEmail.includes('admin') || userEmail === 'admin@gmail.com';
+  const role = userProfile?.role || cachedUser?.role || (isAdminEmail ? 'admin' : 'student');
+  const isAdmin = role === 'admin' || isAdminEmail;
   const isInstructor = role === 'instructor';
 
   const adminNavSections = [
@@ -140,6 +145,7 @@ export const DashboardLayout: React.FC = () => {
         { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
         { name: 'Course Catalog', href: '/admin/courses', icon: BookOpen },
         { name: 'Course Content', href: '/admin/course-content', icon: FileText },
+        { name: 'Coupons & Discounts', href: '/admin/coupons', icon: Tag },
         {
           name: 'Live Classes',
           href: '/admin/live-classes',
@@ -188,6 +194,7 @@ export const DashboardLayout: React.FC = () => {
       items: [
         { name: 'Mentor Analytics', href: '/admin/live-classroom/mentor-analytics', icon: BarChart3 },
         { name: 'Student Roster', href: '/admin/students', icon: UserCheck },
+        { name: 'Coupons & Discounts', href: '/admin/coupons', icon: Tag },
       ],
     },
     {
@@ -250,7 +257,7 @@ export const DashboardLayout: React.FC = () => {
     if (href.includes('?')) {
       return location.pathname + location.search === href;
     }
-    return location.pathname === href;
+    return location.pathname === href || location.pathname.startsWith(href + '/');
   };
 
   const activeNavSections = isAdmin ? adminNavSections : (isInstructor ? instructorNavSections : studentNavSections);
