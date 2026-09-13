@@ -162,6 +162,7 @@ export const BlueSmokeTheme: React.FC<BlueSmokeThemeProps> = ({ className = '', 
         <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
           <svg className="absolute -top-20 -left-20 w-150 h-150 text-blue-500/5 dark:text-blue-400/5 select-none" viewBox="0 0 100 100" fill="none">
             <motion.path
+              d="M0,50 Q25,30 50,50 T100,50 L100,100 L0,100 Z"
               animate={{
                 d: [
                   "M0,50 Q25,30 50,50 T100,50 L100,100 L0,100 Z",
@@ -179,6 +180,7 @@ export const BlueSmokeTheme: React.FC<BlueSmokeThemeProps> = ({ className = '', 
           </svg>
           <svg className="absolute -bottom-40 -right-20 w-200 h-200 text-blue-600/5 dark:text-blue-500/5 select-none" viewBox="0 0 100 100" fill="none">
             <motion.path
+              d="M0,60 Q35,40 70,60 T100,60 L100,100 L0,100 Z"
               animate={{
                 d: [
                   "M0,60 Q35,40 70,60 T100,60 L100,100 L0,100 Z",
