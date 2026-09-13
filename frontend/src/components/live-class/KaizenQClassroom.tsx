@@ -19,25 +19,45 @@ const RemoteAudioPlayer: React.FC<RemoteAudioPlayerProps> = ({
 }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
 
+  // This effect re-runs whenever participant.stream reference changes (streamVersion bump)
+  // OR when audioTrack/isAudioOn changes, ensuring audio is always attached and played.
   useEffect(() => {
     const el = audioRef.current;
     if (!el || !participant.stream) return;
 
-    if (el.srcObject !== participant.stream) {
-      el.srcObject = participant.stream;
-      console.log(`[RemoteAudioPlayer][AUDIO_TRACK_ATTACHED] userId=${participant.userId} streamId=${participant.stream.id}`);
-    }
+    const stream = participant.stream;
+    const audioTrackCount = stream.getAudioTracks().length;
+    console.log(
+      `[LIVE_DEBUG] RemoteAudioPlayer mount/update: userId=${participant.userId} role=${participant.role} ` +
+      `audioTracks=${audioTrackCount} streamId=${stream.id} streamVersion=${participant.streamVersion}`
+    );
+
+    // Always re-assign srcObject when stream changes
+    el.srcObject = stream;
+    el.muted = false;
 
     const attemptPlay = () => {
+      const currentTracks = el.srcObject instanceof MediaStream
+        ? el.srcObject.getAudioTracks().length
+        : 0;
+
+      if (currentTracks === 0) {
+        console.log(`[LIVE_DEBUG] RemoteAudioPlayer: no audio tracks yet for userId=${participant.userId}, will retry on track arrival`);
+        return;
+      }
+      if (!el.paused) {
+        console.log(`[LIVE_DEBUG] RemoteAudioPlayer: already playing for userId=${participant.userId}`);
+        return;
+      }
       const playPromise = el.play();
       if (playPromise !== undefined) {
         playPromise
           .then(() => {
-            console.log(`[RemoteAudioPlayer][AUDIO_PLAY_STARTED] userId=${participant.userId} role=${participant.role}`);
+            console.log(`[LIVE_DEBUG] audio PLAYING: userId=${participant.userId} role=${participant.role}`);
             onPlayStarted?.();
           })
           .catch((err) => {
-            console.warn(`[RemoteAudioPlayer][AUDIO_PLAY_BLOCKED] userId=${participant.userId}:`, err?.name);
+            console.warn(`[LIVE_DEBUG] AUTOPLAY_BLOCKED userId=${participant.userId}:`, err?.name);
             onPlayBlocked?.();
           });
       }
@@ -45,12 +65,23 @@ const RemoteAudioPlayer: React.FC<RemoteAudioPlayerProps> = ({
 
     attemptPlay();
 
-    // Global document interaction unlock
+    // Listen for future tracks arriving on this specific stream instance
+    const handleTrackAdded = (event: MediaStreamTrackEvent) => {
+      if (event.track.kind === 'audio') {
+        console.log(`[LIVE_DEBUG] RemoteAudioPlayer: onaddtrack fired for userId=${participant.userId}`);
+        // Re-assign srcObject to same stream to ensure browser picks up new track
+        el.srcObject = stream;
+        attemptPlay();
+      }
+    };
+    stream.addEventListener('addtrack', handleTrackAdded);
+
+    // Global document interaction unlock for browsers that block autoplay
     const unlockAudio = () => {
-      if (el.paused) {
+      if (el.paused && el.srcObject instanceof MediaStream && el.srcObject.getAudioTracks().length > 0) {
         el.play()
           .then(() => {
-            console.log(`[RemoteAudioPlayer][AUDIO_PLAY_STARTED] (user gesture) userId=${participant.userId}`);
+            console.log(`[LIVE_DEBUG] audio UNLOCKED via user gesture: userId=${participant.userId}`);
             onPlayStarted?.();
           })
           .catch(() => {});
@@ -61,10 +92,12 @@ const RemoteAudioPlayer: React.FC<RemoteAudioPlayerProps> = ({
     window.addEventListener('keydown', unlockAudio, { once: true });
 
     return () => {
+      stream.removeEventListener('addtrack', handleTrackAdded);
       window.removeEventListener('click', unlockAudio);
       window.removeEventListener('keydown', unlockAudio);
     };
-  }, [participant.stream, participant.audioTrack, participant.isAudioOn]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [participant.stream, participant.streamVersion, participant.audioTrack, participant.isAudioOn]);
 
   return <audio ref={audioRef} autoPlay playsInline style={{ display: 'none' }} />;
 };
@@ -75,6 +108,9 @@ export interface KaizenQClassroomProps {
   userName: string;
   role: MediaRole;
   token?: string;
+  instructorId?: string;
+  instructorName?: string;
+  initialParticipants?: MediaParticipant[];
   isWhiteboardOpen?: boolean;
   onToggleWhiteboard?: () => void;
   activeSidebarTab?: string | null;
@@ -92,6 +128,9 @@ export const KaizenQClassroom: React.FC<KaizenQClassroomProps> = ({
   userName,
   role,
   token,
+  instructorId,
+  instructorName,
+  initialParticipants,
   onLeaveOrEndClass,
   onClientReady,
   onMediaConnectionStateChange,
@@ -101,11 +140,25 @@ export const KaizenQClassroom: React.FC<KaizenQClassroomProps> = ({
   const [connectionState, setConnectionState] = useState<MediaConnectionState>('idle');
   const [isAutoplayBlocked, setIsAutoplayBlocked] = useState(false);
 
+  // Diagnostics logging on participant changes
+  useEffect(() => {
+    console.log(`[LIVE_DEBUG] participants array count: ${participants.length}`);
+    participants.forEach((p) => {
+      const aTracks = p.stream ? p.stream.getAudioTracks().length : 0;
+      const vTracks = p.stream ? p.stream.getVideoTracks().length : 0;
+      console.log(
+        `[LIVE_DEBUG] participant: userId=${p.userId} role=${p.role} name=${p.name} isLocal=${p.userId === userId} isMuted=${!p.isAudioOn} cameraEnabled=${p.isVideoOn} hasStream=${Boolean(p.stream)} audioTracks=${aTracks} videoTracks=${vTracks}`
+      );
+    });
+  }, [participants, userId]);
+
   // Store latest props in refs to prevent unnecessary room leave/rejoin cycles on cosmetic re-renders
   const propsRef = useRef({
     userName,
     role,
     token,
+    instructorId,
+    initialParticipants,
     onLeaveOrEndClass,
     onClientReady,
     onMediaConnectionStateChange,
@@ -116,6 +169,8 @@ export const KaizenQClassroom: React.FC<KaizenQClassroomProps> = ({
       userName,
       role,
       token,
+      instructorId,
+      initialParticipants,
       onLeaveOrEndClass,
       onClientReady,
       onMediaConnectionStateChange,
@@ -136,6 +191,8 @@ export const KaizenQClassroom: React.FC<KaizenQClassroomProps> = ({
           userName: propsRef.current.userName,
           role: propsRef.current.role,
           token: propsRef.current.token,
+          instructorId: propsRef.current.instructorId,
+          initialParticipants: propsRef.current.initialParticipants,
         });
 
         setClient(activeClient);
@@ -234,7 +291,7 @@ export const KaizenQClassroom: React.FC<KaizenQClassroomProps> = ({
     );
   }
 
-  const isInstructor = role === 'instructor' || role === 'mentor';
+  const isInstructor = role === 'instructor' || role === 'mentor' || (role as string) === 'admin';
 
   return (
     <div className="w-full h-full flex flex-col bg-slate-950 relative overflow-hidden font-sans">
@@ -281,6 +338,8 @@ export const KaizenQClassroom: React.FC<KaizenQClassroomProps> = ({
           screenShareStream={client?.getLocalScreenStream() || null}
           localUserId={userId}
           isInstructor={isInstructor}
+          instructorId={instructorId}
+          instructorName={instructorName}
           onPinParticipant={(targetId) => client?.pinParticipant(targetId)}
         />
       </div>

@@ -1470,8 +1470,15 @@ export const registerLiveClassHandlers = (io: SocketServer, socket: Authenticate
     const classId = data.liveClassId || data.classId;
     if (!user || !classId || !data.targetUserId || !data.offer) return;
 
+    const roomName = `live-class:${classId}`;
+    // Use socket.rooms (authoritative) rather than presence map (may lag during reconnects)
+    if (!socket.rooms.has(roomName)) {
+      logger.warn(`[WEBRTC_OFFER_DROPPED] sender ${user.uid} not in room ${roomName} (socket.id=${socket.id})`);
+      return;
+    }
+
     const roomMap = activeRoomPresences.get(classId);
-    if (!roomMap || !roomMap.has(socket.id)) return; // Verify sender is in room
+    if (!roomMap) return;
 
     for (const [targetSocketId, participant] of roomMap.entries()) {
       if (participant.userId === data.targetUserId) {
@@ -1481,6 +1488,7 @@ export const registerLiveClassHandlers = (io: SocketServer, socket: Authenticate
           offer: data.offer,
           classId,
         });
+        logger.info(`[WEBRTC_OFFER_RELAYED] classId=${classId} sender=${user.uid} target=${data.targetUserId}`);
         break;
       }
     }
@@ -1492,8 +1500,14 @@ export const registerLiveClassHandlers = (io: SocketServer, socket: Authenticate
     const classId = data.liveClassId || data.classId;
     if (!user || !classId || !data.targetUserId || !data.answer) return;
 
+    const roomName = `live-class:${classId}`;
+    if (!socket.rooms.has(roomName)) {
+      logger.warn(`[WEBRTC_ANSWER_DROPPED] sender ${user.uid} not in room ${roomName} (socket.id=${socket.id})`);
+      return;
+    }
+
     const roomMap = activeRoomPresences.get(classId);
-    if (!roomMap || !roomMap.has(socket.id)) return; // Verify sender is in room
+    if (!roomMap) return;
 
     for (const [targetSocketId, participant] of roomMap.entries()) {
       if (participant.userId === data.targetUserId) {
@@ -1503,6 +1517,7 @@ export const registerLiveClassHandlers = (io: SocketServer, socket: Authenticate
           answer: data.answer,
           classId,
         });
+        logger.info(`[WEBRTC_ANSWER_RELAYED] classId=${classId} sender=${user.uid} target=${data.targetUserId}`);
         break;
       }
     }
@@ -1514,8 +1529,11 @@ export const registerLiveClassHandlers = (io: SocketServer, socket: Authenticate
     const classId = data.liveClassId || data.classId;
     if (!user || !classId || !data.targetUserId || !data.candidate) return;
 
+    const roomName = `live-class:${classId}`;
+    if (!socket.rooms.has(roomName)) return; // Silent drop: ICE candidates are high-frequency; just skip
+
     const roomMap = activeRoomPresences.get(classId);
-    if (!roomMap || !roomMap.has(socket.id)) return; // Verify sender is in room
+    if (!roomMap) return;
 
     for (const [targetSocketId, participant] of roomMap.entries()) {
       if (participant.userId === data.targetUserId) {

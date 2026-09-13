@@ -129,6 +129,17 @@ export const LiveClassroomScreen: React.FC = () => {
 
   const isInstructor = isAssignedInstructor;
 
+  // Runtime diagnostics logging (Phase 1)
+  useEffect(() => {
+    if (liveClassData) {
+      console.log(`[LIVE_DEBUG] liveClassData: classId=${classId} status=${liveClassData.status}`);
+      console.log(`[LIVE_DEBUG] instructorId: ${liveClassData.instructorId || 'NONE'} (createdBy=${liveClassData.createdBy || 'NONE'})`);
+      console.log(`[LIVE_DEBUG] instructorName: ${liveClassData.instructorName || 'NONE'}`);
+      console.log(`[LIVE_DEBUG] Student identity: userId=${user?.uid || userProfile?.uid} role=${userProfile?.role} isInstructor=${isInstructor}`);
+      console.log(`[LIVE_DEBUG] current authenticated user role: ${userProfile?.role}`);
+    }
+  }, [liveClassData, user, userProfile, isInstructor, classId]);
+
   // Synchronize mic lock: instructors and administrators have their microphone unlocked
   useEffect(() => {
     if (isInstructor) {
@@ -1516,6 +1527,9 @@ export const LiveClassroomScreen: React.FC = () => {
               userId={user?.uid || userProfile?.uid || 'guest'}
               userName={resolvedDisplayName}
               role={isInstructor ? 'instructor' : 'student'}
+              instructorId={liveClassData?.instructorId || liveClassData?.createdBy}
+              instructorName={liveClassData?.instructorName}
+              initialParticipants={participants}
               onClientReady={(client) => {
                 mediaClientRef.current = client;
                 setMicOn(client.getIsAudioEnabled());

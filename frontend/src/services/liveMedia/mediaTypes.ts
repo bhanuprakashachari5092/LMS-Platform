@@ -1,4 +1,4 @@
-export type MediaRole = 'instructor' | 'mentor' | 'student';
+export type MediaRole = 'instructor' | 'mentor' | 'student' | 'admin';
 
 export type MediaConnectionState = 
   | 'idle'
@@ -29,6 +29,8 @@ export interface MediaParticipant {
   videoTrack?: MediaStreamTrack;
   screenTrack?: MediaStreamTrack;
   stream?: MediaStream;
+  /** Incremented each time a track is added/removed — forces React re-renders despite stream mutation */
+  streamVersion?: number;
 }
 
 export interface MediaRoomToken {
@@ -54,6 +56,8 @@ export interface MediaClientConfig {
   userName: string;
   role: MediaRole;
   token?: string;
+  instructorId?: string;
+  initialParticipants?: any[];
   iceServers?: RTCIceServer[];
 }
 

@@ -64,22 +64,6 @@ export class MediaClient {
 
       this.setupSocketListeners();
 
-      // Emit join class request to socket signaling room only if not already joined
-      const alreadyJoined = (this.socket as any)?._hasJoinedLiveClass === this.config.classId;
-      if (!alreadyJoined) {
-        if (this.socket) {
-          (this.socket as any)._hasJoinedLiveClass = this.config.classId;
-        }
-        this.socket.emit('join_class', {
-          classId: this.config.classId,
-          liveClassId: this.config.classId,
-          userId: this.config.userId,
-          name: this.config.userName,
-          role: this.config.role,
-          token: this.config.token,
-        });
-      }
-
       // Add self as local participant
       this.participants.set(this.config.userId, {
         userId: this.config.userId,
@@ -91,6 +75,27 @@ export class MediaClient {
         isHandRaised: false,
         connectionState: 'connected',
         stream: this.localStream,
+      });
+
+      // Seed initial participants if passed from live classroom screen
+      if (this.config.initialParticipants && Array.isArray(this.config.initialParticipants)) {
+        console.log(`[LIVE_DEBUG] MediaClient: seeding ${this.config.initialParticipants.length} initial participants`);
+        this.handleRosterSync(this.config.initialParticipants);
+      }
+
+      // Query server for latest room participants and sync state
+      this.socket.emit('join_class', {
+        classId: this.config.classId,
+        liveClassId: this.config.classId,
+        userId: this.config.userId,
+        name: this.config.userName,
+        role: this.config.role,
+        token: this.config.token,
+      }, (res: any) => {
+        console.log('[LIVE_DEBUG] MediaClient join_class ack success:', res?.success, 'participantsCount:', res?.participants?.length);
+        if (res?.participants && Array.isArray(res?.participants)) {
+          this.handleRosterSync(res.participants);
+        }
       });
 
       this.setConnectionState('connected');
@@ -718,58 +723,69 @@ export class MediaClient {
       }
     };
 
-    // Remote Track Received - MERGE TRACKS WITHOUT OVERWRITING
+    // Remote Track Received - BUILD A FRESH STREAM (never mutate in-place!)
     pc.ontrack = (event) => {
       const track = event.track;
-      console.log(`[MediaClient][AUDIO_TRACK_RECEIVED] kind=${track.kind} trackId=${track.id} from=${targetUserId}`);
+      console.log(`[LIVE_DEBUG] remote track: kind=${track.kind} trackId=${track.id} from=${targetUserId}`);
 
       let p = this.participants.get(targetUserId);
+      const isTargetInstructor =
+        this.config.instructorId && targetUserId === this.config.instructorId;
+
       if (!p) {
         p = {
           userId: targetUserId,
-          name: 'Participant',
-          role: 'student',
+          name: isTargetInstructor ? 'Lead Instructor' : 'Participant',
+          role: isTargetInstructor ? 'instructor' : 'student',
           isAudioOn: false,
           isVideoOn: false,
           isScreenSharing: false,
           isHandRaised: false,
           connectionState: 'connected',
           stream: new MediaStream(),
+          streamVersion: 0,
         };
         this.participants.set(targetUserId, p);
+      } else if (isTargetInstructor && p.role !== 'instructor') {
+        p.role = 'instructor';
       }
 
       if (!p.stream) {
         p.stream = new MediaStream();
       }
 
+      // CRITICAL: Build a NEW MediaStream instead of mutating the old one.
+      // Mutating MediaStream in-place does not change the object reference,
+      // so React will NOT re-render components that depend on participant.stream.
+      const existingTracks = p.stream.getTracks().filter((t) => t.id !== track.id && t.kind !== track.kind);
+      const newStream = new MediaStream([...existingTracks, track]);
+      p.stream = newStream;
+      p.streamVersion = (p.streamVersion || 0) + 1;
+
       if (track.kind === 'audio') {
         p.audioTrack = track;
-        p.isAudioOn = track.enabled;
-        if (!p.stream.getAudioTracks().some((t) => t.id === track.id)) {
-          p.stream.addTrack(track);
-        }
-        console.log(`[MediaClient][AUDIO_TRACK_ATTACHED] targetUserId=${targetUserId} audioTrackCount=${p.stream.getAudioTracks().length}`);
+        p.isAudioOn = true; // Track just arrived — it IS active
+        console.log(`[LIVE_DEBUG] INSTRUCTOR_AUDIO_TRACK_RECEIVED from ${targetUserId} trackId=${track.id} enabled=${track.enabled}`);
       } else if (track.kind === 'video') {
         p.videoTrack = track;
         p.isVideoOn = track.enabled;
-        if (!p.stream.getVideoTracks().some((t) => t.id === track.id)) {
-          p.stream.addTrack(track);
-        }
+        console.log(`[LIVE_DEBUG] INSTRUCTOR_VIDEO_TRACK_RECEIVED from ${targetUserId} trackId=${track.id}`);
       }
 
+      console.log(`[LIVE_DEBUG] stream rebuilt: targetUserId=${targetUserId} audio=${newStream.getAudioTracks().length} video=${newStream.getVideoTracks().length} version=${p.streamVersion}`);
+
       track.onended = () => {
-        if (p?.stream && p.stream.getTracks().some((t) => t.id === track.id)) {
-          try {
-            p.stream.removeTrack(track);
-          } catch {}
-        }
-        if (track.kind === 'audio' && p) {
-          p.audioTrack = undefined;
-          p.isAudioOn = false;
-        } else if (track.kind === 'video' && p) {
-          p.videoTrack = undefined;
-          p.isVideoOn = false;
+        if (p) {
+          const remainingTracks = p.stream?.getTracks().filter((t) => t.id !== track.id) || [];
+          p.stream = new MediaStream(remainingTracks);
+          p.streamVersion = (p.streamVersion || 0) + 1;
+          if (track.kind === 'audio') {
+            p.audioTrack = undefined;
+            p.isAudioOn = false;
+          } else if (track.kind === 'video') {
+            p.videoTrack = undefined;
+            p.isVideoOn = false;
+          }
         }
         this.emit('participantsUpdate', this.getParticipants());
       };
@@ -792,16 +808,16 @@ export class MediaClient {
     // Track connection state changes
     pc.onconnectionstatechange = () => {
       const state = pc.connectionState;
-      console.log(`[MediaClient] Connection state with ${targetUserId}: ${state}`);
+      console.log(`[LIVE_DEBUG] Remote instructor peer connected: targetUserId=${targetUserId} state=${state}`);
       const p = this.participants.get(targetUserId);
       if (state === 'connected') {
         if (p) {
           p.connectionState = 'connected';
-          console.log(`[MediaClient][REMOTE_AUDIO_RECONNECTED] targetUserId=${targetUserId}`);
+          console.log(`[LIVE_DEBUG] PeerConnection connected: targetUserId=${targetUserId}`);
         }
         this.emit('participantsUpdate', this.getParticipants());
       } else if (state === 'failed') {
-        console.warn(`[MediaClient][WEBRTC_CONNECTION_FAILED] targetUserId=${targetUserId}`);
+        console.warn(`[LIVE_DEBUG] WEBRTC_CONNECTION_FAILED: targetUserId=${targetUserId}`);
         if (p) p.connectionState = 'disconnected';
         this.emit('participantsUpdate', this.getParticipants());
         // Retry ICE if initiator
@@ -862,6 +878,7 @@ export class MediaClient {
 
   private async handleReceiveOffer(senderUserId: string, offer: RTCSessionDescriptionInit): Promise<void> {
     if (!this.socket) return;
+    console.log(`[LIVE_DEBUG] handleReceiveOffer from senderUserId=${senderUserId}`);
     try {
       const pc = this.getOrCreatePeerConnection(senderUserId);
 
@@ -872,15 +889,15 @@ export class MediaClient {
       if (offerCollision) {
         if (!isPolite) {
           // Impolite peer rejects incoming colliding offer; its own offer takes precedence
-          console.log(`[MediaClient] Glare collision: impolite peer ignoring offer from ${senderUserId}`);
+          console.log(`[LIVE_DEBUG] Glare collision: impolite peer ignoring offer from ${senderUserId}`);
           return;
         }
         // Polite peer rolls back local description to accept remote offer
-        console.log(`[MediaClient] Glare collision: polite peer rolling back for ${senderUserId}`);
+        console.log(`[LIVE_DEBUG] Glare collision: polite peer rolling back for ${senderUserId}`);
         try {
           await pc.setLocalDescription({ type: 'rollback' } as any);
         } catch (rbErr) {
-          console.warn('[MediaClient] Rollback error:', rbErr);
+          console.warn('[LIVE_DEBUG] Rollback error:', rbErr);
         }
       }
 
@@ -892,7 +909,7 @@ export class MediaClient {
         try {
           await pc.addIceCandidate(new RTCIceCandidate(cand));
         } catch (candErr) {
-          console.warn('[MediaClient] Candidate add error:', candErr);
+          console.warn('[LIVE_DEBUG] Candidate add error:', candErr);
         }
       }
       this.pendingCandidates.delete(senderUserId);
@@ -905,15 +922,16 @@ export class MediaClient {
         targetUserId: senderUserId,
         answer,
       });
-      console.log(`[MediaClient][WEBRTC_NEGOTIATION_COMPLETED] targetUserId=${senderUserId}`);
+      console.log(`[LIVE_DEBUG] WebRTC negotiation answered successfully for targetUserId=${senderUserId}`);
     } catch (err) {
-      console.warn(`[MediaClient] Error handling offer from ${senderUserId}:`, err);
+      console.warn(`[LIVE_DEBUG] Error handling offer from ${senderUserId}:`, err);
     }
   }
 
   private async handleReceiveAnswer(senderUserId: string, answer: RTCSessionDescriptionInit): Promise<void> {
     const pc = this.peerConnections.get(senderUserId);
     if (!pc) return;
+    console.log(`[LIVE_DEBUG] handleReceiveAnswer from senderUserId=${senderUserId} signalingState=${pc.signalingState}`);
     try {
       if (pc.signalingState === 'have-local-offer') {
         await pc.setRemoteDescription(new RTCSessionDescription(answer));
@@ -924,14 +942,14 @@ export class MediaClient {
           try {
             await pc.addIceCandidate(new RTCIceCandidate(cand));
           } catch (candErr) {
-            console.warn('[MediaClient] Candidate add error:', candErr);
+            console.warn('[LIVE_DEBUG] Candidate add error:', candErr);
           }
         }
         this.pendingCandidates.delete(senderUserId);
-        console.log(`[MediaClient][WEBRTC_NEGOTIATION_COMPLETED] targetUserId=${senderUserId} via answer`);
+        console.log(`[LIVE_DEBUG] WebRTC negotiation completed via answer from targetUserId=${senderUserId}`);
       }
     } catch (err) {
-      console.warn(`[MediaClient] Error handling answer from ${senderUserId}:`, err);
+      console.warn(`[LIVE_DEBUG] Error handling answer from ${senderUserId}:`, err);
     }
   }
 
@@ -966,8 +984,24 @@ export class MediaClient {
 
   // --- SOCKET SIGNALING SETUP ---
 
+  private handleRosterSync(users: Array<any>): void {
+    if (!Array.isArray(users)) return;
+    console.log(`[LIVE_DEBUG] handleRosterSync: syncing ${users.length} participants`);
+    users.forEach((u) => {
+      const uId = u.userId || u.id || u.uid;
+      if (uId && uId !== this.config.userId) {
+        this.handlePeerJoined(uId, u.name, (u.role as MediaRole) || 'student');
+      }
+    });
+  }
+
   private handlePeerJoined(userId: string, name: string, role: MediaRole): void {
     if (!userId || userId === this.config.userId) return;
+
+    let resolvedRole = role || 'student';
+    if (this.config.instructorId && userId === this.config.instructorId) {
+      resolvedRole = 'instructor';
+    }
 
     let p = this.participants.get(userId);
     let isNew = false;
@@ -975,8 +1009,8 @@ export class MediaClient {
       isNew = true;
       p = {
         userId,
-        name: name || 'Participant',
-        role: role || 'student',
+        name: name || (resolvedRole === 'instructor' ? 'Lead Instructor' : 'Participant'),
+        role: resolvedRole,
         isAudioOn: false,
         isVideoOn: false,
         isScreenSharing: false,
@@ -988,15 +1022,51 @@ export class MediaClient {
       this.emit('participantsUpdate', this.getParticipants());
     } else {
       if (name && p.name !== name) p.name = name;
-      if (role && p.role !== role) p.role = role;
+      if (resolvedRole && p.role !== resolvedRole) p.role = resolvedRole;
     }
 
-    // Deterministic polite/impolite initiator assignment:
-    // Only the peer with higher userId initiates offer to avoid duplicate colliding offers.
-    if (this.config.userId > userId) {
+    const isLocalInstructor =
+      this.config.role === 'instructor' ||
+      this.config.role === 'mentor' ||
+      (this.config.role as string) === 'admin';
+
+    // Proactive offer initiation:
+    // 1. If local user is instructor/staff, ALWAYS initiate offer to any peer
+    // 2. For student-to-student or fallback, peer with higher userId initiates
+    const shouldInitiateOffer = isLocalInstructor || this.config.userId > userId;
+
+    console.log(
+      `[LIVE_DEBUG] handlePeerJoined: peer=${userId} name=${name} role=${resolvedRole} isLocalInstructor=${isLocalInstructor} shouldInitiateOffer=${shouldInitiateOffer}`
+    );
+
+    if (shouldInitiateOffer) {
       const existingPc = this.peerConnections.get(userId);
       if (!existingPc || existingPc.connectionState === 'disconnected' || existingPc.connectionState === 'failed') {
+        console.log(`[LIVE_DEBUG] Proactively initiating offer to ${userId}`);
         this.initiateOffer(userId);
+      }
+    } else {
+      // Student waiting for instructor's offer:
+      // If peer is an instructor and after 1.5s no offer has been received, initiate offer as student fallback
+      const isPeerInstructor =
+        resolvedRole === 'instructor' ||
+        resolvedRole === 'mentor' ||
+        (resolvedRole as string) === 'admin' ||
+        (this.config.instructorId && userId === this.config.instructorId);
+
+      if (isPeerInstructor) {
+        setTimeout(() => {
+          const pc = this.peerConnections.get(userId);
+          if (
+            !pc ||
+            pc.connectionState === 'new' ||
+            pc.connectionState === 'disconnected' ||
+            (pc.signalingState === 'stable' && !pc.remoteDescription)
+          ) {
+            console.log(`[LIVE_DEBUG] Student fallback: Proactively requesting media from instructor=${userId}`);
+            this.initiateOffer(userId);
+          }
+        }, 1500);
       }
     }
   }
@@ -1006,29 +1076,61 @@ export class MediaClient {
 
     // A new peer joined the live class
     this.socket.on('user_joined', (data: { userId: string; name: string; role: MediaRole }) => {
+      console.log(`[LIVE_DEBUG] user_joined event:`, data);
       this.handlePeerJoined(data.userId, data.name, data.role);
     });
 
     // Legacy alias
     this.socket.on('student:joined', (data: { userId: string; name: string; role: MediaRole }) => {
+      console.log(`[LIVE_DEBUG] student:joined event:`, data);
       this.handlePeerJoined(data.userId, data.name, data.role);
     });
 
     // Participant left the classroom
     this.socket.on('user_left', (data: { userId: string }) => {
+      console.log(`[LIVE_DEBUG] user_left event:`, data?.userId);
       this.handleUserLeft(data.userId);
     });
 
     this.socket.on('student:left', (data: { userId: string }) => {
+      console.log(`[LIVE_DEBUG] student:left event:`, data?.userId);
       this.handleUserLeft(data.userId);
     });
 
     // Participants roster update
     this.socket.on('participants_update', (data: { users: Array<{ userId: string; name: string; role: MediaRole }> }) => {
-      if (data.users && Array.isArray(data.users)) {
-        data.users.forEach((u) => {
-          this.handlePeerJoined(u.userId, u.name, u.role);
-        });
+      console.log(`[LIVE_DEBUG] participants_update event:`, data?.users?.length);
+      if (data?.users && Array.isArray(data.users)) {
+        this.handleRosterSync(data.users);
+      }
+    });
+
+    // Authoritative room presence & join snapshot events
+    this.socket.on('liveClass:joined', (data: any) => {
+      console.log('[LIVE_DEBUG] liveClass:joined snapshot:', data?.participants?.length);
+      if (data?.participants && Array.isArray(data.participants)) {
+        this.handleRosterSync(data.participants);
+      }
+    });
+
+    this.socket.on('liveClass:presence', (data: any) => {
+      console.log('[LIVE_DEBUG] liveClass:presence event:', data?.participants?.length);
+      if (data?.participants && Array.isArray(data.participants)) {
+        this.handleRosterSync(data.participants);
+      }
+    });
+
+    this.socket.on('liveClass:instructor_joined', (data: any) => {
+      console.log('[LIVE_DEBUG] liveClass:instructor_joined event:', data?.instructorId, data?.name);
+      if (data?.instructorId) {
+        this.handlePeerJoined(data.instructorId, data.name || 'Lead Instructor', 'instructor');
+      }
+    });
+
+    this.socket.on('instructor:connected', (data: any) => {
+      console.log('[LIVE_DEBUG] instructor:connected event:', data?.instructorId, data?.name);
+      if (data?.instructorId) {
+        this.handlePeerJoined(data.instructorId, data.name || 'Lead Instructor', 'instructor');
       }
     });
 
