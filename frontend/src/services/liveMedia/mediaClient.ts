@@ -42,6 +42,9 @@ export class MediaClient {
   private isMutedByInstructor = false;
   private pinnedUserId: string | null = null;
 
+  // WebRTC negotiation state guards to eliminate glare and race conditions
+  private makingOffer: Map<string, boolean> = new Map();
+
   constructor(config: MediaClientConfig) {
     this.config = {
       ...config,
@@ -135,6 +138,7 @@ export class MediaClient {
     });
     this.peerConnections.clear();
     this.pendingCandidates.clear();
+    this.makingOffer.clear();
 
     if (this.socket) {
       this.socket.emit('leave_class', {
@@ -353,7 +357,7 @@ export class MediaClient {
           cursor: 'always' as any,
           frameRate: { max: 30 },
         },
-        audio: true,
+        audio: false, // Ensure display media does not capture tab audio or interfere with microphone track
       });
 
       this.isScreenSharing = true;
@@ -578,7 +582,7 @@ export class MediaClient {
   // --- ACCESSORS ---
 
   public getParticipants(): MediaParticipant[] {
-    return Array.from(this.participants.values());
+    return Array.from(this.participants.values()).map((p) => ({ ...p }));
   }
 
   public getLocalStream(): MediaStream {
@@ -714,38 +718,112 @@ export class MediaClient {
       }
     };
 
-    // Remote Track Received
+    // Remote Track Received - MERGE TRACKS WITHOUT OVERWRITING
     pc.ontrack = (event) => {
-      const remoteStream = event.streams[0] || new MediaStream([event.track]);
-      const p = this.participants.get(targetUserId);
-      if (p) {
-        p.stream = remoteStream;
-        p.isAudioOn = remoteStream.getAudioTracks().some((t) => t.enabled);
-        p.isVideoOn = remoteStream.getVideoTracks().some((t) => t.enabled);
-        this.emit('participantsUpdate', this.getParticipants());
+      const track = event.track;
+      console.log(`[MediaClient][AUDIO_TRACK_RECEIVED] kind=${track.kind} trackId=${track.id} from=${targetUserId}`);
+
+      let p = this.participants.get(targetUserId);
+      if (!p) {
+        p = {
+          userId: targetUserId,
+          name: 'Participant',
+          role: 'student',
+          isAudioOn: false,
+          isVideoOn: false,
+          isScreenSharing: false,
+          isHandRaised: false,
+          connectionState: 'connected',
+          stream: new MediaStream(),
+        };
+        this.participants.set(targetUserId, p);
       }
+
+      if (!p.stream) {
+        p.stream = new MediaStream();
+      }
+
+      if (track.kind === 'audio') {
+        p.audioTrack = track;
+        p.isAudioOn = track.enabled;
+        if (!p.stream.getAudioTracks().some((t) => t.id === track.id)) {
+          p.stream.addTrack(track);
+        }
+        console.log(`[MediaClient][AUDIO_TRACK_ATTACHED] targetUserId=${targetUserId} audioTrackCount=${p.stream.getAudioTracks().length}`);
+      } else if (track.kind === 'video') {
+        p.videoTrack = track;
+        p.isVideoOn = track.enabled;
+        if (!p.stream.getVideoTracks().some((t) => t.id === track.id)) {
+          p.stream.addTrack(track);
+        }
+      }
+
+      track.onended = () => {
+        if (p?.stream && p.stream.getTracks().some((t) => t.id === track.id)) {
+          try {
+            p.stream.removeTrack(track);
+          } catch {}
+        }
+        if (track.kind === 'audio' && p) {
+          p.audioTrack = undefined;
+          p.isAudioOn = false;
+        } else if (track.kind === 'video' && p) {
+          p.videoTrack = undefined;
+          p.isVideoOn = false;
+        }
+        this.emit('participantsUpdate', this.getParticipants());
+      };
+
+      track.onmute = () => {
+        if (track.kind === 'audio' && p) p.isAudioOn = false;
+        else if (track.kind === 'video' && p) p.isVideoOn = false;
+        this.emit('participantsUpdate', this.getParticipants());
+      };
+
+      track.onunmute = () => {
+        if (track.kind === 'audio' && p) p.isAudioOn = true;
+        else if (track.kind === 'video' && p) p.isVideoOn = true;
+        this.emit('participantsUpdate', this.getParticipants());
+      };
+
+      this.emit('participantsUpdate', this.getParticipants());
     };
 
     // Track connection state changes
     pc.onconnectionstatechange = () => {
       const state = pc.connectionState;
+      console.log(`[MediaClient] Connection state with ${targetUserId}: ${state}`);
+      const p = this.participants.get(targetUserId);
       if (state === 'connected') {
-        const p = this.participants.get(targetUserId);
-        if (p) p.connectionState = 'connected';
+        if (p) {
+          p.connectionState = 'connected';
+          console.log(`[MediaClient][REMOTE_AUDIO_RECONNECTED] targetUserId=${targetUserId}`);
+        }
         this.emit('participantsUpdate', this.getParticipants());
-      } else if (state === 'disconnected' || state === 'failed') {
-        const p = this.participants.get(targetUserId);
+      } else if (state === 'failed') {
+        console.warn(`[MediaClient][WEBRTC_CONNECTION_FAILED] targetUserId=${targetUserId}`);
+        if (p) p.connectionState = 'disconnected';
+        this.emit('participantsUpdate', this.getParticipants());
+        // Retry ICE if initiator
+        if (this.config.userId > targetUserId) {
+          try {
+            pc.restartIce();
+            this.initiateOffer(targetUserId);
+          } catch {}
+        }
+      } else if (state === 'disconnected') {
         if (p) p.connectionState = 'disconnected';
         this.emit('participantsUpdate', this.getParticipants());
       }
     };
 
-    // Renegotiate when tracks change (e.g. mic, cam, screen share toggled)
+    // Renegotiate when tracks change
     pc.onnegotiationneeded = async () => {
-      try {
-        await this.initiateOffer(targetUserId);
-      } catch (err) {
-        console.warn('[MediaClient] Negotiation error:', err);
+      // Deterministic negotiation: only initiator initiates renegotiation
+      if (this.config.userId > targetUserId) {
+        if (!this.makingOffer.get(targetUserId) && pc.signalingState === 'stable') {
+          await this.initiateOffer(targetUserId);
+        }
       }
     };
 
@@ -755,11 +833,14 @@ export class MediaClient {
 
   private async initiateOffer(targetUserId: string): Promise<void> {
     if (!this.socket) return;
+    if (this.makingOffer.get(targetUserId)) return;
     try {
+      this.makingOffer.set(targetUserId, true);
       const pc = this.getOrCreatePeerConnection(targetUserId);
       if (pc.signalingState !== 'stable') {
-        return; // Glare protection: polite rollback will handle incoming offer
+        return; // Glare protection: wait for remote offer or completion
       }
+      console.log(`[MediaClient][WEBRTC_NEGOTIATION_STARTED] targetUserId=${targetUserId}`);
       const offer = await pc.createOffer({
         offerToReceiveAudio: true,
         offerToReceiveVideo: true,
@@ -774,6 +855,8 @@ export class MediaClient {
       });
     } catch (err) {
       console.warn(`[MediaClient] Failed to initiate offer to ${targetUserId}:`, err);
+    } finally {
+      this.makingOffer.set(targetUserId, false);
     }
   }
 
@@ -784,15 +867,21 @@ export class MediaClient {
 
       // WebRTC glare protection
       const isPolite = this.config.userId < senderUserId;
-      if (pc.signalingState !== 'stable') {
+      const offerCollision = this.makingOffer.get(senderUserId) || pc.signalingState !== 'stable';
+
+      if (offerCollision) {
         if (!isPolite) {
           // Impolite peer rejects incoming colliding offer; its own offer takes precedence
+          console.log(`[MediaClient] Glare collision: impolite peer ignoring offer from ${senderUserId}`);
           return;
         }
         // Polite peer rolls back local description to accept remote offer
+        console.log(`[MediaClient] Glare collision: polite peer rolling back for ${senderUserId}`);
         try {
           await pc.setLocalDescription({ type: 'rollback' } as any);
-        } catch {}
+        } catch (rbErr) {
+          console.warn('[MediaClient] Rollback error:', rbErr);
+        }
       }
 
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
@@ -802,7 +891,9 @@ export class MediaClient {
       for (const cand of queued) {
         try {
           await pc.addIceCandidate(new RTCIceCandidate(cand));
-        } catch {}
+        } catch (candErr) {
+          console.warn('[MediaClient] Candidate add error:', candErr);
+        }
       }
       this.pendingCandidates.delete(senderUserId);
 
@@ -814,6 +905,7 @@ export class MediaClient {
         targetUserId: senderUserId,
         answer,
       });
+      console.log(`[MediaClient][WEBRTC_NEGOTIATION_COMPLETED] targetUserId=${senderUserId}`);
     } catch (err) {
       console.warn(`[MediaClient] Error handling offer from ${senderUserId}:`, err);
     }
@@ -823,16 +915,21 @@ export class MediaClient {
     const pc = this.peerConnections.get(senderUserId);
     if (!pc) return;
     try {
-      await pc.setRemoteDescription(new RTCSessionDescription(answer));
+      if (pc.signalingState === 'have-local-offer') {
+        await pc.setRemoteDescription(new RTCSessionDescription(answer));
 
-      // Flush queued ICE candidates
-      const queued = this.pendingCandidates.get(senderUserId) || [];
-      for (const cand of queued) {
-        try {
-          await pc.addIceCandidate(new RTCIceCandidate(cand));
-        } catch {}
+        // Flush queued ICE candidates
+        const queued = this.pendingCandidates.get(senderUserId) || [];
+        for (const cand of queued) {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(cand));
+          } catch (candErr) {
+            console.warn('[MediaClient] Candidate add error:', candErr);
+          }
+        }
+        this.pendingCandidates.delete(senderUserId);
+        console.log(`[MediaClient][WEBRTC_NEGOTIATION_COMPLETED] targetUserId=${senderUserId} via answer`);
       }
-      this.pendingCandidates.delete(senderUserId);
     } catch (err) {
       console.warn(`[MediaClient] Error handling answer from ${senderUserId}:`, err);
     }
@@ -869,50 +966,52 @@ export class MediaClient {
 
   // --- SOCKET SIGNALING SETUP ---
 
+  private handlePeerJoined(userId: string, name: string, role: MediaRole): void {
+    if (!userId || userId === this.config.userId) return;
+
+    let p = this.participants.get(userId);
+    let isNew = false;
+    if (!p) {
+      isNew = true;
+      p = {
+        userId,
+        name: name || 'Participant',
+        role: role || 'student',
+        isAudioOn: false,
+        isVideoOn: false,
+        isScreenSharing: false,
+        isHandRaised: false,
+        connectionState: 'connecting',
+        stream: new MediaStream(),
+      };
+      this.participants.set(userId, p);
+      this.emit('participantsUpdate', this.getParticipants());
+    } else {
+      if (name && p.name !== name) p.name = name;
+      if (role && p.role !== role) p.role = role;
+    }
+
+    // Deterministic polite/impolite initiator assignment:
+    // Only the peer with higher userId initiates offer to avoid duplicate colliding offers.
+    if (this.config.userId > userId) {
+      const existingPc = this.peerConnections.get(userId);
+      if (!existingPc || existingPc.connectionState === 'disconnected' || existingPc.connectionState === 'failed') {
+        this.initiateOffer(userId);
+      }
+    }
+  }
+
   private setupSocketListeners(): void {
     if (!this.socket) return;
 
     // A new peer joined the live class
     this.socket.on('user_joined', (data: { userId: string; name: string; role: MediaRole }) => {
-      if (data.userId !== this.config.userId) {
-        if (!this.participants.has(data.userId)) {
-          this.participants.set(data.userId, {
-            userId: data.userId,
-            name: data.name,
-            role: data.role,
-            isAudioOn: false,
-            isVideoOn: false,
-            isScreenSharing: false,
-            isHandRaised: false,
-            connectionState: 'connecting',
-          });
-          this.emit('participantsUpdate', this.getParticipants());
-        }
-        // Exactly one peer initiates the offer deterministically
-        if (this.config.userId > data.userId) {
-          this.initiateOffer(data.userId);
-        }
-      }
+      this.handlePeerJoined(data.userId, data.name, data.role);
     });
 
     // Legacy alias
     this.socket.on('student:joined', (data: { userId: string; name: string; role: MediaRole }) => {
-      if (data.userId !== this.config.userId && !this.participants.has(data.userId)) {
-        this.participants.set(data.userId, {
-          userId: data.userId,
-          name: data.name,
-          role: data.role,
-          isAudioOn: false,
-          isVideoOn: false,
-          isScreenSharing: false,
-          isHandRaised: false,
-          connectionState: 'connecting',
-        });
-        this.emit('participantsUpdate', this.getParticipants());
-        if (this.config.userId > data.userId) {
-          this.initiateOffer(data.userId);
-        }
-      }
+      this.handlePeerJoined(data.userId, data.name, data.role);
     });
 
     // Participant left the classroom
@@ -928,26 +1027,8 @@ export class MediaClient {
     this.socket.on('participants_update', (data: { users: Array<{ userId: string; name: string; role: MediaRole }> }) => {
       if (data.users && Array.isArray(data.users)) {
         data.users.forEach((u) => {
-          if (u.userId !== this.config.userId) {
-            if (!this.participants.has(u.userId)) {
-              this.participants.set(u.userId, {
-                userId: u.userId,
-                name: u.name,
-                role: u.role,
-                isAudioOn: false,
-                isVideoOn: false,
-                isScreenSharing: false,
-                isHandRaised: false,
-                connectionState: 'connecting',
-              });
-              // Initiate connection if our ID is higher
-              if (this.config.userId > u.userId) {
-                this.initiateOffer(u.userId);
-              }
-            }
-          }
+          this.handlePeerJoined(u.userId, u.name, u.role);
         });
-        this.emit('participantsUpdate', this.getParticipants());
       }
     });
 
@@ -1198,6 +1279,7 @@ export class MediaClient {
       this.peerConnections.delete(userId);
     }
     this.pendingCandidates.delete(userId);
+    this.makingOffer.delete(userId);
     this.emit('participantsUpdate', this.getParticipants());
   }
 }

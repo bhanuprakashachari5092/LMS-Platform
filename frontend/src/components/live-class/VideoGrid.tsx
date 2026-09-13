@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { Mic, MicOff, Monitor, User, ShieldCheck, Hand, Maximize2, Minimize2, Pin, VolumeX, Volume2 } from 'lucide-react';
+import { Mic, MicOff, Monitor, User, ShieldCheck, Hand, Maximize2, Minimize2, Pin, VolumeX } from 'lucide-react';
 import type { MediaParticipant } from '@/services/liveMedia/mediaTypes';
 
 interface VideoTileProps {
@@ -22,8 +22,6 @@ export const VideoTile: React.FC<VideoTileProps> = ({
   canPin = false,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const [isAudioBlocked, setIsAudioBlocked] = useState(false);
 
   useEffect(() => {
     if (videoRef.current && participant.stream) {
@@ -31,39 +29,6 @@ export const VideoTile: React.FC<VideoTileProps> = ({
       videoRef.current.play().catch(() => {});
     }
   }, [participant.stream, participant.isVideoOn]);
-
-  useEffect(() => {
-    if (!isLocal && audioRef.current && participant.stream) {
-      audioRef.current.srcObject = participant.stream;
-      const playPromise = audioRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => setIsAudioBlocked(false))
-          .catch((err) => {
-            console.warn('[VideoTile] Remote audio play blocked by browser autoplay policy:', err?.name);
-            setIsAudioBlocked(true);
-          });
-      }
-    }
-  }, [participant.stream, isLocal]);
-
-  // Window-level unlock: user's first click or keystroke automatically unlocks audio
-  useEffect(() => {
-    if (isLocal) return;
-    const unlockAudio = () => {
-      if (audioRef.current && participant.stream) {
-        audioRef.current.play().then(() => {
-          setIsAudioBlocked(false);
-        }).catch(() => {});
-      }
-    };
-    window.addEventListener('click', unlockAudio, { once: true });
-    window.addEventListener('keydown', unlockAudio, { once: true });
-    return () => {
-      window.removeEventListener('click', unlockAudio);
-      window.removeEventListener('keydown', unlockAudio);
-    };
-  }, [participant.stream, isLocal]);
 
   const isInstructor = participant.role === 'instructor' || participant.role === 'mentor';
   const isSpeaking = Boolean(participant.isSpeaking);
@@ -82,33 +47,13 @@ export const VideoTile: React.FC<VideoTileProps> = ({
           : 'border-slate-800 hover:border-slate-700 shadow-md'
       } ${isHero ? 'w-full h-full min-h-[300px] sm:min-h-[420px]' : 'aspect-video w-full'}`}
     >
-      {/* Remote Audio Stream (Persists regardless of camera toggle) */}
-      {!isLocal && <audio ref={audioRef} autoPlay playsInline />}
-
-      {/* Browser Autoplay Blocked Alert Badge */}
-      {isAudioBlocked && !isLocal && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            if (audioRef.current) {
-              audioRef.current.play().then(() => setIsAudioBlocked(false)).catch(() => {});
-            }
-          }}
-          className="absolute top-12 z-20 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-2xl cursor-pointer animate-bounce"
-          title="Click to enable sound"
-        >
-          <Volume2 className="w-4 h-4" />
-          <span>Click to Enable Audio</span>
-        </button>
-      )}
-
-      {/* Actual Live Video Track */}
+      {/* Actual Live Video Track (Always muted to avoid double audio; audio handled by persistent root pool) */}
       {participant.isVideoOn && participant.stream ? (
         <video
           ref={videoRef}
           autoPlay
           playsInline
-          muted={isLocal} // Mute local video to prevent audio feedback loop
+          muted={true}
           className={`w-full h-full object-cover ${isLocal ? 'scale-x-[-1]' : ''}`}
         />
       ) : (

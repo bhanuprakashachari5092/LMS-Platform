@@ -1,10 +1,73 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { roomManager } from '@/services/liveMedia/roomManager';
 import type { MediaClient } from '@/services/liveMedia/mediaClient';
 import type { MediaParticipant, MediaRole, MediaConnectionState } from '@/services/liveMedia/mediaTypes';
 import { VideoGrid } from './VideoGrid';
-import { Loader2, ShieldAlert, WifiOff } from 'lucide-react';
+import { Loader2, ShieldAlert, WifiOff, Volume2 } from 'lucide-react';
 import { toast } from 'sonner';
+
+interface RemoteAudioPlayerProps {
+  participant: MediaParticipant;
+  onPlayStarted?: () => void;
+  onPlayBlocked?: () => void;
+}
+
+const RemoteAudioPlayer: React.FC<RemoteAudioPlayerProps> = ({
+  participant,
+  onPlayStarted,
+  onPlayBlocked,
+}) => {
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el || !participant.stream) return;
+
+    if (el.srcObject !== participant.stream) {
+      el.srcObject = participant.stream;
+      console.log(`[RemoteAudioPlayer][AUDIO_TRACK_ATTACHED] userId=${participant.userId} streamId=${participant.stream.id}`);
+    }
+
+    const attemptPlay = () => {
+      const playPromise = el.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            console.log(`[RemoteAudioPlayer][AUDIO_PLAY_STARTED] userId=${participant.userId} role=${participant.role}`);
+            onPlayStarted?.();
+          })
+          .catch((err) => {
+            console.warn(`[RemoteAudioPlayer][AUDIO_PLAY_BLOCKED] userId=${participant.userId}:`, err?.name);
+            onPlayBlocked?.();
+          });
+      }
+    };
+
+    attemptPlay();
+
+    // Global document interaction unlock
+    const unlockAudio = () => {
+      if (el.paused) {
+        el.play()
+          .then(() => {
+            console.log(`[RemoteAudioPlayer][AUDIO_PLAY_STARTED] (user gesture) userId=${participant.userId}`);
+            onPlayStarted?.();
+          })
+          .catch(() => {});
+      }
+    };
+
+    window.addEventListener('click', unlockAudio, { once: true });
+    window.addEventListener('keydown', unlockAudio, { once: true });
+
+    return () => {
+      window.removeEventListener('click', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+    };
+  }, [participant.stream, participant.audioTrack, participant.isAudioOn]);
+
+  return <audio ref={audioRef} autoPlay playsInline style={{ display: 'none' }} />;
+};
 
 export interface KaizenQClassroomProps {
   classId: string;
@@ -36,6 +99,28 @@ export const KaizenQClassroom: React.FC<KaizenQClassroomProps> = ({
   const [client, setClient] = useState<MediaClient | null>(null);
   const [participants, setParticipants] = useState<MediaParticipant[]>([]);
   const [connectionState, setConnectionState] = useState<MediaConnectionState>('idle');
+  const [isAutoplayBlocked, setIsAutoplayBlocked] = useState(false);
+
+  // Store latest props in refs to prevent unnecessary room leave/rejoin cycles on cosmetic re-renders
+  const propsRef = useRef({
+    userName,
+    role,
+    token,
+    onLeaveOrEndClass,
+    onClientReady,
+    onMediaConnectionStateChange,
+  });
+
+  useEffect(() => {
+    propsRef.current = {
+      userName,
+      role,
+      token,
+      onLeaveOrEndClass,
+      onClientReady,
+      onMediaConnectionStateChange,
+    };
+  });
 
   useEffect(() => {
     let activeClient: MediaClient | null = null;
@@ -43,28 +128,28 @@ export const KaizenQClassroom: React.FC<KaizenQClassroomProps> = ({
     const initRoom = async () => {
       try {
         setConnectionState('connecting');
-        onMediaConnectionStateChange?.('connecting');
+        propsRef.current.onMediaConnectionStateChange?.('connecting');
 
         activeClient = await roomManager.joinRoom({
           classId,
           userId,
-          userName,
-          role,
-          token,
+          userName: propsRef.current.userName,
+          role: propsRef.current.role,
+          token: propsRef.current.token,
         });
 
         setClient(activeClient);
         setParticipants(activeClient.getParticipants());
         const state = activeClient.getConnectionState();
         setConnectionState(state);
-        onMediaConnectionStateChange?.(state);
+        propsRef.current.onMediaConnectionStateChange?.(state);
 
-        onClientReady?.(activeClient);
+        propsRef.current.onClientReady?.(activeClient);
 
         // Attach listeners
         activeClient.on('connectionStateChange', (s: MediaConnectionState) => {
           setConnectionState(s);
-          onMediaConnectionStateChange?.(s);
+          propsRef.current.onMediaConnectionStateChange?.(s);
         });
 
         activeClient.on('participantsUpdate', (list: MediaParticipant[]) => {
@@ -97,12 +182,12 @@ export const KaizenQClassroom: React.FC<KaizenQClassroomProps> = ({
 
         activeClient.on('kicked', () => {
           toast.error('You have been removed from the live session.');
-          onLeaveOrEndClass();
+          propsRef.current.onLeaveOrEndClass();
         });
       } catch (err) {
         console.error('[KaizenQClassroom] Failed to join room:', err);
         setConnectionState('failed');
-        onMediaConnectionStateChange?.('failed');
+        propsRef.current.onMediaConnectionStateChange?.('failed');
       }
     };
 
@@ -111,7 +196,15 @@ export const KaizenQClassroom: React.FC<KaizenQClassroomProps> = ({
     return () => {
       roomManager.leaveRoom();
     };
-  }, [classId, userId, userName, role, token]);
+  }, [classId, userId]);
+
+  const handleManualUnlockAudio = () => {
+    const audioElements = document.querySelectorAll<HTMLAudioElement>('audio');
+    audioElements.forEach((el) => {
+      el.play().catch(() => {});
+    });
+    setIsAutoplayBlocked(false);
+  };
 
   if (connectionState === 'connecting' || connectionState === 'authenticating') {
     return (
@@ -145,6 +238,34 @@ export const KaizenQClassroom: React.FC<KaizenQClassroomProps> = ({
 
   return (
     <div className="w-full h-full flex flex-col bg-slate-950 relative overflow-hidden font-sans">
+      {/* 1. Dedicated Persistent Remote Audio Layer (DECOUPLED FROM VIDEOTILE) */}
+      <div className="hidden" aria-hidden="true">
+        {participants
+          .filter((p) => p.userId !== userId)
+          .map((p) => (
+            <RemoteAudioPlayer
+              key={p.userId}
+              participant={p}
+              onPlayStarted={() => setIsAutoplayBlocked(false)}
+              onPlayBlocked={() => setIsAutoplayBlocked(true)}
+            />
+          ))}
+      </div>
+
+      {/* 2. Global Autoplay Block Alert Badge */}
+      {isAutoplayBlocked && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50">
+          <button
+            onClick={handleManualUnlockAudio}
+            className="px-4 py-2 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-2 shadow-2xl cursor-pointer animate-bounce border border-amber-300"
+            title="Click to enable sound"
+          >
+            <Volume2 className="w-4 h-4" />
+            <span>Click to Enable Classroom Audio</span>
+          </button>
+        </div>
+      )}
+
       {/* Connection State Banner (if reconnecting) */}
       {connectionState === 'reconnecting' && (
         <div className="bg-amber-500/20 border-b border-amber-500/40 text-amber-300 px-4 py-2 text-xs font-bold flex items-center justify-center gap-2">
@@ -166,3 +287,5 @@ export const KaizenQClassroom: React.FC<KaizenQClassroomProps> = ({
     </div>
   );
 };
+
+export default KaizenQClassroom;
