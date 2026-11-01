@@ -8,6 +8,9 @@ public record InternshipDetailDTO(
         String title,
         String slug,
         String domain,
+        String department,
+        String employmentType,
+        String experienceLevel,
         String internshipType,
         String duration,
         String location,
@@ -17,6 +20,7 @@ public record InternshipDetailDTO(
         String stipendAmount,
         String eligibility,
         String requiredSkills,
+        String preferredSkills,
         String description,
         String responsibilities,
         String learningOutcomes,
@@ -37,4 +41,3 @@ public record InternshipDetailDTO(
             Integer displayOrder
     ) {}
 }
-

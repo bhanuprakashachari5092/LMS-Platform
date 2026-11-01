@@ -16,7 +16,8 @@ public record InternshipEnrollmentDTO(
         LocalDate completionDate,
         Integer progressPercentage,
         String mentorNotes,
-        List<EnrollmentTaskSubmissionDTO> taskSubmissions
+        List<EnrollmentTaskSubmissionDTO> taskSubmissions,
+        OffsetDateTime createdAt
 ) {
     public record EnrollmentTaskSubmissionDTO(
             String taskId,
@@ -35,4 +36,3 @@ public record InternshipEnrollmentDTO(
             OffsetDateTime submittedAt
     ) {}
 }
-

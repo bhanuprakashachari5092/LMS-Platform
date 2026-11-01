@@ -4,6 +4,7 @@ import java.time.OffsetDateTime;
 
 public record InternshipApplicationDTO(
         String id,
+        String referenceNumber,
         String internshipId,
         String internshipTitle,
         String domain,
@@ -24,7 +25,8 @@ public record InternshipApplicationDTO(
         String statementOfPurpose,
         String status,
         String adminNotes,
+        String withdrawalReason,
+        OffsetDateTime withdrawnAt,
         InterviewDTO interview,
         OffsetDateTime appliedAt
 ) {}
-

@@ -103,8 +103,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/coupons/validate").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/practice/languages", "/api/v1/practice/problems", "/api/v1/practice/problems/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/practice/run").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/internships", "/api/v1/internships/*", "/api/v1/internships/verify/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/internships/apply").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/internships", "/api/v1/internships/*", "/api/v1/internships/verify/**", "/api/v1/careers", "/api/v1/careers/*", "/api/v1/careers/openings", "/api/v1/careers/openings/*", "/api/v1/careers/verify/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/internships/apply", "/api/v1/careers/apply", "/api/v1/careers/applications").permitAll()
 
                         // 5. Public Certificate Verification, Showcase Portfolios, AI & GitHub Integrations
                         .requestMatchers(HttpMethod.GET, "/api/v1/certificates/verify/**").permitAll()
@@ -117,7 +117,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/payments/webhook/**").permitAll()
 
                         // 7. Role-Protected Endpoints
-                        .requestMatchers("/api/v1/admin/internships/**").hasAnyRole("SUPER_ADMIN", "ORGANIZATION_ADMIN", "LECTURER")
+                        .requestMatchers("/api/v1/admin/internships/**", "/api/v1/admin/careers/**").hasAnyRole("SUPER_ADMIN", "ORGANIZATION_ADMIN", "LECTURER")
                         .requestMatchers("/api/v1/admin/**").hasAnyRole("SUPER_ADMIN", "ORGANIZATION_ADMIN")
                         .requestMatchers("/api/v1/lecturer/**").hasAnyRole("SUPER_ADMIN", "ORGANIZATION_ADMIN", "LECTURER")
 

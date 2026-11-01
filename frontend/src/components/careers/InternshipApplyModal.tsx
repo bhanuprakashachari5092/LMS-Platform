@@ -4,16 +4,13 @@ import {
   Send,
   Loader2,
   CheckCircle2,
-  AlertCircle,
-  FileText,
   User,
-  Mail,
-  Phone,
   GraduationCap,
   Globe,
-  Code2,
-  ShieldCheck,
-  Sparkles,
+  Upload,
+  FileText,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -44,6 +41,7 @@ export const InternshipApplyModal: React.FC<InternshipApplyModalProps> = ({
   const [graduationYear, setGraduationYear] = useState<number>(new Date().getFullYear() + 1);
   const [skills, setSkills] = useState(internship?.requiredSkills || '');
   const [resumeUrl, setResumeUrl] = useState('');
+  const [resumeFileName, setResumeFileName] = useState('');
   const [githubUrl, setGithubUrl] = useState('');
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [portfolioUrl, setPortfolioUrl] = useState('');
@@ -52,8 +50,36 @@ export const InternshipApplyModal: React.FC<InternshipApplyModalProps> = ({
 
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [referenceNumber, setReferenceNumber] = useState('');
+  const [copiedRef, setCopiedRef] = useState(false);
 
   if (!isOpen || !internship) return null;
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!validTypes.includes(file.type) && !file.name.endsWith('.pdf') && !file.name.endsWith('.docx')) {
+      toast.error('Only PDF or DOCX resume files are supported.');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Resume file must be under 5MB.');
+      return;
+    }
+
+    setResumeFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setResumeUrl(reader.result);
+        toast.success(`Attached ${file.name} successfully!`);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,9 +113,11 @@ export const InternshipApplyModal: React.FC<InternshipApplyModalProps> = ({
         statementOfPurpose: statementOfPurpose.trim() || undefined,
       };
 
-      await internshipService.submitApplication(payload);
+      const res = await internshipService.submitApplication(payload);
+      const ref = res?.data?.referenceNumber || res?.data?.id || 'KZQ-APP-' + Math.floor(100000 + Math.random() * 900000);
+      setReferenceNumber(ref);
       setSubmitted(true);
-      toast.success('Internship application submitted successfully!');
+      toast.success('Application submitted successfully!');
       if (onSuccess) onSuccess();
     } catch (err: any) {
       console.error('Failed to submit application:', err);
@@ -100,8 +128,18 @@ export const InternshipApplyModal: React.FC<InternshipApplyModalProps> = ({
     }
   };
 
+  const handleCopyRef = () => {
+    if (referenceNumber) {
+      navigator.clipboard.writeText(referenceNumber);
+      setCopiedRef(true);
+      setTimeout(() => setCopiedRef(false), 2000);
+      toast.success('Reference number copied to clipboard');
+    }
+  };
+
   const handleResetAndClose = () => {
     setSubmitted(false);
+    setReferenceNumber('');
     onClose();
   };
 
@@ -112,7 +150,7 @@ export const InternshipApplyModal: React.FC<InternshipApplyModalProps> = ({
         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/60 dark:bg-slate-850/60">
           <div>
             <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 block mb-0.5">
-              KaizenQ Internship Application
+              KaizenQ Career & Internship Application
             </span>
             <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white truncate max-w-md">
               {internship.title}
@@ -136,15 +174,34 @@ export const InternshipApplyModal: React.FC<InternshipApplyModalProps> = ({
               Application Successfully Submitted!
             </h4>
             <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
-              Thank you for applying to the <strong className="text-slate-800 dark:text-slate-200">{internship.title}</strong> cohort. Our technical recruitment panel will review your profile. You can track your application status in your student dashboard.
+              Thank you for applying for the <strong className="text-slate-800 dark:text-slate-200">{internship.title}</strong> role. Our technical evaluation team will review your profile.
             </p>
+
+            {/* Unique Reference Number Badge */}
+            {referenceNumber && (
+              <div className="pt-2">
+                <div className="inline-flex items-center gap-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-xl">
+                  <span className="text-xs text-slate-500 font-medium">Application Reference:</span>
+                  <span className="font-mono text-sm font-bold text-blue-600 dark:text-cyan-400">{referenceNumber}</span>
+                  <button
+                    type="button"
+                    onClick={handleCopyRef}
+                    className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                    title="Copy reference number"
+                  >
+                    {copiedRef ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="pt-4 flex justify-center gap-3">
               <button
                 type="button"
                 onClick={handleResetAndClose}
                 className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
               >
-                Done
+                Go to Dashboard
               </button>
             </div>
           </div>
@@ -158,13 +215,13 @@ export const InternshipApplyModal: React.FC<InternshipApplyModalProps> = ({
               </h5>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block font-semibold mb-1">Full Name *</label>
+                  <label className="block font-semibold mb-1">Full Legal Name *</label>
                   <input
                     type="text"
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    placeholder="e.g. John Doe"
+                    placeholder="e.g. Rahul Sharma"
                     className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:border-blue-500 focus:outline-hidden"
                   />
                 </div>
@@ -175,39 +232,39 @@ export const InternshipApplyModal: React.FC<InternshipApplyModalProps> = ({
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="e.g. john.doe@college.edu"
+                    placeholder="name@example.com"
                     className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:border-blue-500 focus:outline-hidden"
                   />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="block font-semibold mb-1">Phone Number (WhatsApp Active) *</label>
+                  <label className="block font-semibold mb-1">Mobile / WhatsApp Number *</label>
                   <input
                     type="tel"
                     required
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+91 9876543210"
+                    placeholder="+91 98765 43210"
                     className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:border-blue-500 focus:outline-hidden"
                   />
                 </div>
               </div>
             </div>
 
-            {/* Section 2: Academic Details */}
+            {/* Section 2: Academic Background */}
             <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
               <h5 className="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-[11px] mb-3 flex items-center gap-1.5">
                 <GraduationCap className="w-3.5 h-3.5 text-indigo-500" />
-                2. Academic Background
+                2. Academic Background & University
               </h5>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div className="sm:col-span-2">
-                  <label className="block font-semibold mb-1">College / University Name *</label>
+                  <label className="block font-semibold mb-1">College / Institute / University *</label>
                   <input
                     type="text"
                     required
                     value={college}
                     onChange={(e) => setCollege(e.target.value)}
-                    placeholder="e.g. IIT Hyderabad / JNTU / Osmania University"
+                    placeholder="e.g. National Institute of Technology, Warangal"
                     className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:border-blue-500 focus:outline-hidden"
                   />
                 </div>
@@ -216,14 +273,15 @@ export const InternshipApplyModal: React.FC<InternshipApplyModalProps> = ({
                   <select
                     value={degree}
                     onChange={(e) => setDegree(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 focus:border-blue-500 focus:outline-hidden"
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:border-blue-500 focus:outline-hidden"
                   >
                     <option value="B.Tech">B.Tech / B.E</option>
+                    <option value="M.Tech">M.Tech / M.E</option>
                     <option value="BCA">BCA</option>
                     <option value="MCA">MCA</option>
-                    <option value="M.Tech">M.Tech</option>
-                    <option value="B.Sc CS">B.Sc Computer Science</option>
-                    <option value="Other">Other Degree</option>
+                    <option value="B.Sc CS/IT">B.Sc Computer Science / IT</option>
+                    <option value="M.Sc CS/IT">M.Sc Computer Science / IT</option>
+                    <option value="Other">Other Equivalent Degree</option>
                   </select>
                 </div>
                 <div>
@@ -238,21 +296,21 @@ export const InternshipApplyModal: React.FC<InternshipApplyModalProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">Current Year *</label>
+                  <label className="block font-semibold mb-1">Current Year of Study *</label>
                   <select
                     value={currentYear}
                     onChange={(e) => setCurrentYear(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 focus:border-blue-500 focus:outline-hidden"
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:border-blue-500 focus:outline-hidden"
                   >
                     <option value="1st Year">1st Year</option>
                     <option value="2nd Year">2nd Year</option>
                     <option value="3rd Year">3rd Year</option>
-                    <option value="4th Year">4th Year</option>
+                    <option value="4th Year">4th Year (Final Year)</option>
                     <option value="Recent Graduate">Recent Graduate</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">Graduation Year *</label>
+                  <label className="block font-semibold mb-1">Year of Graduation *</label>
                   <input
                     type="number"
                     required
@@ -266,13 +324,13 @@ export const InternshipApplyModal: React.FC<InternshipApplyModalProps> = ({
               </div>
             </div>
 
-            {/* Section 3: Technical Skills & Portfolio Links */}
+            {/* Section 3: Technical Skills, Resume & Project Links */}
             <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
               <h5 className="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-[11px] mb-3 flex items-center gap-1.5">
                 <Globe className="w-3.5 h-3.5 text-emerald-500" />
-                3. Technical Skills & Project Portfolio
+                3. Technical Skills, Resume & Project Portfolio
               </h5>
-              <div className="space-y-3">
+              <div className="space-y-3.5">
                 <div>
                   <label className="block font-semibold mb-1">Core Technical Skills *</label>
                   <input
@@ -284,17 +342,46 @@ export const InternshipApplyModal: React.FC<InternshipApplyModalProps> = ({
                     className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:border-blue-500 focus:outline-hidden"
                   />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-semibold mb-1">Resume Link (Google Drive / PDF URL)</label>
+
+                {/* Resume Upload / URL */}
+                <div className="p-3.5 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block font-semibold text-slate-800 dark:text-slate-200">
+                      Resume Upload (PDF / DOCX, &le; 5MB)
+                    </label>
+                    {resumeFileName && (
+                      <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                        <FileText className="w-3 h-3" />
+                        {resumeFileName}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 font-medium hover:bg-blue-100 transition-colors">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Choose File</span>
+                      <input
+                        type="file"
+                        accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                      />
+                    </label>
+                    <span className="text-slate-400 text-[11px]">or enter link:</span>
                     <input
                       type="url"
-                      value={resumeUrl}
-                      onChange={(e) => setResumeUrl(e.target.value)}
+                      value={resumeUrl.startsWith('data:') ? '' : resumeUrl}
+                      onChange={(e) => {
+                        setResumeUrl(e.target.value);
+                        setResumeFileName('');
+                      }}
                       placeholder="https://drive.google.com/..."
-                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:border-blue-500 focus:outline-hidden"
+                      className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs focus:border-blue-500 focus:outline-hidden"
                     />
                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block font-semibold mb-1">GitHub Profile Link</label>
                     <input
@@ -315,8 +402,8 @@ export const InternshipApplyModal: React.FC<InternshipApplyModalProps> = ({
                       className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 focus:border-blue-500 focus:outline-hidden"
                     />
                   </div>
-                  <div>
-                    <label className="block font-semibold mb-1">Portfolio / Personal Website</label>
+                  <div className="sm:col-span-2">
+                    <label className="block font-semibold mb-1">Portfolio / Project Link</label>
                     <input
                       type="url"
                       value={portfolioUrl}

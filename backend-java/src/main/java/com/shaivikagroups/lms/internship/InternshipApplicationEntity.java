@@ -11,6 +11,9 @@ public class InternshipApplicationEntity {
     @Column(length = 64)
     private String id;
 
+    @Column(name = "reference_number", unique = true, length = 64)
+    private String referenceNumber;
+
     @Column(name = "internship_id", nullable = false, length = 64)
     private String internshipId;
 
@@ -63,10 +66,16 @@ public class InternshipApplicationEntity {
     private String statementOfPurpose;
 
     @Column(nullable = false, length = 32)
-    private String status = "SUBMITTED"; // SUBMITTED, UNDER_REVIEW, SHORTLISTED, INTERVIEW_SCHEDULED, SELECTED, REJECTED
+    private String status = "SUBMITTED"; // SUBMITTED, UNDER_REVIEW, SHORTLISTED, INTERVIEW_SCHEDULED, INTERVIEW, SELECTED, REJECTED, WITHDRAWN
 
     @Column(name = "admin_notes", columnDefinition = "TEXT")
     private String adminNotes;
+
+    @Column(name = "withdrawal_reason", columnDefinition = "TEXT")
+    private String withdrawalReason;
+
+    @Column(name = "withdrawn_at")
+    private OffsetDateTime withdrawnAt;
 
     @Column(name = "applied_at", nullable = false)
     private OffsetDateTime appliedAt = OffsetDateTime.now();
@@ -78,6 +87,9 @@ public class InternshipApplicationEntity {
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
+
+    public String getReferenceNumber() { return referenceNumber; }
+    public void setReferenceNumber(String referenceNumber) { this.referenceNumber = referenceNumber; }
 
     public String getInternshipId() { return internshipId; }
     public void setInternshipId(String internshipId) { this.internshipId = internshipId; }
@@ -136,10 +148,15 @@ public class InternshipApplicationEntity {
     public String getAdminNotes() { return adminNotes; }
     public void setAdminNotes(String adminNotes) { this.adminNotes = adminNotes; }
 
+    public String getWithdrawalReason() { return withdrawalReason; }
+    public void setWithdrawalReason(String withdrawalReason) { this.withdrawalReason = withdrawalReason; }
+
+    public OffsetDateTime getWithdrawnAt() { return withdrawnAt; }
+    public void setWithdrawnAt(OffsetDateTime withdrawnAt) { this.withdrawnAt = withdrawnAt; }
+
     public OffsetDateTime getAppliedAt() { return appliedAt; }
     public void setAppliedAt(OffsetDateTime appliedAt) { this.appliedAt = appliedAt; }
 
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(OffsetDateTime updatedAt) { this.updatedAt = updatedAt; }
 }
-

@@ -7,6 +7,9 @@ public record InternshipDTO(
         String title,
         String slug,
         String domain,
+        String department,
+        String employmentType,
+        String experienceLevel,
         String internshipType,
         String duration,
         String location,
@@ -16,6 +19,7 @@ public record InternshipDTO(
         String stipendAmount,
         String eligibility,
         String requiredSkills,
+        String preferredSkills,
         String description,
         String mentorName,
         String mentorTitle,
@@ -23,4 +27,3 @@ public record InternshipDTO(
         Boolean isFeatured,
         OffsetDateTime createdAt
 ) {}
-

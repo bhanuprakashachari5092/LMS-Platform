@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shaivikagroups.lms.internship.dto.CreateInternshipRequest;
 import com.shaivikagroups.lms.internship.dto.SubmitApplicationRequest;
+import com.shaivikagroups.lms.internship.dto.WithdrawApplicationRequest;
 import com.shaivikagroups.lms.security.JwtTokenProvider;
 import com.shaivikagroups.lms.security.UserPrincipal;
 import com.shaivikagroups.lms.tenant.TenantContext;
@@ -80,12 +81,16 @@ public class InternshipIntegrationTests {
             entity.setTitle("Full Stack Web Development Virtual Internship");
             entity.setSlug("test-fullstack-internship");
             entity.setDomain("Full Stack Web Development");
+            entity.setDepartment("Engineering");
+            entity.setEmploymentType("INTERNSHIP");
+            entity.setExperienceLevel("ENTRY_LEVEL");
             entity.setInternshipType("REMOTE");
             entity.setDuration("12 Weeks");
             entity.setLocation("Remote, India");
             entity.setOpenings(10);
             entity.setEligibility("B.Tech / MCA");
             entity.setRequiredSkills("React, TypeScript, Java");
+            entity.setPreferredSkills("Docker, PostgreSQL");
             entity.setDescription("Hands-on full stack internship building production web features.");
             entity.setStatus("OPEN");
             entity.setIsFeatured(true);
@@ -97,14 +102,14 @@ public class InternshipIntegrationTests {
 
     @Test
     void testPublicGetOpenInternships() throws Exception {
-        mockMvc.perform(get("/api/v1/internships"))
+        mockMvc.perform(get("/api/v1/careers"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.content").isArray());
     }
 
     @Test
-    void testSubmitApplicationAndPreventDuplicates() throws Exception {
+    void testSubmitApplicationReferenceNumberAndPreventDuplicates() throws Exception {
         InternshipEntity intern = internshipRepository.findAll().get(0);
         String candidateEmail = "intern.candidate." + System.currentTimeMillis() + "@gmail.com";
 
@@ -126,16 +131,22 @@ public class InternshipIntegrationTests {
                 "Passionate about scalable distributed systems and contributing to KaizenQ."
         );
 
-        // 1. Submit application first time -> Expect 201 CREATED
-        mockMvc.perform(post("/api/v1/internships/apply")
+        // 1. Submit application first time -> Expect 201 CREATED & reference number generated
+        MvcResult result = mockMvc.perform(post("/api/v1/careers/apply")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(appReq)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.status").value("SUBMITTED"));
+                .andExpect(jsonPath("$.data.status").value("SUBMITTED"))
+                .andExpect(jsonPath("$.data.referenceNumber").isString())
+                .andReturn();
+
+        JsonNode root = objectMapper.readTree(result.getResponse().getContentAsString());
+        String appId = root.get("data").get("id").asText();
+        assertNotNull(appId);
 
         // 2. Submit application second time with same email -> Expect 409 CONFLICT
-        mockMvc.perform(post("/api/v1/internships/apply")
+        mockMvc.perform(post("/api/v1/careers/apply")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(appReq)))
                 .andExpect(status().isConflict())
@@ -143,11 +154,11 @@ public class InternshipIntegrationTests {
     }
 
     @Test
-    void testAdminManagementAndStatusUpdate() throws Exception {
+    void testAdminManagementAndCsvExport() throws Exception {
         String adminToken = getAuthToken("admin.internships@kaizenq.in", Role.SUPER_ADMIN);
 
         // 1. Admin gets all applications
-        MvcResult res = mockMvc.perform(get("/api/v1/admin/internships/applications")
+        MvcResult res = mockMvc.perform(get("/api/v1/admin/careers/applications")
                 .header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
@@ -156,11 +167,21 @@ public class InternshipIntegrationTests {
         JsonNode root = objectMapper.readTree(res.getResponse().getContentAsString());
         assertNotNull(root.get("data").get("content"));
 
-        // 2. Create new internship via Admin
+        // 2. Export applications to CSV
+        mockMvc.perform(get("/api/v1/admin/careers/applications/export")
+                .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", org.hamcrest.Matchers.containsString("text/csv")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Reference Number,Candidate Name,Email")));
+
+        // 3. Create new career opening via Admin
         CreateInternshipRequest createReq = new CreateInternshipRequest(
                 "AI/ML Research Internship",
                 "ai-ml-research-" + System.currentTimeMillis(),
                 "Artificial Intelligence & Machine Learning",
+                "AI & Machine Learning",
+                "INTERNSHIP",
+                "ENTRY_LEVEL",
                 "REMOTE",
                 "8 Weeks",
                 "Remote",
@@ -170,6 +191,7 @@ public class InternshipIntegrationTests {
                 "Performance Stipend",
                 "CS/IT Students",
                 "Python, PyTorch",
+                "LLM Fine-tuning",
                 "Conduct real LLM evaluations and fine-tuning.",
                 "Build RAG systems",
                 "Research publication",
@@ -179,7 +201,7 @@ public class InternshipIntegrationTests {
                 true
         );
 
-        mockMvc.perform(post("/api/v1/admin/internships")
+        mockMvc.perform(post("/api/v1/admin/careers/openings")
                 .header("Authorization", "Bearer " + adminToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(createReq)))

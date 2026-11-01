@@ -23,6 +23,15 @@ public class InternshipEntity {
     @Column(nullable = false, length = 100)
     private String domain;
 
+    @Column(length = 100)
+    private String department = "Engineering";
+
+    @Column(name = "employment_type", nullable = false, length = 32)
+    private String employmentType = "INTERNSHIP"; // INTERNSHIP, FULL_TIME, PART_TIME, CONTRACT
+
+    @Column(name = "experience_level", nullable = false, length = 32)
+    private String experienceLevel = "ENTRY_LEVEL"; // ENTRY_LEVEL, MID_LEVEL, SENIOR
+
     @Column(name = "internship_type", nullable = false, length = 32)
     private String internshipType = "REMOTE"; // REMOTE, HYBRID, ONSITE
 
@@ -39,7 +48,7 @@ public class InternshipEntity {
     private OffsetDateTime deadline;
 
     @Column(name = "stipend_type", nullable = false, length = 32)
-    private String stipendType = "PERFORMANCE_BASED"; // UNPAID, PERFORMANCE_BASED, FIXED
+    private String stipendType = "PERFORMANCE_BASED"; // UNPAID, PERFORMANCE_BASED, FIXED, NOT_DISCLOSED
 
     @Column(name = "stipend_amount", length = 100)
     private String stipendAmount;
@@ -49,6 +58,9 @@ public class InternshipEntity {
 
     @Column(name = "required_skills", nullable = false, columnDefinition = "TEXT")
     private String requiredSkills;
+
+    @Column(name = "preferred_skills", columnDefinition = "TEXT")
+    private String preferredSkills;
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String description;
@@ -66,7 +78,7 @@ public class InternshipEntity {
     private String mentorTitle;
 
     @Column(nullable = false, length = 32)
-    private String status = "OPEN"; // OPEN, CLOSED, ARCHIVED
+    private String status = "OPEN"; // OPEN / PUBLISHED, CLOSED, DRAFT, ARCHIVED
 
     @Column(name = "is_featured", nullable = false)
     private Boolean isFeatured = false;
@@ -93,6 +105,15 @@ public class InternshipEntity {
 
     public String getDomain() { return domain; }
     public void setDomain(String domain) { this.domain = domain; }
+
+    public String getDepartment() { return department; }
+    public void setDepartment(String department) { this.department = department; }
+
+    public String getEmploymentType() { return employmentType; }
+    public void setEmploymentType(String employmentType) { this.employmentType = employmentType; }
+
+    public String getExperienceLevel() { return experienceLevel; }
+    public void setExperienceLevel(String experienceLevel) { this.experienceLevel = experienceLevel; }
 
     public String getInternshipType() { return internshipType; }
     public void setInternshipType(String internshipType) { this.internshipType = internshipType; }
@@ -121,6 +142,9 @@ public class InternshipEntity {
     public String getRequiredSkills() { return requiredSkills; }
     public void setRequiredSkills(String requiredSkills) { this.requiredSkills = requiredSkills; }
 
+    public String getPreferredSkills() { return preferredSkills; }
+    public void setPreferredSkills(String preferredSkills) { this.preferredSkills = preferredSkills; }
+
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
 
@@ -148,4 +172,3 @@ public class InternshipEntity {
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(OffsetDateTime updatedAt) { this.updatedAt = updatedAt; }
 }
-

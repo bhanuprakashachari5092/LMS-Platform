@@ -1,7 +1,6 @@
 package com.shaivikagroups.lms.internship;
 
 import com.shaivikagroups.lms.common.ConflictException;
-import com.shaivikagroups.lms.common.ForbiddenException;
 import com.shaivikagroups.lms.common.ResourceNotFoundException;
 import com.shaivikagroups.lms.internship.dto.*;
 import com.shaivikagroups.lms.security.UserPrincipal;
@@ -11,6 +10,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
@@ -47,24 +47,25 @@ public class InternshipService {
     }
 
     // =========================================================================
-    // PUBLIC & STUDENT BROWSING
+    // PUBLIC & CANDIDATE BROWSING
     // =========================================================================
 
     @Transactional(readOnly = true)
-    public Page<InternshipDTO> getOpenInternships(String domain, String type, String search, Pageable pageable) {
+    public Page<InternshipDTO> getOpenInternships(String domain, String department, String employmentType, String internshipType, String search, Pageable pageable) {
         String tenantId = TenantContext.getTenantId();
         String domainParam = (domain != null && !domain.trim().isEmpty() && !"ALL".equalsIgnoreCase(domain)) ? domain.trim() : null;
-        String typeParam = (type != null && !type.trim().isEmpty() && !"ALL".equalsIgnoreCase(type)) ? type.trim() : null;
+        String deptParam = (department != null && !department.trim().isEmpty() && !"ALL".equalsIgnoreCase(department)) ? department.trim() : null;
+        String empTypeParam = (employmentType != null && !employmentType.trim().isEmpty() && !"ALL".equalsIgnoreCase(employmentType)) ? employmentType.trim() : null;
+        String typeParam = (internshipType != null && !internshipType.trim().isEmpty() && !"ALL".equalsIgnoreCase(internshipType)) ? internshipType.trim() : null;
+        String searchParam = (search != null && !search.trim().isEmpty()) ? search.trim() : null;
 
-        Page<InternshipEntity> pageResult;
-        if (domainParam != null) {
-            pageResult = internshipRepository.findByTenantIdAndStatusAndDomain(tenantId, "OPEN", domainParam, pageable);
-        } else if (typeParam != null) {
-            pageResult = internshipRepository.findByTenantIdAndStatusAndInternshipType(tenantId, "OPEN", typeParam, pageable);
-        } else {
-            pageResult = internshipRepository.findByTenantIdAndStatus(tenantId, "OPEN", pageable);
+        if (domainParam != null || deptParam != null || empTypeParam != null || typeParam != null || searchParam != null) {
+            return internshipRepository.searchOpenings(
+                    tenantId, "OPEN", domainParam, deptParam, empTypeParam, typeParam, searchParam, pageable
+            ).map(this::toDTO);
         }
-        return pageResult.map(this::toDTO);
+
+        return internshipRepository.findByTenantIdAndStatusIn(tenantId, List.of("OPEN", "PUBLISHED"), pageable).map(this::toDTO);
     }
 
     @Transactional(readOnly = true)
@@ -72,7 +73,7 @@ public class InternshipService {
         String tenantId = TenantContext.getTenantId();
         InternshipEntity entity = internshipRepository.findByTenantIdAndSlug(tenantId, slugOrId)
                 .or(() -> internshipRepository.findByTenantIdAndId(tenantId, slugOrId))
-                .orElseThrow(() -> new ResourceNotFoundException("Internship program not found with identifier: " + slugOrId));
+                .orElseThrow(() -> new ResourceNotFoundException("Career opening not found with identifier: " + slugOrId));
 
         List<InternshipTaskEntity> tasks = taskRepository.findByInternshipIdOrderByDisplayOrderAsc(entity.getId());
         List<InternshipDetailDTO.InternshipTaskDTO> taskDTOs = tasks.stream()
@@ -84,32 +85,37 @@ public class InternshipService {
 
         return new InternshipDetailDTO(
                 entity.getId(), entity.getTitle(), entity.getSlug(), entity.getDomain(),
+                entity.getDepartment(), entity.getEmploymentType(), entity.getExperienceLevel(),
                 entity.getInternshipType(), entity.getDuration(), entity.getLocation(),
                 entity.getOpenings(), entity.getDeadline(), entity.getStipendType(),
                 entity.getStipendAmount(), entity.getEligibility(), entity.getRequiredSkills(),
-                entity.getDescription(), entity.getResponsibilities(), entity.getLearningOutcomes(),
-                entity.getMentorName(), entity.getMentorTitle(), entity.getStatus(),
-                entity.getIsFeatured(), entity.getCreatedAt(), taskDTOs
+                entity.getPreferredSkills(), entity.getDescription(), entity.getResponsibilities(),
+                entity.getLearningOutcomes(), entity.getMentorName(), entity.getMentorTitle(),
+                entity.getStatus(), entity.getIsFeatured(), entity.getCreatedAt(), taskDTOs
         );
     }
 
     // =========================================================================
-    // APPLICATION SUBMISSION & TRACKING
+    // APPLICATION SUBMISSION, STATUS TRACKING & WITHDRAWAL
     // =========================================================================
 
     @Transactional
     public InternshipApplicationDTO submitApplication(SubmitApplicationRequest request, UserPrincipal currentUser) {
         String tenantId = TenantContext.getTenantId();
         InternshipEntity internship = internshipRepository.findById(request.internshipId())
-                .orElseThrow(() -> new ResourceNotFoundException("Internship program not found."));
+                .orElseThrow(() -> new ResourceNotFoundException("Internship opening not found."));
 
-        // Duplicate Check: Prevent multiple applications for same internship by same email
+        // Duplicate Check: Prevent multiple active applications for same opening by same email
         if (applicationRepository.existsByInternshipIdAndEmailIgnoreCase(internship.getId(), request.email().trim())) {
-            throw new ConflictException("You have already submitted an application for this internship program. You can track your status in your dashboard.");
+            throw new ConflictException("You have already submitted an application for this role. You can track your status in your dashboard.");
         }
+
+        // Generate unique application reference number: KZQ-APP-2026-XXXXX
+        String refNo = "KZQ-APP-" + OffsetDateTime.now().getYear() + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
 
         InternshipApplicationEntity app = new InternshipApplicationEntity();
         app.setId("app-" + UUID.randomUUID().toString().substring(0, 8));
+        app.setReferenceNumber(refNo);
         app.setInternshipId(internship.getId());
         app.setTenantId(tenantId);
         if (currentUser != null) {
@@ -135,6 +141,41 @@ public class InternshipService {
 
         InternshipApplicationEntity saved = applicationRepository.save(app);
         return toApplicationDTO(saved, internship.getTitle(), internship.getDomain(), null);
+    }
+
+    @Transactional
+    public InternshipApplicationDTO withdrawApplication(String applicationId, WithdrawApplicationRequest request, UserPrincipal currentUser) {
+        String tenantId = TenantContext.getTenantId();
+        InternshipApplicationEntity app = applicationRepository.findByIdAndTenantId(applicationId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Application not found: " + applicationId));
+
+        // Verify applicant ownership
+        if (currentUser != null) {
+            boolean isOwner = (app.getUserId() != null && app.getUserId().equals(currentUser.getId()))
+                    || (currentUser.getUsername() != null && currentUser.getUsername().equalsIgnoreCase(app.getEmail()));
+            if (!isOwner) {
+                throw new ConflictException("You are not authorized to withdraw this application.");
+            }
+        }
+
+        if ("WITHDRAWN".equalsIgnoreCase(app.getStatus())) {
+            throw new ConflictException("Application is already withdrawn.");
+        }
+        if ("SELECTED".equalsIgnoreCase(app.getStatus()) || "REJECTED".equalsIgnoreCase(app.getStatus())) {
+            throw new ConflictException("Cannot withdraw application that has already completed evaluation (" + app.getStatus() + ").");
+        }
+
+        app.setStatus("WITHDRAWN");
+        app.setWithdrawalReason(request != null ? request.reason() : "Candidate initiated withdrawal");
+        app.setWithdrawnAt(OffsetDateTime.now());
+        app.setUpdatedAt(OffsetDateTime.now());
+
+        InternshipApplicationEntity saved = applicationRepository.save(app);
+        InternshipEntity intern = internshipRepository.findById(app.getInternshipId()).orElse(null);
+        String title = intern != null ? intern.getTitle() : "Career Role";
+        String domain = intern != null ? intern.getDomain() : "Technology";
+
+        return toApplicationDTO(saved, title, domain, null);
     }
 
     @Transactional(readOnly = true)
@@ -188,14 +229,15 @@ public class InternshipService {
 
         return enrollments.stream().map(enrollment -> {
             InternshipEntity intern = internshipRepository.findById(enrollment.getInternshipId()).orElse(null);
-            String title = intern != null ? intern.getTitle() : "Internship Program";
+            String title = intern != null ? intern.getTitle() : "Internship";
             String domain = intern != null ? intern.getDomain() : "Technology";
 
             List<InternshipTaskEntity> tasks = taskRepository.findByInternshipIdOrderByDisplayOrderAsc(enrollment.getInternshipId());
-            Map<String, InternshipSubmissionEntity> subMap = submissionRepository.findByEnrollmentId(enrollment.getId()).stream()
+            List<InternshipSubmissionEntity> submissions = submissionRepository.findByEnrollmentId(enrollment.getId());
+            Map<String, InternshipSubmissionEntity> subMap = submissions.stream()
                     .collect(Collectors.toMap(InternshipSubmissionEntity::getTaskId, s -> s, (a, b) -> a));
 
-            List<InternshipEnrollmentDTO.EnrollmentTaskSubmissionDTO> taskList = tasks.stream().map(t -> {
+            List<InternshipEnrollmentDTO.EnrollmentTaskSubmissionDTO> taskDTOs = tasks.stream().map(t -> {
                 InternshipSubmissionEntity sub = subMap.get(t.getId());
                 return new InternshipEnrollmentDTO.EnrollmentTaskSubmissionDTO(
                         t.getId(), t.getWeekNumber(), t.getTitle(), t.getDescription(),
@@ -213,20 +255,23 @@ public class InternshipService {
 
             return new InternshipEnrollmentDTO(
                     enrollment.getId(), enrollment.getInternshipId(), title, domain,
-                    enrollment.getUserId(), enrollment.getStatus(), enrollment.getStartDate(),
-                    enrollment.getEndDate(), enrollment.getCompletionDate(),
-                    enrollment.getProgressPercentage(), enrollment.getMentorNotes(), taskList
+                    enrollment.getUserId(),
+                    enrollment.getStatus(), enrollment.getStartDate(), enrollment.getEndDate(),
+                    enrollment.getCompletionDate(), enrollment.getProgressPercentage(),
+                    enrollment.getMentorNotes(), taskDTOs, enrollment.getCreatedAt()
             );
         }).toList();
     }
 
     @Transactional
-    public InternshipEnrollmentDTO.EnrollmentTaskSubmissionDTO submitTask(String taskId, SubmitTaskRequest request, UserPrincipal currentUser) {
+    public InternshipEnrollmentDTO.EnrollmentTaskSubmissionDTO submitTaskDeliverable(
+            String taskId, SubmitTaskRequest request, UserPrincipal currentUser) {
+        String tenantId = TenantContext.getTenantId();
         InternshipEnrollmentEntity enrollment = enrollmentRepository.findById(request.enrollmentId())
-                .orElseThrow(() -> new ResourceNotFoundException("Enrollment not found."));
+                .orElseThrow(() -> new ResourceNotFoundException("Internship enrollment not found."));
 
         if (!enrollment.getUserId().equals(currentUser.getId())) {
-            throw new ForbiddenException("You cannot submit tasks for another student's enrollment.");
+            throw new ConflictException("You are not authorized to submit deliverables for this enrollment.");
         }
 
         InternshipTaskEntity task = taskRepository.findById(taskId)
@@ -285,7 +330,7 @@ public class InternshipService {
     }
 
     // =========================================================================
-    // ADMIN MANAGEMENT FEATURES
+    // ADMIN / RECRUITER MANAGEMENT FEATURES
     // =========================================================================
 
     @Transactional(readOnly = true)
@@ -303,6 +348,9 @@ public class InternshipService {
         entity.setTitle(req.title().trim());
         entity.setSlug(req.slug().trim().toLowerCase());
         entity.setDomain(req.domain().trim());
+        entity.setDepartment(req.department() != null ? req.department().trim() : "Engineering");
+        entity.setEmploymentType(req.employmentType() != null ? req.employmentType() : "INTERNSHIP");
+        entity.setExperienceLevel(req.experienceLevel() != null ? req.experienceLevel() : "ENTRY_LEVEL");
         entity.setInternshipType(req.internshipType() != null ? req.internshipType() : "REMOTE");
         entity.setDuration(req.duration() != null ? req.duration() : "12 Weeks");
         entity.setLocation(req.location() != null ? req.location() : "Remote, India");
@@ -312,12 +360,13 @@ public class InternshipService {
         entity.setStipendAmount(req.stipendAmount());
         entity.setEligibility(req.eligibility());
         entity.setRequiredSkills(req.requiredSkills());
+        entity.setPreferredSkills(req.preferredSkills());
         entity.setDescription(req.description());
         entity.setResponsibilities(req.responsibilities());
         entity.setLearningOutcomes(req.learningOutcomes());
         entity.setMentorName(req.mentorName());
         entity.setMentorTitle(req.mentorTitle());
-        entity.setStatus(req.status() != null ? req.status() : "OPEN");
+        entity.setStatus(req.status() != null ? req.status().toUpperCase() : "OPEN");
         entity.setIsFeatured(req.isFeatured() != null ? req.isFeatured() : false);
         entity.setCreatedAt(OffsetDateTime.now());
         entity.setUpdatedAt(OffsetDateTime.now());
@@ -329,11 +378,14 @@ public class InternshipService {
     public InternshipDTO updateInternship(String id, CreateInternshipRequest req) {
         String tenantId = TenantContext.getTenantId();
         InternshipEntity entity = internshipRepository.findByTenantIdAndId(tenantId, id)
-                .orElseThrow(() -> new ResourceNotFoundException("Internship not found: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Career opening not found: " + id));
 
         entity.setTitle(req.title().trim());
         entity.setSlug(req.slug().trim().toLowerCase());
         entity.setDomain(req.domain().trim());
+        if (req.department() != null) entity.setDepartment(req.department().trim());
+        if (req.employmentType() != null) entity.setEmploymentType(req.employmentType());
+        if (req.experienceLevel() != null) entity.setExperienceLevel(req.experienceLevel());
         if (req.internshipType() != null) entity.setInternshipType(req.internshipType());
         if (req.duration() != null) entity.setDuration(req.duration());
         if (req.location() != null) entity.setLocation(req.location());
@@ -343,15 +395,26 @@ public class InternshipService {
         if (req.stipendAmount() != null) entity.setStipendAmount(req.stipendAmount());
         entity.setEligibility(req.eligibility());
         entity.setRequiredSkills(req.requiredSkills());
+        if (req.preferredSkills() != null) entity.setPreferredSkills(req.preferredSkills());
         entity.setDescription(req.description());
         entity.setResponsibilities(req.responsibilities());
         entity.setLearningOutcomes(req.learningOutcomes());
         entity.setMentorName(req.mentorName());
         entity.setMentorTitle(req.mentorTitle());
-        if (req.status() != null) entity.setStatus(req.status());
+        if (req.status() != null) entity.setStatus(req.status().toUpperCase());
         if (req.isFeatured() != null) entity.setIsFeatured(req.isFeatured());
         entity.setUpdatedAt(OffsetDateTime.now());
 
+        return toDTO(internshipRepository.save(entity));
+    }
+
+    @Transactional
+    public InternshipDTO patchInternshipStatus(String id, String status) {
+        String tenantId = TenantContext.getTenantId();
+        InternshipEntity entity = internshipRepository.findByTenantIdAndId(tenantId, id)
+                .orElseThrow(() -> new ResourceNotFoundException("Career opening not found: " + id));
+        entity.setStatus(status.trim().toUpperCase());
+        entity.setUpdatedAt(OffsetDateTime.now());
         return toDTO(internshipRepository.save(entity));
     }
 
@@ -368,26 +431,26 @@ public class InternshipService {
         String tenantId = TenantContext.getTenantId();
         String internParam = (internshipId != null && !internshipId.trim().isEmpty() && !"ALL".equalsIgnoreCase(internshipId)) ? internshipId.trim() : null;
         String statusParam = (status != null && !status.trim().isEmpty() && !"ALL".equalsIgnoreCase(status)) ? status.trim() : null;
+        String searchParam = (search != null && !search.trim().isEmpty()) ? search.trim() : null;
 
-        Page<InternshipApplicationEntity> apps;
-        if (statusParam != null) {
-            apps = applicationRepository.findByTenantIdAndStatusOrderByAppliedAtDesc(tenantId, statusParam, pageable);
-        } else if (internParam != null) {
-            apps = applicationRepository.findByTenantIdAndInternshipIdOrderByAppliedAtDesc(tenantId, internParam, pageable);
-        } else {
-            apps = applicationRepository.findByTenantIdOrderByAppliedAtDesc(tenantId, pageable);
+        Page<InternshipApplicationEntity> apps = applicationRepository.searchApplications(
+                tenantId, internParam, statusParam, searchParam, pageable
+        );
+
+        if (apps.isEmpty()) {
+            return Page.empty(pageable);
         }
-
-        Map<String, InternshipEntity> internMap = internshipRepository.findAllById(
-                apps.getContent().stream().map(InternshipApplicationEntity::getInternshipId).collect(Collectors.toSet())
-        ).stream().collect(Collectors.toMap(InternshipEntity::getId, i -> i));
 
         List<String> appIds = apps.getContent().stream().map(InternshipApplicationEntity::getId).toList();
         Map<String, InternshipInterviewEntity> interviewMap = interviewRepository.findByApplicationIdIn(appIds).stream()
                 .collect(Collectors.toMap(InternshipInterviewEntity::getApplicationId, i -> i, (a, b) -> a));
 
+        Map<String, InternshipEntity> internshipMap = internshipRepository.findAllById(
+                apps.getContent().stream().map(InternshipApplicationEntity::getInternshipId).collect(Collectors.toSet())
+        ).stream().collect(Collectors.toMap(InternshipEntity::getId, i -> i));
+
         return apps.map(app -> {
-            InternshipEntity intern = internMap.get(app.getInternshipId());
+            InternshipEntity intern = internshipMap.get(app.getInternshipId());
             String title = intern != null ? intern.getTitle() : "Internship";
             String domain = intern != null ? intern.getDomain() : "Technology";
             InterviewDTO interviewDTO = null;
@@ -407,51 +470,102 @@ public class InternshipService {
     public InternshipApplicationDTO adminUpdateApplicationStatus(String applicationId, UpdateApplicationStatusRequest req) {
         String tenantId = TenantContext.getTenantId();
         InternshipApplicationEntity app = applicationRepository.findByIdAndTenantId(applicationId, tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Application not found."));
+                .orElseThrow(() -> new ResourceNotFoundException("Application not found: " + applicationId));
 
         app.setStatus(req.status().trim().toUpperCase());
         if (req.adminNotes() != null) {
-            app.setAdminNotes(req.adminNotes());
+            app.setAdminNotes(req.adminNotes().trim());
         }
         app.setUpdatedAt(OffsetDateTime.now());
-        InternshipApplicationEntity saved = applicationRepository.save(app);
 
+        InternshipApplicationEntity saved = applicationRepository.save(app);
         InternshipEntity intern = internshipRepository.findById(saved.getInternshipId()).orElse(null);
         String title = intern != null ? intern.getTitle() : "Internship";
         String domain = intern != null ? intern.getDomain() : "Technology";
 
         InterviewDTO interviewDTO = interviewRepository.findByApplicationId(saved.getId())
-                .map(i -> new InterviewDTO(i.getId(), i.getApplicationId(), i.getScheduledAt(), i.getMeetingLink(), i.getInterviewerName(), i.getRoundName(), i.getFeedback(), i.getStatus()))
-                .orElse(null);
+                .map(i -> new InterviewDTO(
+                        i.getId(), i.getApplicationId(), i.getScheduledAt(), i.getMeetingLink(),
+                        i.getInterviewerName(), i.getRoundName(), i.getFeedback(), i.getStatus()
+                )).orElse(null);
 
         return toApplicationDTO(saved, title, domain, interviewDTO);
     }
 
+    @Transactional(readOnly = true)
+    public String adminExportApplicationsCsv(String internshipId, String status) {
+        String tenantId = TenantContext.getTenantId();
+        List<InternshipApplicationEntity> list;
+        if (internshipId != null && !internshipId.trim().isEmpty() && !"ALL".equalsIgnoreCase(internshipId)) {
+            list = applicationRepository.findByTenantIdAndInternshipIdOrderByAppliedAtDesc(tenantId, internshipId.trim());
+        } else {
+            list = applicationRepository.findByTenantIdOrderByAppliedAtDesc(tenantId);
+        }
+
+        if (status != null && !status.trim().isEmpty() && !"ALL".equalsIgnoreCase(status)) {
+            list = list.stream().filter(a -> status.equalsIgnoreCase(a.getStatus())).toList();
+        }
+
+        Map<String, InternshipEntity> internMap = internshipRepository.findAll().stream()
+                .collect(Collectors.toMap(InternshipEntity::getId, i -> i, (a, b) -> a));
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("Reference Number,Candidate Name,Email,Phone,Role Title,Department,College,Degree,Branch,Current Year,Graduation Year,Status,Applied Date,Resume URL,GitHub,LinkedIn,Portfolio,Admin Notes\n");
+
+        for (InternshipApplicationEntity a : list) {
+            InternshipEntity intern = internMap.get(a.getInternshipId());
+            String roleTitle = intern != null ? intern.getTitle() : "Career Role";
+            String dept = intern != null ? intern.getDepartment() : "Engineering";
+
+            sb.append(escapeCsv(a.getReferenceNumber())).append(",")
+              .append(escapeCsv(a.getFullName())).append(",")
+              .append(escapeCsv(a.getEmail())).append(",")
+              .append(escapeCsv(a.getPhone())).append(",")
+              .append(escapeCsv(roleTitle)).append(",")
+              .append(escapeCsv(dept)).append(",")
+              .append(escapeCsv(a.getCollege())).append(",")
+              .append(escapeCsv(a.getDegree())).append(",")
+              .append(escapeCsv(a.getBranch())).append(",")
+              .append(escapeCsv(a.getCurrentYear())).append(",")
+              .append(a.getGraduationYear() != null ? a.getGraduationYear() : "").append(",")
+              .append(escapeCsv(a.getStatus())).append(",")
+              .append(a.getAppliedAt() != null ? a.getAppliedAt().toString() : "").append(",")
+              .append(escapeCsv(a.getResumeUrl())).append(",")
+              .append(escapeCsv(a.getGithubUrl())).append(",")
+              .append(escapeCsv(a.getLinkedinUrl())).append(",")
+              .append(escapeCsv(a.getPortfolioUrl())).append(",")
+              .append(escapeCsv(a.getAdminNotes())).append("\n");
+        }
+
+        return sb.toString();
+    }
+
+    private String escapeCsv(String val) {
+        if (val == null) return "\"\"";
+        return "\"" + val.replace("\"", "\"\"").replace("\n", " ") + "\"";
+    }
+
     @Transactional
     public InterviewDTO adminScheduleInterview(String applicationId, ScheduleInterviewRequest req) {
-        String tenantId = TenantContext.getTenantId();
-        InternshipApplicationEntity app = applicationRepository.findByIdAndTenantId(applicationId, tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Application not found."));
+        InternshipApplicationEntity app = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Application not found: " + applicationId));
 
-        InternshipInterviewEntity interview = interviewRepository.findByApplicationId(applicationId)
+        InternshipInterviewEntity interview = interviewRepository.findByApplicationId(app.getId())
                 .orElseGet(() -> {
                     InternshipInterviewEntity i = new InternshipInterviewEntity();
                     i.setId("intv-" + UUID.randomUUID().toString().substring(0, 8));
-                    i.setApplicationId(applicationId);
+                    i.setApplicationId(app.getId());
                     return i;
                 });
 
         interview.setScheduledAt(req.scheduledAt());
         interview.setMeetingLink(req.meetingLink());
-        if (req.interviewerName() != null) interview.setInterviewerName(req.interviewerName());
-        if (req.roundName() != null) interview.setRoundName(req.roundName());
+        interview.setInterviewerName(req.interviewerName() != null ? req.interviewerName() : "KaizenQ Interview Panel");
+        interview.setRoundName(req.roundName() != null ? req.roundName() : "Technical Assessment & Culture Fit");
         interview.setStatus("SCHEDULED");
-
         InternshipInterviewEntity saved = interviewRepository.save(interview);
 
-        // Update application status to INTERVIEW_SCHEDULED
-        app.setStatus("INTERVIEW_SCHEDULED");
-        app.setUpdatedAt(OffsetDateTime.now());
+        app.setStatus("INTERVIEW");
         applicationRepository.save(app);
 
         return new InterviewDTO(
@@ -462,30 +576,31 @@ public class InternshipService {
     }
 
     @Transactional
-    public InternshipEnrollmentDTO adminEnrollStudent(String applicationId) {
-        String tenantId = TenantContext.getTenantId();
-        InternshipApplicationEntity app = applicationRepository.findByIdAndTenantId(applicationId, tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Application not found."));
+    public InternshipEnrollmentDTO adminEnrollCandidate(String applicationId) {
+        InternshipApplicationEntity app = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Application not found: " + applicationId));
 
-        String targetUserId = app.getUserId() != null ? app.getUserId() : "user-" + app.getId();
+        if (app.getUserId() == null) {
+            throw new ConflictException("Cannot enroll applicant: No registered student account linked with email " + app.getEmail());
+        }
 
-        InternshipEnrollmentEntity enrollment = enrollmentRepository.findByInternshipIdAndUserId(app.getInternshipId(), targetUserId)
-                .orElseGet(() -> {
-                    InternshipEnrollmentEntity e = new InternshipEnrollmentEntity();
-                    e.setId("enr-" + UUID.randomUUID().toString().substring(0, 8));
-                    e.setInternshipId(app.getInternshipId());
-                    e.setApplicationId(app.getId());
-                    e.setUserId(targetUserId);
-                    e.setTenantId(tenantId);
-                    e.setStatus("ACTIVE");
-                    e.setStartDate(LocalDate.now());
-                    e.setProgressPercentage(0);
-                    return e;
-                });
+        Optional<InternshipEnrollmentEntity> existing = enrollmentRepository.findByInternshipIdAndUserId(app.getInternshipId(), app.getUserId());
+        if (existing.isPresent()) {
+            throw new ConflictException("Student is already actively enrolled in this internship program.");
+        }
+
+        InternshipEnrollmentEntity enrollment = new InternshipEnrollmentEntity();
+        enrollment.setId("enr-" + UUID.randomUUID().toString().substring(0, 8));
+        enrollment.setInternshipId(app.getInternshipId());
+        enrollment.setApplicationId(app.getId());
+        enrollment.setUserId(app.getUserId());
+        enrollment.setTenantId(app.getTenantId());
+        enrollment.setStatus("ACTIVE");
+        enrollment.setStartDate(LocalDate.now());
+        enrollment.setEndDate(LocalDate.now().plusWeeks(12));
+        enrollment.setProgressPercentage(0);
 
         InternshipEnrollmentEntity saved = enrollmentRepository.save(enrollment);
-
-        // Mark application as SELECTED
         app.setStatus("SELECTED");
         applicationRepository.save(app);
 
@@ -494,9 +609,11 @@ public class InternshipService {
         String domain = intern != null ? intern.getDomain() : "Technology";
 
         return new InternshipEnrollmentDTO(
-                saved.getId(), saved.getInternshipId(), title, domain, saved.getUserId(),
-                saved.getStatus(), saved.getStartDate(), saved.getEndDate(), saved.getCompletionDate(),
-                saved.getProgressPercentage(), saved.getMentorNotes(), Collections.emptyList()
+                saved.getId(), saved.getInternshipId(), title, domain,
+                saved.getUserId(),
+                saved.getStatus(), saved.getStartDate(), saved.getEndDate(),
+                saved.getCompletionDate(), saved.getProgressPercentage(),
+                saved.getMentorNotes(), Collections.emptyList(), saved.getCreatedAt()
         );
     }
 
@@ -547,8 +664,8 @@ public class InternshipService {
     @Transactional(readOnly = true)
     public InternshipAnalyticsDTO adminGetAnalytics() {
         String tenantId = TenantContext.getTenantId();
-        long totalInternships = internshipRepository.count();
-        long openInternships = internshipRepository.countByTenantIdAndStatus(tenantId, "OPEN");
+        long totalInternships = internshipRepository.countByTenantId(tenantId);
+        long openInternships = internshipRepository.countByTenantIdAndStatus(tenantId, "OPEN") + internshipRepository.countByTenantIdAndStatus(tenantId, "PUBLISHED");
         long totalApplications = applicationRepository.countByTenantId(tenantId);
         long underReview = applicationRepository.countByTenantIdAndStatus(tenantId, "UNDER_REVIEW");
         long shortlisted = applicationRepository.countByTenantIdAndStatus(tenantId, "SHORTLISTED");
@@ -557,7 +674,7 @@ public class InternshipService {
         long completedEnrollments = enrollmentRepository.countByTenantIdAndStatus(tenantId, "COMPLETED");
 
         Map<String, Long> domainCounts = new HashMap<>();
-        List<InternshipEntity> allInterns = internshipRepository.findByTenantIdAndStatusOrderByCreatedAtDesc(tenantId, "OPEN");
+        List<InternshipEntity> allInterns = internshipRepository.findByTenantIdOrderByCreatedAtDesc(tenantId, Pageable.unpaged()).getContent();
         for (InternshipEntity i : allInterns) {
             domainCounts.put(i.getDomain(), domainCounts.getOrDefault(i.getDomain(), 0L) + 1);
         }
@@ -574,21 +691,23 @@ public class InternshipService {
 
     private InternshipDTO toDTO(InternshipEntity e) {
         return new InternshipDTO(
-                e.getId(), e.getTitle(), e.getSlug(), e.getDomain(), e.getInternshipType(),
+                e.getId(), e.getTitle(), e.getSlug(), e.getDomain(), e.getDepartment(),
+                e.getEmploymentType(), e.getExperienceLevel(), e.getInternshipType(),
                 e.getDuration(), e.getLocation(), e.getOpenings(), e.getDeadline(),
                 e.getStipendType(), e.getStipendAmount(), e.getEligibility(), e.getRequiredSkills(),
-                e.getDescription(), e.getMentorName(), e.getMentorTitle(), e.getStatus(),
-                e.getIsFeatured(), e.getCreatedAt()
+                e.getPreferredSkills(), e.getDescription(), e.getMentorName(), e.getMentorTitle(),
+                e.getStatus(), e.getIsFeatured(), e.getCreatedAt()
         );
     }
 
     private InternshipApplicationDTO toApplicationDTO(InternshipApplicationEntity e, String internshipTitle, String domain, InterviewDTO interview) {
         return new InternshipApplicationDTO(
-                e.getId(), e.getInternshipId(), internshipTitle, domain, e.getUserId(),
+                e.getId(), e.getReferenceNumber(), e.getInternshipId(), internshipTitle, domain, e.getUserId(),
                 e.getFullName(), e.getEmail(), e.getPhone(), e.getCollege(), e.getDegree(),
                 e.getBranch(), e.getCurrentYear(), e.getGraduationYear(), e.getSkills(),
                 e.getResumeUrl(), e.getGithubUrl(), e.getLinkedinUrl(), e.getPortfolioUrl(),
-                e.getStatementOfPurpose(), e.getStatus(), e.getAdminNotes(), interview, e.getAppliedAt()
+                e.getStatementOfPurpose(), e.getStatus(), e.getAdminNotes(),
+                e.getWithdrawalReason(), e.getWithdrawnAt(), interview, e.getAppliedAt()
         );
     }
 
@@ -605,7 +724,7 @@ public class InternshipService {
     private String sha256Hex(String input) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] hash = md.digest(input.getBytes());
+            byte[] hash = md.digest(input.getBytes(StandardCharsets.UTF_8));
             StringBuilder hexString = new StringBuilder();
             for (byte b : hash) {
                 String hex = Integer.toHexString(0xff & b);

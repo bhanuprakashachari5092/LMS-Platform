@@ -8,6 +8,9 @@ public record CreateInternshipRequest(
         @NotBlank String title,
         @NotBlank String slug,
         @NotBlank String domain,
+        String department,
+        String employmentType,
+        String experienceLevel,
         String internshipType,
         String duration,
         String location,
@@ -17,6 +20,7 @@ public record CreateInternshipRequest(
         String stipendAmount,
         @NotBlank String eligibility,
         @NotBlank String requiredSkills,
+        String preferredSkills,
         @NotBlank String description,
         String responsibilities,
         String learningOutcomes,
@@ -25,4 +29,3 @@ public record CreateInternshipRequest(
         String status,
         Boolean isFeatured
 ) {}
-

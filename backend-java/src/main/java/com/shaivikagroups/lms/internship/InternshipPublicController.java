@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/internships")
+@RequestMapping({"/api/v1/internships", "/api/v1/careers"})
 public class InternshipPublicController {
 
     private final InternshipService internshipService;
@@ -27,12 +27,15 @@ public class InternshipPublicController {
     }
 
     /**
-     * Lists open internship opportunities with filtering and pagination.
+     * Lists published openings with filtering and pagination.
      */
-    @GetMapping
+    @GetMapping({"", "/openings"})
     public ResponseEntity<ApiResponse<Page<InternshipDTO>>> getOpenInternships(
             @RequestParam(required = false) String domain,
+            @RequestParam(required = false) String department,
+            @RequestParam(required = false) String employmentType,
             @RequestParam(required = false) String type,
+            @RequestParam(required = false) String internshipType,
             @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "12") int size,
@@ -40,29 +43,45 @@ public class InternshipPublicController {
             @RequestParam(defaultValue = "desc") String direction) {
         Sort sort = "asc".equalsIgnoreCase(direction) ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(page, size, sort);
-        Page<InternshipDTO> results = internshipService.getOpenInternships(domain, type, search, pageable);
+        String finalType = type != null ? type : internshipType;
+        Page<InternshipDTO> results = internshipService.getOpenInternships(domain, department, employmentType, finalType, search, pageable);
         return ResponseEntity.ok(ApiResponse.success(results));
     }
 
     /**
-     * Retrieves detailed curriculum, tasks, and prerequisites for an internship.
+     * Retrieves detailed curriculum, tasks, and prerequisites for an opening.
      */
-    @GetMapping("/{slugOrId}")
+    @GetMapping({"/{slugOrId}", "/openings/{slugOrId}"})
     public ResponseEntity<ApiResponse<InternshipDetailDTO>> getInternshipDetail(@PathVariable String slugOrId) {
         return ResponseEntity.ok(ApiResponse.success(internshipService.getInternshipDetail(slugOrId)));
     }
 
     /**
-     * Submits an application for an internship.
-     * Prevents duplicate applications for the same candidate and internship.
+     * Submits an application for an internship/career opening.
+     * Prevents duplicate applications for the same candidate and role.
      */
-    @PostMapping("/apply")
+    @PostMapping({"/apply", "/applications"})
     public ResponseEntity<ApiResponse<InternshipApplicationDTO>> submitApplication(
             @Valid @RequestBody SubmitApplicationRequest request,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         InternshipApplicationDTO result = internshipService.submitApplication(request, currentUser);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Your application has been successfully submitted! Check your dashboard for status updates.", result));
+                .body(ApiResponse.success("Your application has been successfully submitted! Reference Number: " + result.referenceNumber(), result));
+    }
+
+    /**
+     * Withdraw an application by candidate.
+     */
+    @PostMapping("/applications/{applicationId}/withdraw")
+    public ResponseEntity<ApiResponse<InternshipApplicationDTO>> withdrawApplication(
+            @PathVariable String applicationId,
+            @RequestBody(required = false) WithdrawApplicationRequest request,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+        if (currentUser == null) {
+            throw new UnauthorizedException("You must be logged in to withdraw an application.");
+        }
+        InternshipApplicationDTO result = internshipService.withdrawApplication(applicationId, request, currentUser);
+        return ResponseEntity.ok(ApiResponse.success("Your application has been withdrawn.", result));
     }
 
     /**
@@ -102,7 +121,7 @@ public class InternshipPublicController {
         }
         return ResponseEntity.ok(ApiResponse.success(
                 "Task submission received successfully!",
-                internshipService.submitTask(taskId, request, currentUser)
+                internshipService.submitTaskDeliverable(taskId, request, currentUser)
         ));
     }
 
@@ -127,4 +146,3 @@ public class InternshipPublicController {
         return ResponseEntity.ok(ApiResponse.success(internshipService.verifyCertificate(certificateNumber)));
     }
 }
-
