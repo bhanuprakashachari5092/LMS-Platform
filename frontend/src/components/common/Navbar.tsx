@@ -134,6 +134,7 @@ interface MegaMenuSection {
   name: string;
   href: string;
   hasDropdown: boolean;
+  badge?: string;
   categories?: MegaMenuCategory[];
   featured?: {
     tag: string;
@@ -231,66 +232,11 @@ const SQUARESPACE_MENU_SECTIONS: MegaMenuSection[] = [
     },
   },
   {
-    id: 'platform',
-    name: 'Platform',
-    href: '/#features',
-    hasDropdown: true,
-    categories: [
-      {
-        category: 'INTERACTIVE PRACTICE',
-        items: [
-          {
-            title: 'Browser Terminal Playgrounds',
-            desc: 'Zero-setup interactive Linux and Git shells executing directly in browser.',
-            href: '/dashboard?tab=practice-hub',
-            icon: Terminal,
-            accentColor: 'text-blue-500',
-          },
-          {
-            title: '24/7 AI Code Companion',
-            desc: 'Line-by-line intelligent code explanation, diagnostics, and debugging.',
-            href: '/dashboard?tab=ai-tutor',
-            icon: Sparkles,
-            accentColor: 'text-purple-500',
-          },
-        ],
-      },
-      {
-        category: 'CAREER CREDENTIALS',
-        items: [
-          {
-            title: 'Developer Portfolio Builder',
-            desc: 'Custom vanity tech portfolio with auto-imported verified projects.',
-            href: '/dashboard?tab=portfolio-builder',
-            icon: Globe,
-            badge: 'VIP',
-            accentColor: 'text-amber-500',
-          },
-          {
-            title: 'Tech Resume Builder',
-            desc: 'ATS-optimized software engineering resume creator with PDF export.',
-            href: '/dashboard?tab=resume-builder',
-            icon: FileText,
-            badge: 'VIP',
-            accentColor: 'text-amber-500',
-          },
-          {
-            title: 'Cryptographic QR Certificates',
-            desc: 'Tamper-proof verifiable digital credentials ready for LinkedIn.',
-            href: '/verify-certificate',
-            icon: Award,
-            accentColor: 'text-emerald-500',
-          },
-        ],
-      },
-    ],
-    featured: {
-      tag: 'HANDS-ON LEARNING',
-      title: 'Real-World Terminal Labs',
-      desc: 'No local setup required. Code, compile, test, and debug in fully isolated sandboxes directly in your browser.',
-      ctaText: 'Explore Practice Hub',
-      href: '/dashboard?tab=practice-hub',
-    },
+    id: 'practice',
+    name: 'Practice IDE',
+    href: '/dashboard/practice-lab',
+    hasDropdown: false,
+    badge: 'NEW',
   },
   {
     id: 'roadmaps',
@@ -364,66 +310,6 @@ const SQUARESPACE_MENU_SECTIONS: MegaMenuSection[] = [
     name: 'Pricing',
     href: '/#pricing',
     hasDropdown: false,
-  },
-  {
-    id: 'resources',
-    name: 'Resources',
-    href: '/verify-certificate',
-    hasDropdown: true,
-    categories: [
-      {
-        category: 'DEVELOPER RESOURCES',
-        items: [
-          {
-            title: 'SQL Interactive Sandbox',
-            desc: 'Experiment with queries and database relations in a live SQL engine.',
-            href: '/dashboard?tab=practice-hub',
-            icon: Database,
-            accentColor: 'text-amber-500',
-          },
-          {
-            title: 'Certificate Verification Portal',
-            desc: 'Public cryptographic lookup for all KaizenQ issued certificates.',
-            href: '/verify-certificate',
-            icon: ShieldCheck,
-            accentColor: 'text-emerald-500',
-          },
-          {
-            title: 'Course Syllabi & Curriculum',
-            desc: 'Browse lesson structures, quizzes, and learning objectives.',
-            href: '/courses',
-            icon: BookOpen,
-            accentColor: 'text-blue-500',
-          },
-        ],
-      },
-      {
-        category: 'SUPPORT & POLICIES',
-        items: [
-          {
-            title: 'Student Community & FAQs',
-            desc: 'Common questions on course access, billing, and certificates.',
-            href: '/#contact',
-            icon: HelpCircle,
-            accentColor: 'text-indigo-500',
-          },
-          {
-            title: 'Instructor & Mentor Support',
-            desc: 'Direct channels to resolve technical and conceptual roadblocks.',
-            href: '/#contact',
-            icon: Users,
-            accentColor: 'text-rose-500',
-          },
-        ],
-      },
-    ],
-    featured: {
-      tag: 'TRUST & CREDENTIALS',
-      title: 'Cryptographic QR Verification',
-      desc: 'Every certificate comes with a tamper-proof verification ID and cryptographic QR code recognized by hiring managers.',
-      ctaText: 'Verify a Certificate',
-      href: '/verify-certificate',
-    },
   },
 ];
 
@@ -670,6 +556,11 @@ export const Navbar: React.FC = () => {
                     `}
                   >
                     <span>{section.name}</span>
+                    {section.badge && (
+                      <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                        {section.badge}
+                      </span>
+                    )}
                     {section.hasDropdown && (
                       <ChevronDown
                         className={`w-3.5 h-3.5 transition-transform duration-200 opacity-60 ${
@@ -946,6 +837,11 @@ export const Navbar: React.FC = () => {
                       className="w-full px-4 py-3 flex items-center justify-between text-xs font-extrabold text-slate-900 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-850"
                     >
                       <span>{section.name}</span>
+                    {section.badge && (
+                      <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                        {section.badge}
+                      </span>
+                    )}
                       {section.hasDropdown && (
                         <ChevronDown
                           className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180 text-blue-600' : ''}`}
