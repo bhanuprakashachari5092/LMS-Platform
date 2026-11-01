@@ -12,10 +12,7 @@ import {
   CheckSquare,
   Square,
   Loader2,
-  TrendingUp,
-  Award,
   AlertTriangle,
-  ShieldCheck,
 } from 'lucide-react';
 import type { StudentUser } from '@/services/studentService';
 

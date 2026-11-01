@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  ExternalLink,
   Plus,
   Trash2,
   FileText,
@@ -8,11 +7,8 @@ import {
   AlertCircle,
   Lightbulb,
   Info,
-  CheckCircle2,
   AlertTriangle,
-  Code2,
   Play,
-  Check,
   Eye,
   Edit3,
 } from 'lucide-react';

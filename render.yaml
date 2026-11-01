@@ -1,0 +1,50 @@
+# ==============================================================================
+# Render Blueprint Specification — Shaivika LMS SaaS
+# Defines Backend Web Service (Java 21) & PostgreSQL Database
+# ==============================================================================
+
+databases:
+  - name: kaizenq-db
+    databaseName: kaizenq_lms
+    user: kaizenq_admin
+    plan: starter
+    region: oregon
+    ipAllowList: [] # Allow all internal connections
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. Spring Boot 3.x Backend (Java 21 LTS Modular Monolith)
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: kaizenq-backend
+    runtime: docker
+    dockerfilePath: ./backend-java/Dockerfile
+    dockerContext: ./backend-java
+    plan: starter
+    region: oregon
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: PORT
+        value: 5000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: kaizenq-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        value: https://www.kaizenq.in
+      - key: CORS_ORIGIN
+        value: https://www.kaizenq.in,https://kaizenq.in,https://lms-platform-frontend.vercel.app,http://localhost:5173
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+

@@ -1,6 +1,6 @@
 /**
  * Centralized API configuration and URL builder.
- * Dynamically resolves backend API endpoints in both local development and production domains (e.g. kaizenq.in, www.kaizenq.in).
+ * Dynamically resolves backend API v1 endpoints in both local development and production domains.
  */
 
 const getBaseUrl = (): string => {
@@ -29,8 +29,10 @@ const rawBaseUrl = getBaseUrl();
 // Strip any trailing slashes
 const cleanUrl = rawBaseUrl.replace(/\/+$/, '');
 
-// Ensure /api is preserved or appended if pointing to backend root
-export const API_BASE_URL = cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
+// Ensure /api/v1 is appended for the Spring Boot REST API
+export const API_BASE_URL = cleanUrl.endsWith('/api/v1') 
+  ? cleanUrl 
+  : (cleanUrl.endsWith('/api') ? `${cleanUrl}/v1` : `${cleanUrl}/api/v1`);
 
 /**
  * Builds a clean, fully-qualified API URL without redundant slashes.
@@ -45,4 +47,3 @@ export default {
   API_BASE_URL,
   buildApiUrl,
 };
-

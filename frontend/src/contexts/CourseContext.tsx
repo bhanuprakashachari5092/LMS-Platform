@@ -61,10 +61,14 @@ export interface ResourceLinkItem {
 
 export interface LearningUnitItem {
   id: string;
+  lessonId?: string | number;
   title: string;
-  description: string;
-  duration: string;
-  type: LearningUnitType;
+  description?: string;
+  shortDescription?: string;
+  moduleTitle?: string;
+  content?: string;
+  duration?: string;
+  type?: LearningUnitType;
   videoUrl?: string;
   readingContent?: string;
   learningObjectives?: string[];
@@ -99,36 +103,40 @@ export interface LearningUnitItem {
   themeIcon?: string | null;
   revision?: number;
   expectedRevision?: number;
+  [key: string]: any;
 }
 
 export interface TopicItem {
   id: string;
   title: string;
-  description: string;
-  estimatedDuration: string;
-  learningUnits: LearningUnitItem[];
+  description?: string;
+  estimatedDuration?: string;
+  learningUnits?: LearningUnitItem[];
   topicImageUrl?: string | null;
   topicImagePublicId?: string | null;
   themeColor?: string | null;
   themeIcon?: string | null;
+  [key: string]: any;
 }
 
 export interface ModuleItem {
   id: string;
   moduleId?: string;
+  courseId?: string;
   title: string;
-  description: string;
-  duration: string;
+  description?: string;
+  duration?: string;
   estimatedDuration?: string;
   order?: number;
   orderIndex?: number;
   revision?: number;
-  lessons: LearningUnitItem[];
-  topics: TopicItem[];
+  lessons?: LearningUnitItem[];
+  topics?: TopicItem[];
   topicImageUrl?: string | null;
   topicImagePublicId?: string | null;
   themeColor?: string | null;
   themeIcon?: string | null;
+  [key: string]: any;
 }
 
 export interface CourseItem {
@@ -136,24 +144,24 @@ export interface CourseItem {
   title: string;
   slug?: string;
   subtitle?: string;
-  instructor: string;
+  instructor?: any;
   role?: string;
   avatar?: string;
-  rating: number;
+  rating?: number;
   reviews?: number;
-  students: string;
-  duration: string;
-  category: string;
+  students?: string;
+  duration?: string;
+  category?: string;
   level?: string;
   badge?: string;
   tracks?: string;
-  thumbnail: string;
+  thumbnail?: string;
   thumbnailUrl?: string;
   thumbnailPublicId?: string;
   banner?: string;
   status: 'Published' | 'Draft';
   price?: number;
-  description: string;
+  description?: string;
   shortDescription?: string;
   learningOutcomes?: string[];
   tags?: string[];
@@ -163,8 +171,11 @@ export interface CourseItem {
   updatedAt?: string;
   createdAt?: string;
   created?: string;
-  syllabus: string[];
+  syllabus?: string[];
   modules?: ModuleItem[];
+  expectedRevision?: number;
+  revision?: number;
+  version?: number;
 }
 
 
@@ -521,7 +532,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               ...c,
               ...updated,
               status: updated.status?.toLowerCase() === 'published' ? 'Published' : 'Draft',
-            } as CourseItem;
+            } as unknown as CourseItem;
           }
           return c;
         });

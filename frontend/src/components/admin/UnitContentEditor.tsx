@@ -11,11 +11,11 @@ import {
   HelpCircle,
   Link as LinkIcon,
   FileCode,
-  Clock,
+
   Sparkles,
-  ChevronDown,
-  ChevronUp,
-  ExternalLink,
+
+
+
   ArrowUp,
   ArrowDown
 } from 'lucide-react';
@@ -28,7 +28,7 @@ import {
   type ResourceLinkItem,
   type QuizQuestion
 } from '@/contexts/CourseContext';
-import { MarkdownContent } from '../learning/MarkdownContent';
+
 import { normalizeStringList } from '../learning/LessonContentPanel';
 import { StudentLessonRenderer } from '../learning/StudentLessonRenderer';
 import { processCanonicalLessonContent } from '@/utils/lessonNormalizer';
@@ -57,8 +57,7 @@ const SUPPORTED_LANGUAGES = [
   { value: 'json', label: 'JSON' },
 ];
 
-export const UnitContentEditor: React.FC<UnitContentEditorProps> = ({
-  isOpen,
+const UnitContentEditorContent: React.FC<Omit<UnitContentEditorProps, 'unit'> & { unit: LearningUnitItem }> = ({
   unit,
   moduleTitle,
   topicTitle,
@@ -66,7 +65,6 @@ export const UnitContentEditor: React.FC<UnitContentEditorProps> = ({
   onClose,
   onDelete,
 }) => {
-  if (!isOpen || !unit) return null;
 
   // Track the current loaded unit ID and dirty state in refs to safely distinguish
   // switching units vs parent re-renders of the same unit
@@ -126,7 +124,7 @@ export const UnitContentEditor: React.FC<UnitContentEditorProps> = ({
 
   const [isSaving, setIsSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
-  const [previewPracticeOpen, setPreviewPracticeOpen] = useState<Record<number, boolean>>({});
+
 
   const markDirty = () => {
     isDirtyRef.current = true;
@@ -157,7 +155,7 @@ export const UnitContentEditor: React.FC<UnitContentEditorProps> = ({
         reason: previousUnitId === null ? 'initial_mount' : 'unit_switched',
         revision: unit.revision,
       });
-      lastLoadedUnitIdRef.current = unit.id;
+      lastLoadedUnitIdRef.current = unit.id || null;
       isDirtyRef.current = false;
       setIsDirty(false);
       setCurrentRevision(unit.revision);
@@ -460,7 +458,7 @@ export const UnitContentEditor: React.FC<UnitContentEditorProps> = ({
       }
       isDirtyRef.current = false;
       setIsDirty(false);
-      lastLoadedUnitIdRef.current = updatedUnit.id;
+      lastLoadedUnitIdRef.current = updatedUnit.id || null;
       toast.success(isDraft ? 'Unit saved as draft.' : 'Unit published successfully!');
     } catch (err: any) {
       console.error('[UnitContentEditor] Save error:', err);
@@ -1255,4 +1253,9 @@ export const UnitContentEditor: React.FC<UnitContentEditorProps> = ({
       </div>
     </div>
   );
+};
+
+export const UnitContentEditor: React.FC<UnitContentEditorProps> = (props) => {
+  if (!props.isOpen || !props.unit) return null;
+  return <UnitContentEditorContent {...props} unit={props.unit} />;
 };

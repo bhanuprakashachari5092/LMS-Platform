@@ -1,0 +1,30 @@
+#!/bin/sh
+# ----------------------------------------------------------------------------
+# Maven Wrapper Script for Linux / macOS / Render Deployment
+# ----------------------------------------------------------------------------
+set -e
+
+MAVEN_VERSION="3.9.9"
+MAVEN_USER_HOME="${HOME}/.m2"
+MAVEN_DIR="${MAVEN_USER_HOME}/wrapper/dists/apache-maven-${MAVEN_VERSION}"
+MAVEN_ZIP="${MAVEN_USER_HOME}/wrapper/dists/apache-maven-${MAVEN_VERSION}-bin.zip"
+MAVEN_CMD="${MAVEN_DIR}/apache-maven-${MAVEN_VERSION}/bin/mvn"
+
+if [ ! -x "${MAVEN_CMD}" ]; then
+    echo "[INFO] Downloading Apache Maven ${MAVEN_VERSION}..."
+    mkdir -p "${MAVEN_USER_HOME}/wrapper/dists"
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL "https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/${MAVEN_VERSION}/apache-maven-${MAVEN_VERSION}-bin.zip" -o "${MAVEN_ZIP}"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q "https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/${MAVEN_VERSION}/apache-maven-${MAVEN_VERSION}-bin.zip" -O "${MAVEN_ZIP}"
+    else
+        echo "[ERROR] Neither curl nor wget found to download Maven."
+        exit 1
+    fi
+    echo "[INFO] Extracting Maven distribution..."
+    unzip -q -o "${MAVEN_ZIP}" -d "${MAVEN_DIR}"
+    chmod +x "${MAVEN_CMD}"
+fi
+
+exec "${MAVEN_CMD}" "$@"
+

@@ -125,3 +125,7 @@ LMS-Platform/
 
 # Scratch and temporary verification scripts
 scratch/
+
+# Java & Maven
+backend-java/target/
+.mvn/wrapper/maven-wrapper.jar

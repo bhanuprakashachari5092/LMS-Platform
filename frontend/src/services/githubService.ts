@@ -1,3 +1,5 @@
+import { apiClient } from '@/services/apiClient';
+
 export interface GitHubMetrics {
   username: string;
   avatarUrl: string;
@@ -18,6 +20,16 @@ export async function fetchGitHubStudentMetrics(username: string): Promise<GitHu
   const cleanUser = username.trim().replace(/^@/, '').replace(/https?:\/\/github\.com\//, '');
   if (!cleanUser) {
     throw new Error('Invalid GitHub username');
+  }
+
+  // 1. Try Java backend integration first
+  try {
+    const res = await apiClient.get(`/integrations/github/metrics/${encodeURIComponent(cleanUser)}`);
+    if (res.data?.success && res.data?.data) {
+      return res.data.data;
+    }
+  } catch {
+    // Graceful fallback to client-side fetch or simulation
   }
 
   try {

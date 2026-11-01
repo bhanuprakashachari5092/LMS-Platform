@@ -1,0 +1,120 @@
+server:
+  port: ${PORT:5000}
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
+    min-response-size: 1024
+
+spring:
+  application:
+    name: kaizenq-lms-backend
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc:
+          batch_size: 25
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+# ==============================================================================
+# Security & JWT Configuration
+# ==============================================================================
+app:
+  jwt:
+    secret: ${JWT_SECRET:kaizenq_production_jwt_secret_key_2026_at_least_256_bits_long!}
+    access-token-expiration-seconds: 86400      # 24 hours
+    refresh-token-expiration-seconds: 604800   # 7 days
+  cors:
+    allowed-origins: ${CORS_ORIGIN:https://www.kaizenq.in,https://kaizenq.in,http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173}
+    allowed-methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+    allowed-headers: "*"
+    allow-credentials: true
+
+# ==============================================================================
+# External Integrations Configuration
+# ==============================================================================
+integrations:
+  gemini:
+    api-key: ${GEMINI_API_KEY:}
+  brevo:
+    api-key: ${BREVO_API_KEY:}
+    from-email: ${BREVO_FROM_EMAIL:no-reply@kaizenq.in}
+    from-name: ${BREVO_FROM_NAME:KaizenQ LMS}
+  razorpay:
+    key-id: ${RAZORPAY_KEY_ID:}
+    key-secret: ${RAZORPAY_KEY_SECRET:}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+
+---
+# ==============================================================================
+# Profile: DEV (Local Development)
+# ==============================================================================
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: ${DEV_DATABASE_URL:jdbc:postgresql://localhost:5432/kaizenq_lms}
+    username: ${DEV_DB_USERNAME:postgres}
+    password: ${DEV_DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+
+---
+# ==============================================================================
+# Profile: PROD (Render Web Service Deployment)
+# ==============================================================================
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    # Render provides DATABASE_URL in postgres:// format; our DataSourceConfig parses it into JDBC format if needed
+    url: ${SPRING_DATASOURCE_URL:${DATABASE_URL:jdbc:postgresql://localhost:5432/kaizenq_lms}}
+    username: ${SPRING_DATASOURCE_USERNAME:${DB_USERNAME:postgres}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:postgres}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 15
+      minimum-idle: 3
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+
+---
+# ==============================================================================
+# Profile: TEST (In-Memory H2 for Fast Isolated Tests)
+# ==============================================================================
+spring:
+  config:
+    activate:
+      on-profile: test
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  flyway:
+    enabled: false
+

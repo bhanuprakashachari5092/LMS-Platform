@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import { Link } from 'react-router-dom';
 import type { ICourse } from '../../../../shared/types/course';
-import { Bookmark, BookmarkCheck } from 'lucide-react';
+import { Bookmark } from 'lucide-react';
 import { courseService } from '../../services/courseService';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -57,7 +57,7 @@ const getCardColorClass = (category?: string, index: number = 0): string => {
 
 export const CourseCard: React.FC<CourseCardProps> = ({
   course,
-  isAdmin = false,
+
   onBookmark,
   index = 0,
 }) => {
@@ -111,7 +111,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
             viewBox="0 0 24 24"
             fill="currentColor"
             className="size-6"
-            title="Options"
+            aria-label="Options"
           >
             <path
               fillRule="evenodd"

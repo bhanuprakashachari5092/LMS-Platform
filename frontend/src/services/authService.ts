@@ -7,6 +7,7 @@ import { auth, db } from './firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 
 import { API_BASE_URL } from '@/config/api';
+import { apiClient } from '@/services/apiClient';
 
 export const getFriendlyAuthErrorMessage = (error: any): string => {
   const code = error?.code || '';
@@ -135,6 +136,62 @@ export class AuthService {
       console.warn('Nodemailer SMTP resend error:', error);
       throw new Error(error?.message || 'Failed to resend email via SMTP server.');
     }
+  }
+
+  /**
+   * Register user directly with Spring Boot backend (/api/v1/auth/register)
+   */
+  public async registerWithBackend(email: string, password: string, fullName: string, role?: string) {
+    const res = await apiClient.post('/auth/register', {
+      email,
+      password,
+      fullName,
+      role: role || 'STUDENT',
+    });
+    if (res.data?.success && res.data?.data) {
+      const { accessToken, refreshToken, user } = res.data.data;
+      if (accessToken) {
+        localStorage.setItem('token', accessToken);
+        localStorage.setItem('shaivika_auth_token', accessToken);
+      }
+      if (refreshToken) {
+        localStorage.setItem('refreshToken', refreshToken);
+        localStorage.setItem('shaivika_refresh_token', refreshToken);
+      }
+      return user;
+    }
+    throw new Error(res.data?.message || 'Registration failed');
+  }
+
+  /**
+   * Login user directly with Spring Boot backend (/api/v1/auth/login)
+   */
+  public async loginWithBackend(email: string, password: string) {
+    const res = await apiClient.post('/auth/login', {
+      email,
+      password,
+    });
+    if (res.data?.success && res.data?.data) {
+      const { accessToken, refreshToken, user } = res.data.data;
+      if (accessToken) {
+        localStorage.setItem('token', accessToken);
+        localStorage.setItem('shaivika_auth_token', accessToken);
+      }
+      if (refreshToken) {
+        localStorage.setItem('refreshToken', refreshToken);
+        localStorage.setItem('shaivika_refresh_token', refreshToken);
+      }
+      return user;
+    }
+    throw new Error(res.data?.message || 'Login failed');
+  }
+
+  /**
+   * Fetch current authenticated user (/api/v1/auth/me)
+   */
+  public async getCurrentUser() {
+    const res = await apiClient.get('/auth/me');
+    return res.data?.data;
   }
 }
 

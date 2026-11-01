@@ -7,16 +7,9 @@ import {
   Plus,
   Trash2,
   CheckCircle2,
-  ExternalLink,
-  Clock,
-  Award,
-  FileText,
-  AlertCircle,
-  Code2,
-  Link as LinkIcon,
-  UploadCloud
+  FileText
 } from 'lucide-react';
-import type { LearningUnitItem, QuizQuestion } from '@/contexts/CourseContext';
+import type { QuizQuestion } from '@/contexts/CourseContext';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 1. VIDEO EDITOR SECTION

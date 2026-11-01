@@ -1,0 +1,62 @@
+package com.shaivikagroups.lms.config;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
+
+import java.util.Arrays;
+import java.util.List;
+
+/**
+ * Cross-Origin Resource Sharing (CORS) Configuration.
+ * Fully compatible with Vercel frontend deployments and custom domains.
+ */
+@Configuration
+public class CorsConfig {
+
+    @Value("${app.cors.allowed-origins:https://www.kaizenq.in,https://kaizenq.in,http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173}")
+    private String allowedOrigins;
+
+    @Bean
+    public CorsFilter corsFilter() {
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        CorsConfiguration config = new CorsConfiguration();
+
+        config.setAllowCredentials(true);
+
+        List<String> origins = Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+        config.setAllowedOrigins(origins);
+
+        // Allow Vercel preview URLs dynamically
+        config.addAllowedOriginPattern("https://*.vercel.app");
+
+        config.setAllowedHeaders(List.of(
+                "Origin",
+                "Content-Type",
+                "Accept",
+                "Authorization",
+                "X-Requested-With",
+                "X-Tenant-ID",
+                "X-User-Role",
+                "X-User-Email"
+        ));
+
+        config.setExposedHeaders(List.of(
+                "Authorization",
+                "X-Tenant-ID"
+        ));
+
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        config.setMaxAge(3600L);
+
+        source.registerCorsConfiguration("/**", config);
+        return new CorsFilter(source);
+    }
+}
+

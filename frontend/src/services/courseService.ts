@@ -1,5 +1,5 @@
 import type { ICourse, CreateCourseDTO, UpdateCourseDTO, CourseFilterOptions, CoursePaginationResult, CourseLevel, CourseStatus, IVideoProgress } from '../../../shared/types/course';
-import { normalizeCourseData, auditCourseData, normalizeModuleItem, normalizeCourseModulesForDisplay } from './courseNormalizer';
+import { normalizeCourseData, auditCourseData, normalizeCourseModulesForDisplay } from './courseNormalizer';
 import { serializeFirestorePayload } from '../utils/firestoreSerializer';
 import { processCanonicalLessonContent } from '../utils/lessonNormalizer';
 export type { ICourse };
@@ -717,7 +717,7 @@ export interface XPClaimRecord {
   id: string;
   title: string;
   xp: number;
-  category: 'Subtopic Completion' | 'Module Certificate' | 'AI Terminal Lab' | 'Quiz Evaluation' | 'Daily Login' | 'Module Completion Bonus' | 'Practice Challenge Completion';
+  category: 'Subtopic Completion' | 'Lesson Completion' | 'Module Certificate' | 'AI Terminal Lab' | 'Quiz Evaluation' | 'Daily Login' | 'Module Completion Bonus' | 'Practice Challenge Completion' | string;
   timestamp: string;
   courseId?: string;
   courseTitle?: string;
@@ -1028,7 +1028,7 @@ const getAuthHeadersAsync = async (): Promise<Record<string, string>> => {
   return headers;
 };
 
-const getAuthHeaders = (): Record<string, string> => {
+export const getAuthHeaders = (): Record<string, string> => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
@@ -1471,7 +1471,7 @@ class CourseService {
     return null;
   }
 
-  async getCourseModules(courseId: string, forceRefresh = false, minExpectedVersion?: number): Promise<any[]> {
+  async getCourseModules(courseId: string, _forceRefresh = false, minExpectedVersion?: number): Promise<any[]> {
     if (!courseId) return [];
 
     // 1. Authoritative: Fetch from Backend REST API

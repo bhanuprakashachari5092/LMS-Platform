@@ -40,15 +40,17 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
   onResetPassword,
   onSendEmail,
 }) => {
-  if (!student) return null;
-
-  const isGithub = student.provider === 'github.com' || Boolean(student.photoURL?.includes('github'));
   const leaderboardService = React.useMemo(() => new LeaderboardService(), []);
   const studentRank = React.useMemo(() => {
+    if (!student) return 1;
     const list = leaderboardService.getLeaderboard('global', student.id);
     const item = list.find((e) => e.id === student.id || e.name === student.name);
     return item ? item.rank : 1;
-  }, [student.id, student.name, leaderboardService]);
+  }, [student?.id, student?.name, leaderboardService]);
+
+  if (!student) return null;
+
+  const isGithub = student.provider === 'github.com' || Boolean(student.photoURL?.includes('github'));
 
   const scoreColor =
     (student.learningScore || 80) >= 90

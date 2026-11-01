@@ -150,10 +150,14 @@ export const CourseBuilderTree: React.FC<CourseBuilderTreeProps> = ({
         ) : (
           modules.map((module, modIdx) => {
             const isExpanded = expandedModules[module.id] !== false;
-            const allUnits = module.lessons || module.topics?.flatMap((t) => t.learningUnits) || [];
+            const allUnits: LearningUnitItem[] = (
+              module.lessons ||
+              module.topics?.flatMap((t) => t.learningUnits || []) ||
+              []
+            ).filter((u): u is LearningUnitItem => Boolean(u));
             const firstTopicId = module.topics?.[0]?.id || `${module.id}-t1`;
             const filteredUnits = allUnits.filter(
-              (u) => !searchQuery || u.title.toLowerCase().includes(searchQuery.toLowerCase())
+              (u) => !searchQuery || (u.title || '').toLowerCase().includes(searchQuery.toLowerCase())
             );
             const isAddMenuOpen = openAddMenuModId === module.id;
 

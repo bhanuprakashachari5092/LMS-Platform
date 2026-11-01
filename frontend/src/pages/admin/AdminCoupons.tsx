@@ -15,13 +15,13 @@ import {
   Percent,
   DollarSign,
   Calendar,
-  Users,
+
   Layers,
-  ArrowRight,
+
   RotateCw,
   X,
   Loader2,
-  ShieldCheck,
+
   BookOpen,
 } from 'lucide-react';
 import { toast } from 'sonner';

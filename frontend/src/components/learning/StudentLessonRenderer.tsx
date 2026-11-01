@@ -13,6 +13,14 @@ export interface CanonicalLessonInput {
   shortDescription?: string;
   duration?: string;
   type?: string;
+  videoUrl?: string;
+  quizQuestions?: any;
+  assignmentInstructions?: string;
+  assignmentReferenceFiles?: any;
+  assignmentMaxMarks?: number;
+  assignmentDeadline?: string;
+  assignmentAllowedTypes?: string;
+  assignmentRubric?: string;
   topicImageUrl?: string | null;
   themeColor?: string | null;
   themeIcon?: string | null;
@@ -23,6 +31,7 @@ export interface CanonicalLessonInput {
   resources?: any;
   resourceLinks?: any;
   isDraft?: boolean;
+  [key: string]: any;
 }
 
 export interface StudentLessonRendererProps {

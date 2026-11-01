@@ -10,7 +10,7 @@ import type { ModuleItem, TopicItem, LearningUnitItem, LearningUnitType } from '
 import { LoadingSkeleton } from '../../components/courses/LoadingSkeleton';
 import { CloudinaryUploadZone } from '../../components/admin/CloudinaryUploadZone';
 import { aiAutofillService } from '@/services/aiAutofillService';
-import { MarkdownContent } from '@/components/learning/MarkdownContent';
+
 import { normalizeStringList } from '@/components/learning/LessonContentPanel';
 import { StudentLessonRenderer } from '@/components/learning/StudentLessonRenderer';
 import { processCanonicalLessonContent } from '@/utils/lessonNormalizer';
@@ -302,19 +302,21 @@ export const AdminCourseEdit: React.FC = () => {
           // Auto-select first lesson if exists
           if (courseMods.length > 0 && courseMods[0].topics && courseMods[0].topics[0]?.learningUnits?.[0]) {
             const firstMod = courseMods[0];
-            const firstTop = firstMod.topics[0];
-            const firstUnit = firstTop.learningUnits[0];
-            setSelectedUnit(firstUnit);
-            setSelectedModId(firstMod.id);
-            setSelectedTopId(firstTop.id);
-            setUnitTitle(firstUnit.title || '');
-            setUnitDuration(firstUnit.duration || '15 mins');
-            setUnitType(firstUnit.type || 'Reading');
-            setLessonMarkdown(firstUnit.readingContent || firstUnit.conceptTheory || '');
-            setLessonDescription(firstUnit.description || '');
-            setLearningObjectives(normalizeStringList(firstUnit.learningObjectives, []));
-            setKeyPoints(normalizeStringList(firstUnit.keyPoints, []));
-            setUnitResources(Array.isArray(firstUnit.resources) ? firstUnit.resources : (Array.isArray(firstUnit.resourceLinks) ? firstUnit.resourceLinks : []));
+            const firstTop = firstMod.topics?.[0];
+            const firstUnit = firstTop?.learningUnits?.[0];
+            if (firstTop && firstUnit) {
+              setSelectedUnit(firstUnit);
+              setSelectedModId(firstMod.id);
+              setSelectedTopId(firstTop.id);
+              setUnitTitle(firstUnit.title || '');
+              setUnitDuration(firstUnit.duration || '15 mins');
+              setUnitType(firstUnit.type || 'Reading');
+              setLessonMarkdown(firstUnit.readingContent || firstUnit.conceptTheory || '');
+              setLessonDescription(firstUnit.description || '');
+              setLearningObjectives(normalizeStringList(firstUnit.learningObjectives, []));
+              setKeyPoints(normalizeStringList(firstUnit.keyPoints, []));
+              setUnitResources(Array.isArray(firstUnit.resources) ? firstUnit.resources : (Array.isArray(firstUnit.resourceLinks) ? firstUnit.resourceLinks : []));
+            }
           }
 
           setIsDirty(false);
@@ -578,6 +580,7 @@ export const AdminCourseEdit: React.FC = () => {
       title: newModuleName.trim(),
       description: 'Core concepts and architectural overview',
       duration: '4 Hours',
+      lessons: [],
       topics: [
         {
           id: `topic-${Date.now()}-1`,
@@ -691,9 +694,9 @@ export const AdminCourseEdit: React.FC = () => {
     setSelectedUnit(newUnit);
     setSelectedModId(modId);
     setSelectedTopId(topId);
-    setUnitTitle(newUnit.title);
-    setUnitDuration(newUnit.duration);
-    setUnitType(newUnit.type);
+    setUnitTitle(newUnit.title || '');
+    setUnitDuration(newUnit.duration || '15 mins');
+    setUnitType(newUnit.type || 'Reading');
     setLessonMarkdown(newUnit.readingContent || '');
     setLessonDescription(newUnit.description || '');
     setLearningObjectives([]);
@@ -1179,7 +1182,7 @@ export const AdminCourseEdit: React.FC = () => {
       if (updated) {
         setCourseData((prev: any) => ({ ...prev, ...updated, version: updated.version ?? prev.version }));
         if (Array.isArray(updated.modules) && updated.modules.length > 0) {
-          setModules(updated.modules);
+          setModules((updated.modules as unknown as ModuleItem[]) || []);
         }
       }
 
@@ -2207,7 +2210,7 @@ export const AdminCourseEdit: React.FC = () => {
                       mode="preview"
                       lesson={{
                         title: unitTitle || 'Lesson Title',
-                        moduleTitle: activeModule?.title,
+                        moduleTitle: modules.find((m) => m.id === selectedModId)?.title,
                         readingContent: lessonMarkdown || '*No content written yet.*',
                         description: lessonDescription,
                         learningObjectives,
@@ -3020,7 +3023,7 @@ export const AdminCourseEdit: React.FC = () => {
                   setShowConflictModal(false);
                   setLoading(true);
                   try {
-                    const fresh = await courseService.getCourseBySlugOrId(id);
+                    const fresh = await courseService.getCourseBySlugOrId(id || '');
                     if (fresh) {
                       setCourseData(fresh);
                       setModules((fresh.modules as ModuleItem[]) || []);

@@ -4,16 +4,12 @@ import {
   ArrowLeft,
   Save,
   Eye,
-  CheckCircle2,
-  Clock,
   Sparkles,
   Trash2,
   Copy,
   Sliders,
   BookOpen,
-  Plus,
   X,
-  FileCode2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { courseService } from '../../../services/courseService';
@@ -405,7 +401,6 @@ export const LessonBuilderStudio: React.FC<LessonBuilderStudioProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      const def = (LessonBlockPalette as any);
                       // Trigger default text block
                       const newB: ILessonBlock = {
                         id: `block_${Date.now()}_text`,

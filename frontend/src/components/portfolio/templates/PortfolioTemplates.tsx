@@ -113,6 +113,9 @@ export interface PortfolioData {
   accentColor?: string;
   isPublished?: boolean;
   template?: PortfolioTemplateId;
+  certificatesCount?: number;
+  xp?: number;
+  level?: number;
 }
 
 const GithubIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (

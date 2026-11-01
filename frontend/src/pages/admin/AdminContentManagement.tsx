@@ -32,6 +32,10 @@ import { sanitizeAdminInput, sanitizeMarkdownContent, serializeFirestorePayload 
 import { MarkdownContent } from '@/components/learning/MarkdownContent';
 import { StudentLessonRenderer } from '@/components/learning/StudentLessonRenderer';
 import { aiAutofillService } from '@/services/aiAutofillService';
+import { courseService } from '@/services/courseService';
+
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+type ResourceType = 'pdf' | 'link' | 'video' | 'download' | 'github';
 
 // Initialize services
 const contentService = new ContentService();
@@ -94,25 +98,20 @@ export const AdminContentManagement: React.FC = () => {
 
     try {
       setIsAutofillingLesson(true);
-      const generated = await aiService.generateComprehensiveLessonContent(
-        selectedLesson.title,
-        activeCourse?.title || 'Technical Course',
-        selectedLesson.description || ''
-      );
+      const generated = await aiAutofillService.autofillLesson({
+        lessonTitle: selectedLesson.title,
+        courseTitle: activeCourse?.title || 'Technical Course',
+      });
 
       if (generated) {
         const updatedLesson: LearningUnitItem = {
           ...selectedLesson,
-          readingContent: generated.readingContent || selectedLesson.readingContent,
-          description: generated.description || selectedLesson.description,
-          duration: generated.duration || selectedLesson.duration,
-          learningObjectives: generated.learningObjectives && generated.learningObjectives.length > 0
-            ? generated.learningObjectives
-            : selectedLesson.learningObjectives,
-          keyPoints: generated.keyPoints && generated.keyPoints.length > 0
-            ? generated.keyPoints
-            : selectedLesson.keyPoints,
-          assignmentInstructions: generated.assignmentInstructions || selectedLesson.assignmentInstructions,
+          readingContent: generated.content || selectedLesson.readingContent,
+          description: selectedLesson.description,
+          duration: `${generated.estimatedReadMinutes || 10} mins`,
+          learningObjectives: selectedLesson.learningObjectives,
+          keyPoints: selectedLesson.keyPoints,
+          assignmentInstructions: selectedLesson.assignmentInstructions,
         };
 
         setSelectedLesson(updatedLesson);
@@ -212,12 +211,14 @@ export const AdminContentManagement: React.FC = () => {
       // Select first lesson if none selected
       if (!selectedLesson && activeCourse.modules[0]?.topics?.[0]?.learningUnits?.[0]) {
         const firstMod = activeCourse.modules[0];
-        const firstTop = firstMod.topics[0];
-        const firstUnit = firstTop.learningUnits[0];
-        setSelectedLesson({ ...firstUnit });
-        setActiveModuleId(firstMod.id);
-        setActiveTopicId(firstTop.id);
-        setIsDirty(false);
+        const firstTop = firstMod.topics?.[0];
+        const firstUnit = firstTop?.learningUnits?.[0];
+        if (firstTop && firstUnit) {
+          setSelectedLesson({ ...firstUnit });
+          setActiveModuleId(firstMod.id);
+          setActiveTopicId(firstTop.id);
+          setIsDirty(false);
+        }
       }
     }
   }, [activeCourse?.id]);
@@ -303,10 +304,10 @@ export const AdminContentManagement: React.FC = () => {
       const nextModules = activeCourse.modules ? activeCourse.modules.map(m => {
         if (m.id !== activeModuleId) return m;
 
-        const nextTopics = m.topics.map(t => {
+        const nextTopics = (m.topics || []).map(t => {
           if (t.id !== activeTopicId) return t;
 
-          const nextUnits = t.learningUnits.map(u => {
+          const nextUnits = (t.learningUnits || []).map(u => {
             if (u.id === sanitized.id) {
               return nextSavedLesson;
             }
@@ -383,8 +384,8 @@ export const AdminContentManagement: React.FC = () => {
     const lessonToMove = { ...selectedLesson };
 
     const updated = activeCourse.modules.map(m => {
-      let nextTopics = m.topics.map(t => {
-        let units = [...t.learningUnits];
+      let nextTopics = (m.topics || []).map(t => {
+        let units = [...(t.learningUnits || [])];
         if (m.id === activeModuleId && t.id === activeTopicId) {
           units = units.filter(u => u.id !== lessonToMove.id);
         }
@@ -433,9 +434,9 @@ export const AdminContentManagement: React.FC = () => {
 
     const updated = (activeCourse.modules || []).map(m => {
       if (m.id !== activeModuleId) return m;
-      const nextTopics = m.topics.map(t => {
+      const nextTopics = (m.topics || []).map(t => {
         if (t.id !== activeTopicId) return t;
-        const filtered = t.learningUnits.filter(u => u.id !== lessonToMove.id);
+        const filtered = (t.learningUnits || []).filter(u => u.id !== lessonToMove.id);
         return {
           ...t,
           learningUnits: filtered.map((u, idx) => ({ ...u, order: idx + 1, orderIndex: idx + 1 }))
@@ -472,15 +473,15 @@ export const AdminContentManagement: React.FC = () => {
     let draggedLesson: LearningUnitItem | null = null;
     activeCourse.modules.forEach(m => {
       m.topics?.forEach(t => {
-        const found = t.learningUnits.find(u => u.id === srcId);
+        const found = t.learningUnits?.find(u => u.id === srcId);
         if (found) draggedLesson = found;
       });
     });
     if (!draggedLesson) return;
 
     const updated = activeCourse.modules.map(m => {
-      let nextTopics = m.topics.map(t => {
-        let units = [...t.learningUnits];
+      let nextTopics = (m.topics || []).map(t => {
+        let units = [...(t.learningUnits || [])];
         if (m.id === srcModId && t.id === srcTopId) {
           units = units.filter(u => u.id !== srcId);
         }
@@ -517,15 +518,15 @@ export const AdminContentManagement: React.FC = () => {
     let draggedLesson: LearningUnitItem | null = null;
     activeCourse.modules.forEach(m => {
       m.topics?.forEach(t => {
-        const found = t.learningUnits.find(u => u.id === srcId);
+        const found = t.learningUnits?.find(u => u.id === srcId);
         if (found) draggedLesson = found;
       });
     });
     if (!draggedLesson) return;
 
     const updated = activeCourse.modules.map(m => {
-      let nextTopics = m.topics.map(t => {
-        let units = [...t.learningUnits];
+      let nextTopics = (m.topics || []).map(t => {
+        let units = [...(t.learningUnits || [])];
         if (m.id === srcModId && t.id === srcTopId) {
           units = units.filter(u => u.id !== srcId);
         }
@@ -615,9 +616,9 @@ export const AdminContentManagement: React.FC = () => {
     if (!activeCourse || !activeCourse.modules) return;
     const updated = activeCourse.modules.map(m => {
       if (m.id === mId) {
-        const nextTopics = m.topics.map(t => {
+        const nextTopics = (m.topics || []).map(t => {
           if (t.id === tId) {
-            const reordered = contentService.reorderLesson(t.learningUnits, lessonId, direction);
+            const reordered = contentService.reorderLesson(t.learningUnits || [], lessonId, direction);
             return {
               ...t,
               learningUnits: reordered.map((u, idx) => ({ ...u, order: idx + 1, orderIndex: idx + 1 }))
@@ -641,9 +642,9 @@ export const AdminContentManagement: React.FC = () => {
     if (!activeCourse || !activeCourse.modules) return;
     const updated = activeCourse.modules.map(m => {
       if (m.id === mId) {
-        const nextTopics = m.topics.map(t => {
+        const nextTopics = (m.topics || []).map(t => {
           if (t.id === tId) {
-            const filtered = t.learningUnits.filter(u => u.id !== lessonId);
+            const filtered = (t.learningUnits || []).filter(u => u.id !== lessonId);
             return {
               ...t,
               learningUnits: filtered.map((u, idx) => ({ ...u, order: idx + 1, orderIndex: idx + 1 }))
@@ -677,9 +678,9 @@ export const AdminContentManagement: React.FC = () => {
 
     const updated = activeCourse.modules.map(m => {
       if (m.id === mId) {
-        const nextTopics = m.topics.map(t => {
+        const nextTopics = (m.topics || []).map(t => {
           if (t.id === tId) {
-            const list = [...t.learningUnits, duplicated];
+            const list = [...(t.learningUnits || []), duplicated];
             return { ...t, learningUnits: list.map((u, idx) => ({ ...u, order: idx + 1, orderIndex: idx + 1 })) };
           }
           return t;
@@ -696,7 +697,7 @@ export const AdminContentManagement: React.FC = () => {
   const addLessonNode = (mId: string, tId: string) => {
     if (!activeCourse || !activeCourse.modules) return;
     const targetModule = activeCourse.modules.find(m => m.id === mId);
-    const existingCount = targetModule?.topics?.flatMap(t => t.learningUnits).length || 0;
+    const existingCount = targetModule?.topics?.flatMap(t => t.learningUnits || []).length || 0;
     const newLessonId = `lesson_${Date.now()}`;
     const newLesson: LearningUnitItem = {
       id: newLessonId,
@@ -712,9 +713,9 @@ export const AdminContentManagement: React.FC = () => {
 
     const updated = activeCourse.modules.map(m => {
       if (m.id === mId) {
-        const nextTopics = m.topics.map(t => {
+        const nextTopics = (m.topics || []).map(t => {
           if (t.id === tId) {
-            const list = [...t.learningUnits, newLesson];
+            const list = [...(t.learningUnits || []), newLesson];
             return { ...t, learningUnits: list.map((u, idx) => ({ ...u, order: idx + 1, orderIndex: idx + 1 })) };
           }
           return t;
@@ -993,8 +994,8 @@ export const AdminContentManagement: React.FC = () => {
                       <div className="p-2 space-y-1.5">
                         {module.topics?.map(topic => (
                           <div key={topic.id} className="space-y-1">
-                            {topic.learningUnits
-                              .filter(u => !searchQuery || u.title.toLowerCase().includes(searchQuery.toLowerCase()))
+                            {(topic.learningUnits || [])
+                              .filter(u => !searchQuery || (u.title || '').toLowerCase().includes(searchQuery.toLowerCase()))
                               .map((unit, uIdx) => {
                                 const isSelected = selectedLesson?.id === unit.id;
                                 const readMins = calculateEstimatedReadMinutes(unit.readingContent);
@@ -1058,7 +1059,7 @@ export const AdminContentManagement: React.FC = () => {
 
                                       <button
                                         onClick={() => moveLesson(module.id, topic.id, unit.id, 'down')}
-                                        disabled={uIdx === topic.learningUnits.length - 1}
+                                        disabled={uIdx === (topic.learningUnits?.length || 0) - 1}
                                         className={`p-1 rounded cursor-pointer ${
                                           isSelected ? 'hover:bg-indigo-700 text-indigo-100' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400'
                                         }`}

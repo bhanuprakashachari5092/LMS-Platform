@@ -1,15 +1,15 @@
 import type {
   ICourse,
   IModuleItem,
-  ILessonItem,
-  IVideoItem,
-  IResourceItem,
-  IQuizItem,
-  IAssignmentItem,
-  IPracticalLabItem,
+
+
+
+
+
+
   CourseRoadmapItem,
   VideoProvider,
-  LessonType,
+
 } from '../../../shared/types/course';
 
 /**

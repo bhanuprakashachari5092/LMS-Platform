@@ -80,7 +80,7 @@ const FlipCardComponent: React.FC<FlipCardProps> = ({
           viewBox="0 0 24 24"
           fill="currentColor"
           className="size-6"
-          title="Course details"
+          aria-label="Course details"
         >
           <path
             fillRule="evenodd"

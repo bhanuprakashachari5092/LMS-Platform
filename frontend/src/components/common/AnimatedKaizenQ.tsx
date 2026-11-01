@@ -43,6 +43,7 @@ export const AnimatedKaizenQ: React.FC<AnimatedKaizenQProps> = ({
   className = '',
   onSequenceComplete,
 }) => {
+  const isDark = theme === 'dark';
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
 
@@ -291,7 +292,7 @@ export const AnimatedKaizenQ: React.FC<AnimatedKaizenQProps> = ({
     };
 
     const drawWordmark = (alpha: number, sweepProgress: number, pulseScale: number, floatY: number) => {
-      const isDark = theme === 'dark';
+
       const textX = width < 600 ? width * 0.5 : width * 0.48;
       const textY = (width < 600 ? height * 0.76 : height * 0.5) + floatY;
 
@@ -374,7 +375,7 @@ export const AnimatedKaizenQ: React.FC<AnimatedKaizenQProps> = ({
 
       const floatY = Math.sin(now * 0.0025) * 4;
 
-      const isDark = theme === 'dark';
+
       ctx.clearRect(0, 0, width, height);
       // Canvas background is kept transparent
 

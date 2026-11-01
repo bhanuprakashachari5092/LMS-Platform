@@ -88,7 +88,7 @@ export const AdminCourseDetails: React.FC = () => {
       (m.topics || []).forEach((t) => {
         (t.learningUnits || []).forEach((u) => {
           if (u.type === 'Assignment') {
-            list.push({ id: String(u.id), title: u.title });
+            list.push({ id: String(u.id), title: u.title || '' });
           }
         });
       });
@@ -127,14 +127,15 @@ export const AdminCourseDetails: React.FC = () => {
   const [quizTimeRemaining, setQuizTimeRemaining] = useState<number>(0);
   const [quizTimerActive, setQuizTimerActive] = useState<boolean>(false);
 
-  // Drag and Drop State for Modules
+  // Drag and Drop State for Modules & Lessons
   const [draggedModuleIndex, setDraggedModuleIndex] = useState<number | null>(null);
+  const [draggedLessonState, setDraggedLessonState] = useState<{ moduleId: string; index: number } | null>(null);
 
   // Drag and Drop State for Topics
-  const [draggedTopic, setDraggedTopic] = useState<{ moduleId: string; index: number } | null>(null);
+
 
   // Drag and Drop State for Learning Units
-  const [draggedUnit, setDraggedUnit] = useState<{ moduleId: string; topicId: string; index: number } | null>(null);
+
 
   // Hydration state for curriculum protection
   const [isHydrated, setIsHydrated] = useState<boolean>(false);
@@ -638,9 +639,9 @@ export const AdminCourseDetails: React.FC = () => {
 
   const openEditModal = (module: ModuleItem) => {
     setEditingModule(module);
-    setEditTitle(module.title);
-    setEditDescription(module.description);
-    setEditDuration(module.duration);
+    setEditTitle(module.title || '');
+    setEditDescription(module.description || '');
+    setEditDuration(module.duration || '');
     setEditModalOpen(true);
   };
 
@@ -833,8 +834,6 @@ export const AdminCourseDetails: React.FC = () => {
   };
 
   // --- Lesson Drag/Drop ---
-  const [draggedLessonState, setDraggedLessonState] = useState<{ moduleId: string; index: number } | null>(null);
-
   const handleLessonDragStart = (e: React.DragEvent, moduleId: string, index: number) => {
     setDraggedLessonState({ moduleId, index });
     e.dataTransfer.effectAllowed = 'move';
@@ -1479,11 +1478,11 @@ export const AdminCourseDetails: React.FC = () => {
                                         {/* Lesson Details */}
                                         <div className="space-y-1 min-w-0 flex-1">
                                           <div className="flex items-center gap-2 flex-wrap">
-                                            {renderUnitIcon(lesson.type)}
+                                            {renderUnitIcon(lesson.type || 'Reading')}
                                             <h5 className="font-heading font-bold text-xs text-slate-900 dark:text-white truncate">
                                               {displayTitle}
                                             </h5>
-                                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full font-mono shrink-0 ${getUnitTypeBadgeStyles(lesson.type)}`}>
+                                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full font-mono shrink-0 ${getUnitTypeBadgeStyles(lesson.type || 'Reading')}`}>
                                               {lesson.type || 'Reading'}
                                             </span>
                                             {lesson.isDraft ? (

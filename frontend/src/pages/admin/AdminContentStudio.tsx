@@ -309,12 +309,12 @@ export const AdminContentStudio: React.FC = () => {
         // 1. Update In-Memory Course Tree
         const updatedModules = (activeCourse.modules || []).map(m => {
           if (m.id === modId) {
-            const rawLessons = m.lessons || m.topics?.flatMap(t => t.learningUnits) || [];
+            const rawLessons = (m.lessons || m.topics?.flatMap(t => t.learningUnits || []) || []).filter((u): u is LearningUnitItem => Boolean(u));
             const nextLessons = rawLessons.map(u => (u.id === lessonToSave.id ? sanitizedLesson : u));
             const nextTopics = (m.topics && m.topics.length > 0)
               ? m.topics.map(t => {
                   if (t.id === topId || m.topics?.length === 1) {
-                    const nextUnits = t.learningUnits.map(u => (u.id === lessonToSave.id ? sanitizedLesson : u));
+                    const nextUnits = (t.learningUnits || []).map(u => (u.id === lessonToSave.id ? sanitizedLesson : u));
                     return { ...t, learningUnits: nextUnits };
                   }
                   return t;
@@ -341,12 +341,12 @@ export const AdminContentStudio: React.FC = () => {
         // 3. Update In-Memory Course Tree & Local Storage cache (without redundant network mutation)
         const updatedModulesWithSaved = (activeCourse.modules || []).map(m => {
           if (m.id === modId) {
-            const rawLessons = m.lessons || m.topics?.flatMap(t => t.learningUnits) || [];
+            const rawLessons = (m.lessons || m.topics?.flatMap(t => t.learningUnits || []) || []).filter((u): u is LearningUnitItem => Boolean(u));
             const nextLessons = rawLessons.map(u => (u.id === lessonToSave.id ? updatedLesson : u));
             const nextTopics = (m.topics && m.topics.length > 0)
               ? m.topics.map(t => {
                   if (t.id === topId || m.topics?.length === 1) {
-                    const nextUnits = t.learningUnits.map(u => (u.id === lessonToSave.id ? updatedLesson : u));
+                    const nextUnits = (t.learningUnits || []).map(u => (u.id === lessonToSave.id ? updatedLesson : u));
                     return { ...t, learningUnits: nextUnits };
                   }
                   return t;
@@ -666,10 +666,11 @@ export const AdminContentStudio: React.FC = () => {
 
     // Find and remove unit from source module
     updated.forEach(m => {
-      const units = [...(m.lessons || m.topics?.flatMap(t => t.learningUnits) || [])];
+      const units: LearningUnitItem[] = [...(m.lessons || m.topics?.flatMap(t => t.learningUnits || []) || []).filter((u): u is LearningUnitItem => Boolean(u))];
       const uIdx = units.findIndex(u => u.id === draggedLessonInfo.lessonId);
       if (uIdx !== -1) {
-        [movingUnit] = units.splice(uIdx, 1);
+        const removed = units.splice(uIdx, 1);
+        movingUnit = removed[0] || null;
         m.lessons = [...units];
         m.topics = [{ id: `${m.id}-t1`, title: m.title, learningUnits: m.lessons }];
       }
@@ -681,7 +682,7 @@ export const AdminContentStudio: React.FC = () => {
 
     updated.forEach(m => {
       if (m.id === targetModId) {
-        const units = [...(m.lessons || m.topics?.flatMap(t => t.learningUnits) || [])];
+        const units: LearningUnitItem[] = [...(m.lessons || m.topics?.flatMap(t => t.learningUnits || []) || []).filter((u): u is LearningUnitItem => Boolean(u))];
         const targetIdx = units.findIndex(u => u.id === targetLessonId);
         if (targetIdx !== -1) {
           units.splice(targetIdx, 0, movingUnit!);
@@ -722,7 +723,7 @@ export const AdminContentStudio: React.FC = () => {
 
     const updated = activeCourse.modules.map(m => {
       if (m.id === mId) {
-        const units = [...(m.lessons || m.topics?.flatMap(t => t.learningUnits) || [])];
+        const units: LearningUnitItem[] = [...(m.lessons || m.topics?.flatMap(t => t.learningUnits || []) || []).filter((u): u is LearningUnitItem => Boolean(u))];
         const idx = units.findIndex(u => u.id === uId);
         if (idx === -1) return m;
         if (direction === 'up' && idx === 0) return m;
@@ -805,8 +806,11 @@ export const AdminContentStudio: React.FC = () => {
 
     const updated = activeCourse.modules.map(m => {
       if (m.id === mId) {
-        const units = [...(m.lessons || m.topics?.flatMap(t => t.learningUnits) || []), newLesson];
-        const resequenced = units.map((u, idx) => ({ ...u, order: idx + 1, orderIndex: idx + 1 }));
+        const units: LearningUnitItem[] = [
+          ...(m.lessons || m.topics?.flatMap(t => t.learningUnits || []) || []).filter((u): u is LearningUnitItem => Boolean(u)),
+          newLesson
+        ];
+        const resequenced: LearningUnitItem[] = units.map((u, idx) => ({ ...u, order: idx + 1, orderIndex: idx + 1 }));
         return {
           ...m,
           lessons: resequenced,
@@ -906,7 +910,8 @@ export const AdminContentStudio: React.FC = () => {
 
     const updated = activeCourse.modules.map(m => {
       if (m.id === mId) {
-        const units = (m.lessons || m.topics?.flatMap(t => t.learningUnits) || []).filter(u => u.id !== unit.id);
+        const rawUnits = (m.lessons || m.topics?.flatMap(t => t.learningUnits || []) || []).filter((u): u is LearningUnitItem => Boolean(u));
+        const units = rawUnits.filter(u => u.id !== unit.id);
         const resequenced = units.map((u, i) => ({ ...u, order: i + 1, orderIndex: i + 1 }));
         return {
           ...m,
@@ -1320,7 +1325,7 @@ export const AdminContentStudio: React.FC = () => {
               {activeTab === 'blocks' && (
                 <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
                   <LessonBuilderStudio
-                    courseId={activeCourse?.id || ''}
+                    courseId={String(activeCourse?.id || '')}
                     moduleId={activeModuleId || ''}
                     lesson={{
                       ...selectedLesson,

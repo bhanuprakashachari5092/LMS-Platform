@@ -3,16 +3,12 @@ import {
   Check,
   XCircle,
   Eye,
-  Edit,
   Send,
   Trash2,
-  Flag,
-  Calendar,
   Code2,
   CheckSquare,
   Square,
   Loader2,
-  AlertTriangle,
 } from 'lucide-react';
 import type { StudentUser } from '@/services/studentService';
 
@@ -44,10 +40,8 @@ const StudentRosterMobileCardComponent: React.FC<StudentRosterMobileCardProps> =
   onOpenRejectModal,
   onInspect,
   onInspectGithub,
-  onEdit,
   onEmail,
   onOpenDeleteModal,
-  onOpenFlagModal,
 }) => {
   const id = student.id || student.uid;
   const isGithub = student.provider === 'github.com' || Boolean(student.photoURL?.includes('github')) || student.githubUsername;

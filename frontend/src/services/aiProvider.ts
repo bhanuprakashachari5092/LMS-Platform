@@ -1,3 +1,5 @@
+import { apiClient } from '@/services/apiClient';
+
 export interface AIChatMessage {
   id: string;
   sender: 'ai' | 'user';
@@ -93,7 +95,7 @@ export interface AIProvider {
 class MockAIProvider implements AIProvider {
   async sendMessage(
     message: string,
-    _history: AIChatMessage[],
+    history: AIChatMessage[],
     context: {
       courseId: string;
       courseTitle: string;
@@ -107,6 +109,23 @@ class MockAIProvider implements AIProvider {
       lessonContent?: string;
     }
   ): Promise<string> {
+    // 1. Try Java Backend AI Mentor
+    try {
+      const res = await apiClient.post('/ai/chat', {
+        message,
+        courseId: context.courseId,
+        courseTitle: context.courseTitle,
+        lessonId: context.lessonId,
+        lessonTitle: context.lessonTitle,
+        lessonContent: context.lessonContent,
+      });
+      if (res.data?.success && res.data?.data?.reply) {
+        return res.data.data.reply;
+      }
+    } catch {
+      // Graceful fallback to local engine
+    }
+
     await new Promise((resolve) => setTimeout(resolve, 800));
 
     const query = message.toLowerCase().trim();
@@ -163,22 +182,82 @@ class MockAIProvider implements AIProvider {
     return `Regarding your query about "**${message}**" in the context of "**${topic}**":\n\nWe cover parameter setups, shell diagnostic instructions, and validation scripts.\n\nKey commands to verify:\n- \`ls -la\` to trace file attributes.\n- \`chmod\` to handle security parameters.\n\nLet me know if you would like me to compile notes, flashcards, or a practice quiz for this topic!`;
   }
 
-  async generateTeluguExplanation(lessonTitle: string, _content: string): Promise<string> {
+  async generateTeluguExplanation(lessonTitle: string, content: string): Promise<string> {
+    try {
+      const res = await apiClient.post('/ai/explain', {
+        concept: lessonTitle,
+        lessonTitle,
+        content,
+        language: 'te',
+        level: 'intermediate',
+      });
+      if (res.data?.success && res.data?.data?.explanation) {
+        return res.data.data.explanation;
+      }
+    } catch {
+      // Fallback
+    }
+
     await new Promise((resolve) => setTimeout(resolve, 600));
     return `### 🌟 తెలుగులో వివరణ (Telugu Explanation) - **${lessonTitle}**\n\nనమస్కారం! ఈ పాఠాన్ని మన తెలుగు భాషలో సులభంగా అర్థం చేసుకుందాం:\n\n1. **ముఖ్యమైన భావన (Core Concept)**: ఈ టాపిక్ మన సిస్టమ్స్ లేదా ప్రోగ్రామింగ్ యొక్క పునాదిని వివరిస్తుంది. \n2. **ఎలా పనిచేస్తుంది (How it Works)**:\n   - యూజర్ ఇచ్చే ఇన్పుట్ లేదా కమాండ్ను సిస్టమ్ అర్థం చేసుకుని, ప్రాసెస్ చేస్తుంది.\n   - కమాండ్ లైన్ (\`CLI\`) ఉపయోగించి మనం సిస్టమ్తో వేగంగా సంభాషించవచ్చు.\n3. **నిజ జీవిత ఉదాహరణ (Real-world Example)**: మనం ఒక బ్యాంకు కౌంటర్కు వెళ్లి రిక్వెస్ట్ ఫామ్ ఇచ్చినట్లు, సిస్టమ్ కాల్ కూడా ఓఎస్ కెర్నల్కు అభ్యర్థనను పంపుతుంది.\n\nమీకు ఇంకా ఏదైనా సందేహం ఉంటే అడగండి, నేను సహాయం చేస్తాను!`;
   }
 
-  async generateEnglishExplanation(lessonTitle: string, _content: string): Promise<string> {
+  async generateEnglishExplanation(lessonTitle: string, content: string): Promise<string> {
+    try {
+      const res = await apiClient.post('/ai/explain', {
+        concept: lessonTitle,
+        lessonTitle,
+        content,
+        language: 'en',
+        level: 'intermediate',
+      });
+      if (res.data?.success && res.data?.data?.explanation) {
+        return res.data.data.explanation;
+      }
+    } catch {
+      // Fallback
+    }
+
     await new Promise((resolve) => setTimeout(resolve, 500));
     return `### 📘 English Explanation - **${lessonTitle}**\n\nHere is a clear and professional conceptual overview of **${lessonTitle}**:\n\n1. **Primary Intent**: Establishes structural guidelines and processes for this syllabus area.\n2. **Execution Process**: Requests are captured, validated, and translated into system execution sequences.\n3. **Best Practices**: Keep scripts modular, restrict security contexts, and verify execution output codes regularly.`;
   }
 
-  async generateBeginnerExplanation(lessonTitle: string, _content: string): Promise<string> {
+  async generateBeginnerExplanation(lessonTitle: string, content: string): Promise<string> {
+    try {
+      const res = await apiClient.post('/ai/explain', {
+        concept: lessonTitle,
+        lessonTitle,
+        content,
+        language: 'en',
+        level: 'beginner',
+      });
+      if (res.data?.success && res.data?.data?.explanation) {
+        return res.data.data.explanation;
+      }
+    } catch {
+      // Fallback
+    }
+
     await new Promise((resolve) => setTimeout(resolve, 550));
     return `### 👶 Beginner Mode: Simple Analogy for **${lessonTitle}**\n\nLet's keep it simple! Imagine you are at a restaurant:\n- **You** are the customer (User Space).\n- **The Waiter** is the translator (Shell / System Call).\n- **The Kitchen** is the locked vault where the food is prepared (Kernel / Operating System).\n\nYou cannot go directly into the kitchen to make food. You tell the waiter what you want, and the waiter safely fetches it from the kitchen. This is exactly how user programs request data from the OS kernel!`;
   }
 
-  async generateAdvancedExplanation(lessonTitle: string, _content: string): Promise<string> {
+  async generateAdvancedExplanation(lessonTitle: string, content: string): Promise<string> {
+    try {
+      const res = await apiClient.post('/ai/explain', {
+        concept: lessonTitle,
+        lessonTitle,
+        content,
+        language: 'en',
+        level: 'advanced',
+      });
+      if (res.data?.success && res.data?.data?.explanation) {
+        return res.data.data.explanation;
+      }
+    } catch {
+      // Fallback
+    }
+
     await new Promise((resolve) => setTimeout(resolve, 650));
     return `### 🚀 Advanced Mode: Deep Dive Architecture for **${lessonTitle}**\n\nAnalyzing micro-architecture mechanics:\n- **Privilege Transition**: Transfers control from ring 3 to ring 0 via software trap vectors (\`int 0x80\` or \`syscall\` instruction).\n- **Context Saving**: CPU registers are saved to the kernel stack.\n- **Vector Dispatch**: The system call handler queries the syscall dispatch table to find the requested function pointer.\n- **MMU Isolation**: Ensures memory pages remain strictly bounded between virtual spaces.`;
   }
@@ -346,9 +425,32 @@ class MockAIProvider implements AIProvider {
 
   async generateRecommendations(
     _lessonId: string,
-    _lessonTitle: string,
-    _completedUnitIds: string[]
+    lessonTitle: string,
+    completedUnitIds: string[]
   ): Promise<SmartRecommendations> {
+    try {
+      const res = await apiClient.post('/ai/recommendations', {
+        careerGoal: 'DevOps & Full Stack Cloud Engineer',
+        completedCourseIds: completedUnitIds,
+        interests: [lessonTitle, 'DevOps', 'Cloud', 'Java', 'Linux'],
+      });
+      if (res.data?.success && res.data?.data?.recommendations) {
+        const recs = res.data.data.recommendations;
+        const nextSteps = res.data.data.nextSteps || [];
+        return {
+          reviewLessons: recs.slice(0, 2).map((r: any) => ({ id: r.courseId, title: r.title })),
+          nextLessons: recs.slice(2, 4).map((r: any) => ({ id: r.courseId, title: r.title })),
+          relatedTopics: ['Cloud Architecture', 'Linux Internals', 'CI/CD Automation'],
+          practiceSuggestions: nextSteps.length > 0 ? nextSteps : [
+            'Inspect system call traces and verify memory limits',
+            'Publish project to GitHub and update Portfolio'
+          ]
+        };
+      }
+    } catch {
+      // Fallback
+    }
+
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     return {
