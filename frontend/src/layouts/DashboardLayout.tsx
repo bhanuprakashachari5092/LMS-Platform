@@ -22,7 +22,6 @@ import {
   Map,
   Terminal,
   HelpCircle,
-  Video,
   Sparkles,
   Globe,
   Tag,
@@ -36,7 +35,6 @@ import { RibbonLeaderboardWidget } from '@/components/common/RibbonLeaderboardWi
 import { GooeyNavbar } from '@/components/common/GooeyNavbar';
 import { useAuth } from '@/contexts/AuthContext';
 import { notificationService, type NotificationItem } from '@/services/notificationService';
-import { liveClassService } from '@/services/liveClassService';
 
 export const DashboardLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -55,10 +53,8 @@ export const DashboardLayout: React.FC = () => {
     const unsubscribe = notificationService.subscribeToNotifications(user?.uid, (items) => {
       setNotifications([...items]);
     });
-    const unsubClasses = liveClassService.subscribeLiveClasses(() => {});
     return () => {
       unsubscribe();
-      unsubClasses();
     };
   }, [user?.uid]);
 
@@ -67,7 +63,7 @@ export const DashboardLayout: React.FC = () => {
   const filteredNotifications = notifications.filter((n) => {
     if (notificationFilter === 'unread') return !n.read;
     if (notificationFilter === 'learning') {
-      return n.type === 'course' || n.type === 'assignment' || n.type === 'live_class' || n.type === 'certificate';
+      return n.type === 'course' || n.type === 'assignment' || n.type === 'certificate';
     }
     if (notificationFilter === 'system') {
       return n.type === 'system' || n.type === 'achievement' || n.type === 'info' || n.type === 'warning' || n.type === 'success';
@@ -146,18 +142,6 @@ export const DashboardLayout: React.FC = () => {
         { name: 'Course Catalog', href: '/admin/courses', icon: BookOpen },
         { name: 'Course Content', href: '/admin/course-content', icon: FileText },
         { name: 'Coupons & Discounts', href: '/admin/coupons', icon: Tag },
-        {
-          name: 'Live Classes',
-          href: '/admin/live-classes',
-          icon: Video,
-          subItems: [
-            { name: 'All Live Classes', href: '/admin/live-classes' },
-            { name: 'Scheduled', href: '/admin/live-classes?tab=scheduled' },
-            { name: 'Live Now', href: '/admin/live-classes?tab=live' },
-            { name: 'Completed', href: '/admin/live-classes?tab=completed' },
-            { name: 'Create Class', href: '/admin/live-classes/create' },
-          ],
-        },
         { name: 'Platform Analytics', href: '/admin/analytics', icon: BarChart3 },
       ],
     },
@@ -185,14 +169,12 @@ export const DashboardLayout: React.FC = () => {
       items: [
         { name: 'Overview Dashboard', href: '/dashboard', icon: LayoutDashboard },
         { name: 'Course Management', href: '/admin/courses', icon: BookOpen },
-        { name: 'Live Classrooms', href: '/admin/live-classes', icon: Video },
       ],
     },
     {
       title: 'STUDENTS & MENTORSHIP',
       accent: 'text-cyan-600 dark:text-cyan-400',
       items: [
-        { name: 'Mentor Analytics', href: '/admin/live-classroom/mentor-analytics', icon: BarChart3 },
         { name: 'Student Roster', href: '/admin/students', icon: UserCheck },
         { name: 'Coupons & Discounts', href: '/admin/coupons', icon: Tag },
       ],
@@ -214,7 +196,6 @@ export const DashboardLayout: React.FC = () => {
       items: [
         { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
         { name: 'My Courses', href: '/dashboard/courses', icon: BookOpen },
-        { name: 'Live Class', href: '/dashboard/live-classroom', icon: Video },
       ],
     },
     {
@@ -308,88 +289,58 @@ export const DashboardLayout: React.FC = () => {
               isAdmin
                 ? 'bg-linear-to-r from-purple-500/10 via-indigo-500/10 to-blue-500/10 border-purple-500/20 dark:border-purple-500/30'
                 : isInstructor
-                ? 'bg-linear-to-r from-cyan-500/10 via-blue-500/10 to-indigo-500/10 border-cyan-500/20 dark:border-cyan-500/30'
-                : 'bg-linear-to-r from-blue-500/10 via-indigo-500/10 to-cyan-500/10 border-blue-500/20 dark:border-blue-500/30'
+                ? 'bg-linear-to-r from-indigo-500/10 to-cyan-500/10 border-indigo-500/20 dark:border-indigo-500/30'
+                : 'bg-linear-to-r from-blue-500/10 via-cyan-500/10 to-emerald-500/10 border-blue-500/20 dark:border-blue-500/30'
             }`}>
-              <span className="relative flex h-2 w-2">
-                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                  isAdmin ? 'bg-purple-400' : isInstructor ? 'bg-cyan-400' : 'bg-emerald-400'
-                }`} />
-                <span className={`relative inline-flex rounded-full h-2 w-2 ${
-                  isAdmin ? 'bg-purple-500' : isInstructor ? 'bg-cyan-500' : 'bg-emerald-500'
-                }`} />
-              </span>
-              <span className={`text-[10px] font-extrabold uppercase tracking-widest truncate ${
-                isAdmin ? 'text-purple-700 dark:text-purple-300' : isInstructor ? 'text-cyan-700 dark:text-cyan-300' : 'text-blue-700 dark:text-blue-300'
-              }`}>
-                {role.toUpperCase()} PORTAL
-              </span>
-              <span className={`ml-auto text-[9px] font-black px-2 py-0.5 rounded-md border shrink-0 shadow-xs ${
+              <div className={`w-2 h-2 rounded-full animate-pulse ${
+                isAdmin ? 'bg-purple-500' : isInstructor ? 'bg-indigo-500' : 'bg-cyan-500'
+              }`} />
+              <span className={`text-[11px] font-bold font-mono tracking-wider uppercase ${
                 isAdmin
-                  ? 'text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 border-purple-300/60 dark:border-purple-700/60'
+                  ? 'text-purple-700 dark:text-purple-300'
                   : isInstructor
-                  ? 'text-cyan-700 dark:text-cyan-300 bg-cyan-50 dark:bg-cyan-950/60 border-cyan-300/60 dark:border-cyan-700/60'
-                  : 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border-emerald-300/60 dark:border-emerald-700/60'
+                  ? 'text-indigo-700 dark:text-indigo-300'
+                  : 'text-cyan-700 dark:text-cyan-300'
               }`}>
-                {isAdmin ? 'ROOT ADMIN' : 'ACTIVE'}
+                {isAdmin ? '🛡️ Admin Studio' : isInstructor ? '👨‍🏫 Mentor Console' : '🎓 Student Portal'}
               </span>
             </div>
           </div>
 
-          {/* Main Navigation List */}
-          <nav className="px-3 py-3.5 overflow-y-auto flex-1 space-y-5 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800 relative z-10">
-            {activeNavSections.map((section, sIdx) => (
-              <div key={sIdx} className="space-y-1.5">
-                {/* Category Header */}
-                <div className="flex items-center gap-2 px-1.5 pt-1">
-                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                    isAdmin ? 'bg-purple-500 dark:bg-purple-400' : 'bg-blue-500 dark:bg-cyan-400'
-                  }`} />
-                  <span className={`text-[10px] font-heading font-black uppercase tracking-[0.14em] ${section.accent}`}>
+          {/* Navigation Section Links */}
+          <nav className="flex-1 min-h-0 overflow-y-auto px-3 py-4 space-y-6 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
+            {activeNavSections.map((section, idx) => (
+              <div key={idx} className="space-y-1.5">
+                <div className="px-3 py-1 flex items-center justify-between">
+                  <span className={`text-[10px] font-black tracking-wider uppercase font-mono ${section.accent}`}>
                     {section.title}
                   </span>
-                  <div className="flex-1 h-px bg-linear-to-r from-slate-200 via-slate-100 to-transparent dark:from-slate-800 dark:via-slate-800/40 dark:to-transparent" />
+                  <div className="h-px bg-slate-200/60 dark:bg-slate-800 flex-1 ml-3" />
                 </div>
 
-                {/* Nav Links */}
-                <div className="space-y-1 pt-0.5">
+                <div className="space-y-1">
                   {section.items.map((item: any) => {
                     const Icon = item.icon;
-                    const isParentActive = item.subItems ? location.pathname.startsWith(item.href) : false;
-                    const isActive = isNavItemActive(item.href) || isParentActive;
+                    const isActive = isNavItemActive(item.href);
+                    const isParentActive = isActive || (item.subItems && item.subItems.some((s: any) => location.pathname + location.search === s.href));
 
                     return (
-                      <div key={item.name} className="space-y-1">
+                      <div key={item.name} className="space-y-0.5">
                         <Link
                           to={item.href}
-                          onClick={() => setSidebarOpen(false)}
-                          className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 relative ${
-                            isActive
-                              ? 'bg-linear-to-r from-blue-600 via-indigo-600 to-cyan-500 text-white shadow-lg shadow-blue-500/25 border border-white/20 translate-x-0.5'
-                              : 'text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-cyan-300 hover:bg-linear-to-r hover:from-blue-500/10 hover:via-indigo-500/5 hover:to-transparent border border-transparent hover:border-blue-500/15 hover:translate-x-1'
+                          onClick={() => !item.subItems && setSidebarOpen(false)}
+                          className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 group relative ${
+                            isParentActive
+                              ? 'bg-linear-to-r from-blue-600 via-indigo-600 to-cyan-600 text-white shadow-md shadow-blue-500/20 font-bold'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-900/60'
                           }`}
                         >
-                          {Icon ? (
-                            <div className={`p-1.5 rounded-lg shrink-0 transition-all ${
-                              isActive
-                                ? 'bg-white/20 text-white shadow-inner'
-                                : 'bg-slate-100 dark:bg-slate-900 group-hover:bg-blue-500/15 text-slate-500 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-cyan-400'
-                            }`}>
-                              <Icon className="w-3.5 h-3.5" />
-                            </div>
-                          ) : null}
+                          <Icon className={`w-4 h-4 shrink-0 transition-transform group-hover:scale-110 ${
+                            isParentActive ? 'text-white' : 'text-slate-400 dark:text-slate-500 group-hover:text-blue-600 dark:group-hover:text-cyan-400'
+                          }`} />
 
                           <span className="truncate flex-1 font-semibold">{item.name}</span>
 
-                          {/* SubItems Count Badge */}
-                          {item.subItems && (
-                            <span className={`text-[9.5px] font-mono px-2 py-0.5 rounded-md font-bold ${
-                              isActive ? 'bg-white/20 text-white' : 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400'
-                            }`}>
-                              {item.subItems.length}
-                            </span>
-                          )}
-                          
                           {/* Premium VIP Badge */}
                           {item.isPremium && (
                             <span className={`text-[8.5px] font-black uppercase px-2 py-0.5 rounded-full border tracking-wider shrink-0 shadow-xs flex items-center gap-1 ${
@@ -403,35 +354,10 @@ export const DashboardLayout: React.FC = () => {
                           )}
 
                           {/* Active Indicator Dot */}
-                          {isActive && !item.isPremium && !item.subItems && (
+                          {isActive && !item.isPremium && (
                             <span className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_#ffffff] shrink-0" />
                           )}
                         </Link>
-
-                        {/* Sub Navigation Items for Dropdowns */}
-                        {item.subItems && isParentActive && (
-                          <div className="pl-6 pr-1 py-1 space-y-1 border-l-2 border-blue-500/30 dark:border-cyan-500/30 ml-4 animate-in fade-in duration-200">
-                            {item.subItems.map((sub: any) => {
-                              const isSubActive =
-                                location.pathname + location.search === sub.href ||
-                                (sub.href === '/admin/live-classes' && location.pathname === '/admin/live-classes' && !location.search);
-                              return (
-                                <Link
-                                  key={sub.name}
-                                  to={sub.href}
-                                  onClick={() => setSidebarOpen(false)}
-                                  className={`block px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${
-                                    isSubActive
-                                      ? 'bg-linear-to-r from-blue-600 to-cyan-500 text-white font-bold shadow-xs'
-                                      : 'text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-cyan-300 hover:bg-blue-500/10'
-                                  }`}
-                                >
-                                  {sub.name}
-                                </Link>
-                              );
-                            })}
-                          </div>
-                        )}
                       </div>
                     );
                   })}
@@ -523,7 +449,7 @@ export const DashboardLayout: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                       <span className="font-heading font-bold text-xs text-slate-900 dark:text-white">
-                        Live Notifications
+                        Notifications
                       </span>
                       {unreadCount > 0 && (
                         <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-cyan-400 border border-blue-500/20 text-[10px] font-black">
@@ -598,13 +524,12 @@ export const DashboardLayout: React.FC = () => {
                           {notificationFilter === 'unread' ? "You're all caught up!" : "No notifications in this view"}
                         </span>
                         <p className="text-[10px] text-slate-400 max-w-56">
-                          Live system alerts, course completions, and live sessions will appear here.
+                          System alerts and course updates will appear here.
                         </p>
                       </div>
                     ) : (
                       filteredNotifications.map((n) => {
-                        const isLearning = n.type === 'course' || n.type === 'assignment' || n.type === 'live_class' || n.type === 'certificate';
-                        const isLiveClass = n.type === 'live_class';
+                        const isLearning = n.type === 'course' || n.type === 'assignment' || n.type === 'certificate';
                         const isAchievement = n.type === 'achievement';
                         const isAssignment = n.type === 'assignment';
 
@@ -620,9 +545,7 @@ export const DashboardLayout: React.FC = () => {
                             <div className="flex items-start gap-3">
                               {/* Icon Box */}
                               <div className={`w-8 h-8 rounded-xl shrink-0 flex items-center justify-center shadow-xs ${
-                                isLiveClass
-                                  ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
-                                  : isAchievement
+                                isAchievement
                                   ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
                                   : isAssignment
                                   ? 'bg-cyan-500/10 text-cyan-500 border border-cyan-500/20'
@@ -630,9 +553,7 @@ export const DashboardLayout: React.FC = () => {
                                   ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
                                   : 'bg-purple-500/10 text-purple-500 border border-purple-500/20'
                               }`}>
-                                {isLiveClass ? (
-                                  <Video className="w-4 h-4" />
-                                ) : isAchievement ? (
+                                {isAchievement ? (
                                   <Trophy className="w-4 h-4" />
                                 ) : isAssignment ? (
                                   <Terminal className="w-4 h-4" />

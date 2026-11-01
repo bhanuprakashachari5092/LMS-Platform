@@ -46,6 +46,12 @@ export interface ICourse {
   modules?: any[];
   progress?: number;
   version?: number;
+  builderVersion?: number;
+  contentVersion?: number;
+  draftRevision?: number;
+  publishedRevision?: number;
+  lastPublishedAt?: string | null;
+  lastPublishedBy?: string | null;
   revision?: number;
   expectedRevision?: number;
   isDeleted?: boolean;

@@ -254,13 +254,6 @@ const SQUARESPACE_MENU_SECTIONS: MegaMenuSection[] = [
             icon: Sparkles,
             accentColor: 'text-purple-500',
           },
-          {
-            title: 'Live Classroom Studios',
-            desc: 'Mentor-led interactive classrooms with real-time feedback and collaboration.',
-            href: '/dashboard/live-classroom',
-            icon: Video,
-            accentColor: 'text-cyan-500',
-          },
         ],
       },
       {

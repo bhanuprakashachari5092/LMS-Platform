@@ -3,7 +3,6 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   Home,
   BookOpen,
-  Video,
   Terminal,
   Trophy,
   Map,
@@ -24,7 +23,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { BrandLogo } from './BrandLogo';
 
 interface GooeyNavbarProps {
   onSignOutClick?: () => void;
@@ -56,7 +54,6 @@ export const GooeyNavbar: React.FC<GooeyNavbarProps> = ({
         { name: 'Courses', href: '/admin/courses', icon: BookOpen },
         { name: 'Coupons', href: '/admin/coupons', icon: Tag },
         { name: 'Content', href: '/admin/course-content', icon: FileText },
-        { name: 'Live Classes', href: '/admin/live-classes', icon: Video },
         { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
         { name: 'Students', href: '/admin/students', icon: UserCheck },
         { name: 'Instructors', href: '/admin/instructors', icon: GraduationCap },
@@ -68,9 +65,7 @@ export const GooeyNavbar: React.FC<GooeyNavbarProps> = ({
         { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
         { name: 'Courses', href: '/admin/courses', icon: BookOpen },
         { name: 'Coupons', href: '/admin/coupons', icon: Tag },
-        { name: 'Live Classes', href: '/admin/live-classes', icon: Video },
         { name: 'Students', href: '/admin/students', icon: UserCheck },
-        { name: 'Analytics', href: '/admin/live-classroom/mentor-analytics', icon: BarChart3 },
         { name: 'Settings', href: '/dashboard?tab=settings', icon: Settings },
       ];
     }
@@ -78,7 +73,6 @@ export const GooeyNavbar: React.FC<GooeyNavbarProps> = ({
     return [
       { name: 'Home', href: '/dashboard', icon: Home },
       { name: 'Courses', href: '/dashboard/courses', icon: BookOpen },
-      { name: 'Live Class', href: '/dashboard/live-classroom', icon: Video },
       { name: 'Practice Hub', href: '/dashboard?tab=practice-hub', icon: Terminal },
       { name: 'Leaderboard', href: '/dashboard/leaderboard', icon: Trophy },
       { name: 'Roadmap', href: '/dashboard?tab=career-roadmap', icon: Map },

@@ -1005,12 +1005,6 @@ const getAuthHeadersAsync = async (): Promise<Record<string, string>> => {
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
-    const devToken =
-      sessionStorage.getItem('kz_dev_token') ||
-      localStorage.getItem('kz_dev_token');
-    if (devToken) {
-      headers['x-developer-token'] = devToken;
-    }
     const rawUser = localStorage.getItem('shaivika_user');
     if (rawUser) {
       try {
@@ -1044,12 +1038,6 @@ const getAuthHeaders = (): Record<string, string> => {
     localStorage.getItem('firebase_token');
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
-  }
-  const devToken =
-    sessionStorage.getItem('kz_dev_token') ||
-    localStorage.getItem('kz_dev_token');
-  if (devToken) {
-    headers['x-developer-token'] = devToken;
   }
   return headers;
 };
@@ -2162,20 +2150,25 @@ class CourseService {
 
       if (res.status === 409) {
         const json = await res.json().catch(() => ({}));
-        const err: any = new Error(json.message || 'Conflict: Lesson was modified by another session.');
+        const err: any = new Error(json.message || json.error || 'Conflict: Lesson was modified by another session.');
         err.statusCode = 409;
         err.isConflict = true;
+        err.conflict = true;
+        err.currentRevision = json.currentRevision;
+        err.expectedRevision = json.expectedRevision;
         throw err;
       }
 
       if (res.ok) {
         const json = await res.json();
         const savedData = json.data || payload;
+        const newRevision = json.revision || savedData.revision || (lessonDoc.revision || 1) + 1;
+        savedData.revision = newRevision;
         const cacheKey = `lesson_${courseId}_${moduleId}_${lessonDoc.id}`;
         this.lessonContentCache.set(cacheKey, {
           data: savedData,
           expiry: Date.now() + 30000,
-          revision: savedData.revision || (lessonDoc.revision || 1) + 1,
+          revision: newRevision,
         });
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('shaivika_lesson_updated', { detail: { courseId, moduleId, lessonId: lessonDoc.id, lesson: savedData } }));
@@ -2377,6 +2370,81 @@ class CourseService {
     const json = await res.json();
     this.courseDetailsCache.delete(courseId);
     this.getCoursesCache.clear();
+    return json.data;
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // CONTENT BLOCK OPERATIONS (Phase 1 Data Foundation)
+  // ════════════════════════════════════════════════════════════════════════════
+
+  async getLessonBlocks(courseId: string, moduleId: string, lessonId: string): Promise<any[]> {
+    try {
+      const authHeaders = await getAuthHeadersAsync();
+      const res = await fetch(
+        `${API_BASE_URL}/lessons/${encodeURIComponent(lessonId)}/blocks?courseId=${encodeURIComponent(courseId)}&moduleId=${encodeURIComponent(moduleId)}`,
+        { headers: authHeaders }
+      );
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          return json.data;
+        }
+      }
+    } catch (err) {
+      console.warn('[CourseService] getLessonBlocks notice:', err);
+    }
+    return [];
+  }
+
+  async saveLessonBlocks(courseId: string, moduleId: string, lessonId: string, blocks: any[]): Promise<any[]> {
+    const authHeaders = await getAuthHeadersAsync();
+    const res = await fetch(`${API_BASE_URL}/lessons/${encodeURIComponent(lessonId)}/blocks`, {
+      method: 'PUT',
+      headers: authHeaders,
+      body: JSON.stringify({ courseId, moduleId, blocks }),
+    });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      throw new Error(json.message || 'Failed to save lesson blocks.');
+    }
+    const json = await res.json();
+    return json.data || blocks;
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // COURSE ASSETS OPERATIONS (Centralized Asset Metadata)
+  // ════════════════════════════════════════════════════════════════════════════
+
+  async getCourseAssets(courseId: string): Promise<any[]> {
+    try {
+      const authHeaders = await getAuthHeadersAsync();
+      const res = await fetch(`${API_BASE_URL}/courses/${encodeURIComponent(courseId)}/assets`, {
+        headers: authHeaders,
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          return json.data;
+        }
+      }
+    } catch (err) {
+      console.warn('[CourseService] getCourseAssets notice:', err);
+    }
+    return [];
+  }
+
+  async createCourseAsset(courseId: string, assetData: any): Promise<any> {
+    const authHeaders = await getAuthHeadersAsync();
+    const res = await fetch(`${API_BASE_URL}/courses/${encodeURIComponent(courseId)}/assets`, {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify(assetData),
+    });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      throw new Error(json.message || 'Failed to register course asset.');
+    }
+    const json = await res.json();
     return json.data;
   }
 }

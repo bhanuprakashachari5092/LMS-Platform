@@ -33,6 +33,8 @@ export interface CourseLessonDoc {
   }[];
   revision?: number;
   expectedRevision?: number;
+  status?: 'draft' | 'published';
+  updatedBy?: string | null;
   lastSavedAt?: string | Date;
   createdAt?: string | Date;
   updatedAt?: string | Date;
@@ -56,6 +58,8 @@ export interface CourseModuleDoc {
   topics?: CourseTopic[];
   revision?: number;
   expectedRevision?: number;
+  status?: 'draft' | 'published';
+  updatedBy?: string | null;
   lastSavedAt?: string | Date;
   createdAt?: string | Date;
   updatedAt?: string | Date;
@@ -103,4 +107,39 @@ export interface CourseContentSummary {
 
 export interface LessonQueryOptions {
   includeContent?: boolean;
+}
+
+export interface ICourseAsset {
+  id: string;
+  courseId: string;
+  lessonId?: string | null;
+  type: 'image' | 'video' | 'pdf' | 'document' | 'archive' | 'audio';
+  provider: 'cloudinary' | 'firebase-storage' | 'external';
+  url: string;
+  publicId?: string | null;
+  storagePath?: string | null;
+  filename: string;
+  mimeType: string;
+  size: number;
+  width?: number | null;
+  height?: number | null;
+  duration?: number | null;
+  altText?: string;
+  uploadedBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ICourseAuditRevision {
+  id: string;
+  courseId: string;
+  moduleId?: string | null;
+  lessonId?: string | null;
+  action: string;
+  revision: number;
+  expectedRevision?: number | null;
+  summary?: string;
+  updatedBy: string;
+  timestamp: string;
+  snapshot?: any;
 }

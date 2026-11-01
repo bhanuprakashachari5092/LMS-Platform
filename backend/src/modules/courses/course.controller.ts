@@ -214,4 +214,18 @@ export class CourseController {
     const result = await this.courseService.bulkImportToCourse(courseId, req.body, adminUser?.uid || 'admin');
     res.status(200).json(formatResponse(true, result, 'Course content bulk import completed successfully'));
   });
+
+  getCourseAssets = asyncHandler(async (req: Request, res: Response) => {
+    const courseId = req.params.id as string;
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 100;
+    const assets = await this.courseService.getCourseAssets(courseId, limit);
+    res.status(200).json(formatResponse(true, assets, 'Course assets retrieved successfully'));
+  });
+
+  createCourseAsset = asyncHandler(async (req: Request, res: Response) => {
+    const courseId = req.params.id as string;
+    const userId = (req as any).user?.uid;
+    const asset = await this.courseService.createCourseAsset(courseId, req.body, userId);
+    res.status(201).json(formatResponse(true, asset, 'Course asset registered successfully'));
+  });
 }

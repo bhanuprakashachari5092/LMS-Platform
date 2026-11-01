@@ -429,9 +429,9 @@ class InstructorService {
       webNotificationService.notifyInstructorOnboarded(newInstructor.name, newInstructor.specialty);
       notificationService.addNotification({
         title: `👨‍🏫 New Assigned Instructor: ${newInstructor.name}`,
-        desc: `${newInstructor.name} has joined as Assigned Instructor for ${newInstructor.specialty || 'Engineering Studies'}. View their upcoming live masterclasses and sessions.`,
+        desc: `${newInstructor.name} has joined as Assigned Instructor for ${newInstructor.specialty || 'Engineering Studies'}. Explore their courses and curriculum.`,
         type: 'info',
-        link: '/dashboard/live-classroom',
+        link: '/dashboard/courses',
         recipientRole: 'all',
       });
     } catch (e) {
@@ -510,7 +510,7 @@ class InstructorService {
                 title: `👨‍🏫 Verified Assigned Instructor: ${name}`,
                 desc: `${name} has been verified and assigned to teach ${data.department || data.specialty || 'Technical Tracks'}.`,
                 type: 'info',
-                link: '/dashboard/live-classroom',
+                link: '/dashboard/courses',
                 recipientRole: 'all',
               });
             } catch (e) {

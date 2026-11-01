@@ -41,4 +41,18 @@ export class LessonService {
   async deleteModule(courseId: string, moduleId: string, userId?: string, authToken?: string): Promise<boolean> {
     return courseContentService.deleteModule(courseId, moduleId, userId, authToken);
   }
+
+  /**
+   * Content Blocks retrieval (with legacy lesson auto-adapter fallback)
+   */
+  async getLessonBlocks(courseId: string, moduleId: string, lessonId: string, authToken?: string) {
+    return courseContentService.getLessonBlocks(courseId, moduleId, lessonId, authToken);
+  }
+
+  /**
+   * Content Blocks batch save
+   */
+  async saveLessonBlocks(courseId: string, moduleId: string, lessonId: string, blocks: any[], userId?: string) {
+    return courseContentService.saveLessonBlocks(courseId, moduleId, lessonId, blocks, userId);
+  }
 }

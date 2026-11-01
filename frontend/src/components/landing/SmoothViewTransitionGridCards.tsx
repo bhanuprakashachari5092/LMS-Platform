@@ -4,7 +4,7 @@ import {
   Bot,
   BookOpen,
   Terminal,
-  Video,
+  Sparkles,
   Award,
   BarChart3,
   ArrowRight
@@ -60,16 +60,16 @@ const PLATFORM_FEATURES: PlatformFeature[] = [
     ctaText: 'Launch Terminal Labs',
   },
   {
-    id: 'live-classes',
+    id: 'interactive-quizzes',
     step: 4,
     stepLabel: 'STEP 04',
-    title: 'Live Classes',
+    title: 'Interactive Quizzes',
     description:
-      'Interactive live classrooms and mentor-led sessions with real-time feedback and collaboration.',
-    icon: Video,
+      'Adaptive milestone quizzes and challenges designed to test deep conceptual understanding.',
+    icon: Sparkles,
     accentColor: '#ae78cb',
-    route: '/live-classes',
-    ctaText: 'Join Classroom',
+    route: '/courses',
+    ctaText: 'Test Your Knowledge',
   },
   {
     id: 'certificates',

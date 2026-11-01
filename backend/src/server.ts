@@ -5,9 +5,7 @@ import './firebase';
 
 import { CourseService } from './services/course/CourseService';
 import http from 'http';
-import { Server as SocketServer } from 'socket.io';
 import { connectRedis } from './config/redis';
-import { setupSocketServer } from './socket/socket.server';
 
 const PORT = Number(process.env.PORT) || Number(env.PORT) || 5000;
 
@@ -22,51 +20,6 @@ process.on('unhandledRejection', (reason) => {
 
 // Create HTTP server wrapper around Express App
 const server = http.createServer(app);
-
-const isProduction = process.env.NODE_ENV === 'production' || env.NODE_ENV === 'production';
-
-// Resolve allowed origins for Socket.IO and HTTP
-const defaultProductionOrigins = ['https://www.kaizenq.in', 'https://kaizenq.in'];
-const defaultDevOrigins = ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:4173', 'http://127.0.0.1:5173'];
-
-const configuredOrigins = process.env.FRONTEND_URL
-  ? process.env.FRONTEND_URL.split(',').map((url) => url.trim()).filter((o) => Boolean(o) && (isProduction ? !defaultDevOrigins.includes(o) : true))
-  : [];
-
-const allowedOrigins = Array.from(
-  new Set([
-    ...defaultProductionOrigins,
-    ...configuredOrigins,
-    ...(!isProduction ? defaultDevOrigins : []),
-  ])
-);
-
-// Initialize Socket.IO Server
-const io = new SocketServer(server, {
-  cors: {
-    origin: (origin, callback) => {
-      // Allow requests with no origin (e.g. mobile apps, server-to-server)
-      if (!origin) return callback(null, true);
-      const isKaizenQ = /^https?:\/\/(www\.)?kaizenq\.in(:\d+)?$/.test(origin);
-      const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
-      const isVercelDomain = /^https:\/\/.*\.vercel\.app$/.test(origin);
-
-      if (isKaizenQ || isLocalhost || isVercelDomain || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      if (!isProduction && defaultDevOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(new Error('CORS origin rejected by policy'));
-    },
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    credentials: true,
-  },
-  pingTimeout: 60000,
-  pingInterval: 25000,
-});
-
-setupSocketServer(io);
 
 server.listen(PORT, async () => {
   logger.info(`🚀 KaizenQ AI LMS Backend initialized in [${env.NODE_ENV}] mode.`);
@@ -90,8 +43,6 @@ server.listen(PORT, async () => {
   } catch (error) {
     logger.error('⚠️ Database seeding check failed:', error);
   }
-
-  // Google Drive connection removed
 });
 
 // Graceful Shutdown Handler
@@ -126,4 +77,4 @@ process.once('SIGUSR2', () => {
   });
 });
 
-export default server; // Trigger restart
+export default server;

@@ -390,25 +390,6 @@ export class EmailService {
       expiresInMinutes,
     });
   }
-
-  /**
-   * Flow 6: Live Class Notification Email
-   */
-  public async sendLiveClassNotification(
-    email: string,
-    studentName: string,
-    classTitle: string,
-    scheduledAt: string,
-    joinUrl: string = 'https://www.kaizenq.in/live-classroom'
-  ) {
-    return this.sendEventEmail(EmailEventType.ADMIN_NOTIFICATION, email, {
-      title: `🔴 Live Class Alert: ${classTitle}`,
-      message: `Hi ${studentName || 'Scholar'}, a live interactive session "${classTitle}" is scheduled for ${scheduledAt}. Click below to join.`,
-      actionUrl: joinUrl,
-      actionText: 'Join Live Class',
-    });
-  }
-
   /**
    * Flow 7: Course Publication Notification
    */

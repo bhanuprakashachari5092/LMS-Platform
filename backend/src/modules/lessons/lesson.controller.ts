@@ -49,12 +49,22 @@ export class LessonController {
         authToken
       );
 
-      res.status(200).json(formatResponse(true, savedLesson, 'Lesson saved successfully'));
+      res.status(200).json({
+        success: true,
+        conflict: false,
+        revision: savedLesson.revision,
+        updatedAt: savedLesson.updatedAt || new Date().toISOString(),
+        lessonId: savedLesson.id,
+        data: savedLesson,
+        message: 'Lesson saved successfully',
+      });
     } catch (err: any) {
-      if (err.status === 409 || err.code === 409) {
+      if (err.statusCode === 409 || err.status === 409 || err.conflict || err.code === 'CONFLICT') {
         res.status(409).json({
           success: false,
           conflict: true,
+          currentRevision: err.currentRevision,
+          expectedRevision: err.expectedRevision,
           error: err.message,
           message: err.message,
         });
@@ -112,5 +122,34 @@ export class LessonController {
     }
 
     res.json(formatResponse(true, null, 'Module and lessons deleted successfully'));
+  });
+
+  getLessonBlocks = asyncHandler(async (req: Request, res: Response) => {
+    const lessonId = req.params.id as string;
+    const courseId = req.query.courseId as string;
+    const moduleId = req.query.moduleId as string;
+    const authToken = (req as any).userToken || req.headers.authorization?.replace(/^Bearer\s+/i, '');
+
+    if (!courseId || !moduleId || !lessonId) {
+      res.status(400).json(formatResponse(false, null, 'courseId, moduleId, and lessonId are required'));
+      return;
+    }
+
+    const blocks = await this.lessonService.getLessonBlocks(courseId, moduleId, lessonId, authToken);
+    res.json(formatResponse(true, blocks, 'Lesson blocks retrieved successfully'));
+  });
+
+  saveLessonBlocks = asyncHandler(async (req: Request, res: Response) => {
+    const lessonId = req.params.id as string;
+    const { courseId, moduleId, blocks } = req.body;
+    const userId = (req as any).user?.uid;
+
+    if (!courseId || !moduleId || !lessonId || !Array.isArray(blocks)) {
+      res.status(400).json(formatResponse(false, null, 'courseId, moduleId, lessonId, and blocks array are required'));
+      return;
+    }
+
+    const savedBlocks = await this.lessonService.saveLessonBlocks(courseId, moduleId, lessonId, blocks, userId);
+    res.json(formatResponse(true, savedBlocks, 'Lesson blocks saved successfully'));
   });
 }

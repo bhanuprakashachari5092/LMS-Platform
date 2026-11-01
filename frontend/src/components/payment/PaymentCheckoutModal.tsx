@@ -36,7 +36,6 @@ interface PaymentCheckoutModalProps {
     name?: string;
   };
   onPaymentSuccess: (enrollment: any) => void;
-  onNavigateToLiveClass?: () => void;
 }
 
 type CheckoutStep = 'details' | 'processing' | 'success' | 'failed' | 'pending';
@@ -47,7 +46,6 @@ export const PaymentCheckoutModal: React.FC<PaymentCheckoutModalProps> = ({
   course,
   studentInfo,
   onPaymentSuccess,
-  onNavigateToLiveClass,
 }) => {
   const [step, setStep] = useState<CheckoutStep>('details');
   const [selectedMethod, setSelectedMethod] = useState<'upi' | 'card' | 'netbanking'>('upi');
@@ -241,7 +239,7 @@ export const PaymentCheckoutModal: React.FC<PaymentCheckoutModalProps> = ({
                     </span>
                     <span className="flex items-center gap-1 text-emerald-400 font-semibold">
                       <Video className="w-3.5 h-3.5" />
-                      Live Classes Included
+                      Full Lifetime Access
                     </span>
                   </div>
                 </div>
@@ -453,7 +451,7 @@ export const PaymentCheckoutModal: React.FC<PaymentCheckoutModalProps> = ({
 
               <div>
                 <h4 className="text-xl font-extrabold text-white tracking-tight">Payment Successful!</h4>
-                <p className="text-xs text-slate-400 mt-1">Your course enrollment and Live Classroom access are fully active.</p>
+                <p className="text-xs text-slate-400 mt-1">Your course enrollment is now fully active.</p>
               </div>
 
               {/* Receipt Summary Card */}
@@ -471,31 +469,19 @@ export const PaymentCheckoutModal: React.FC<PaymentCheckoutModalProps> = ({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Access Level</span>
-                  <span className="font-bold text-sky-400">Lifetime Full Access + Live Classes</span>
+                  <span className="font-bold text-sky-400">Lifetime Full Access</span>
                 </div>
               </div>
 
               {/* Navigation CTAs */}
-              <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <div className="w-full pt-2">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="w-full py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-colors flex items-center justify-center gap-1.5"
+                  className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs transition-colors flex items-center justify-center gap-1.5"
                 >
-                  <BookOpen className="w-4 h-4 text-sky-400" />
+                  <BookOpen className="w-4 h-4 text-white" />
                   Go to Course
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    onClose();
-                    if (onNavigateToLiveClass) onNavigateToLiveClass();
-                  }}
-                  className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold text-xs transition-all shadow-lg shadow-red-500/20 flex items-center justify-center gap-1.5"
-                >
-                  <Video className="w-4 h-4" />
-                  View Live Classes
                 </button>
               </div>
             </div>

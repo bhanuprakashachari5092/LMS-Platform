@@ -4,7 +4,6 @@ import { PublicLayout } from '@/layouts/PublicLayout';
 import { StudentRoute } from '@/components/auth/StudentRoute';
 import { AdminRoute } from '@/components/auth/AdminRoute';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
-import { DeveloperGate } from '@/components/auth/DeveloperGate';
 
 import { LottieLoader } from '@/components/common/LottieLoader';
 import { RouteErrorBoundary } from '@/components/common/RouteErrorBoundary';
@@ -52,10 +51,6 @@ const lazyLoad = (importFn: () => Promise<any>, name: string) => {
 const AuthLayout = lazyLoad(() => import('@/layouts/AuthLayout'), 'AuthLayout');
 const DashboardLayout = lazyLoad(() => import('@/layouts/DashboardLayout'), 'DashboardLayout');
 
-// Prelaunch components
-const LaunchingSoonPage = lazyLoad(() => import('@/pages/prelaunch/LaunchingSoonPage'), 'LaunchingSoonPage');
-const DeveloperAccessPage = lazyLoad(() => import('@/pages/prelaunch/DeveloperAccessPage'), 'DeveloperAccessPage');
-
 // Lazy loaded page components
 const LandingPage = lazyLoad(() => import('@/pages/LandingPage'), 'LandingPage');
 const Login = lazyLoad(() => import('@/pages/auth/Login'), 'Login');
@@ -83,16 +78,8 @@ const AdminCourseDetails = lazyLoad(() => import('@/pages/admin/AdminCourseDetai
 const AdminContentManagement = lazyLoad(() => import('@/pages/admin/AdminContentManagement'), 'AdminContentManagement');
 const AdminContentStudio = lazyLoad(() => import('@/pages/admin/AdminContentStudio'), 'AdminContentStudio');
 const AdminBulkImport = lazyLoad(() => import('@/pages/admin/AdminBulkImport'), 'AdminBulkImport');
-const LiveClassroomDashboard = lazyLoad(() => import('@/pages/liveClassroom/LiveClassroomDashboard'), 'LiveClassroomDashboard');
-const AdminLiveClassroom = lazyLoad(() => import('@/pages/liveClassroom/AdminLiveClassroom'), 'AdminLiveClassroom');
-const LiveClassroomScreen = lazyLoad(() => import('@/pages/liveClassroom/LiveClassroomScreen'), 'LiveClassroomScreen');
-const MentorAnalytics = lazyLoad(() => import('@/pages/liveClassroom/MentorAnalytics'), 'MentorAnalytics');
 const VerifyCertificate = lazyLoad(() => import('@/pages/certificates/VerifyCertificate'), 'VerifyCertificate');
 const PublicPortfolio = lazyLoad(() => import('@/pages/portfolio/PublicPortfolio'), 'PublicPortfolio');
-const LiveClassPage = lazyLoad(() => import('@/pages/liveClass/LiveClassPage'), 'LiveClassPage');
-const AdminLiveClassList = lazyLoad(() => import('@/pages/liveClassroom/AdminLiveClassList'), 'AdminLiveClassList');
-const AdminCreateLiveClass = lazyLoad(() => import('@/pages/liveClassroom/AdminCreateLiveClass'), 'AdminCreateLiveClass');
-const AdminLiveControlCenter = lazyLoad(() => import('@/pages/liveClassroom/AdminLiveControlCenter'), 'AdminLiveControlCenter');
 const AdminCoupons = lazyLoad(() => import('@/pages/admin/AdminCoupons'), 'AdminCoupons');
 
 // ─── Simple placeholder pages for coming-soon admin sections ─────────────────
@@ -111,22 +98,9 @@ const PlaceholderPage = ({ title, subtitle }: { title: string; subtitle: string 
 // ─────────────────────────────────────────────────────────────────────────────
 
 const router = createBrowserRouter([
-  // Dedicated Pre-Launch Standalone Routes
-  {
-    path: '/developer-access',
-    element: <DeveloperAccessPage />,
-  },
-  {
-    path: '/launching-soon',
-    element: <LaunchingSoonPage />,
-  },
   {
     path: '/',
-    element: (
-      <DeveloperGate>
-        <PublicLayout />
-      </DeveloperGate>
-    ),
+    element: <PublicLayout />,
     errorElement: <RouteErrorBoundary />,
     children: [
       { index: true, element: <LandingPage /> },
@@ -146,11 +120,7 @@ const router = createBrowserRouter([
   },
   {
     path: '/portfolio/:handleOrId',
-    element: (
-      <DeveloperGate>
-        <PublicPortfolio />
-      </DeveloperGate>
-    ),
+    element: <PublicPortfolio />,
     errorElement: <RouteErrorBoundary />,
   },
   {
@@ -206,8 +176,6 @@ const router = createBrowserRouter([
       { path: 'dashboard/practice-lab', element: <PracticeLabPage /> },
       { path: 'dashboard/courses', element: <CoursesList /> },
       { path: 'dashboard/course/:slug', element: <CourseView /> },
-      { path: 'dashboard/live-classroom', element: <LiveClassroomDashboard /> },
-      { path: 'dashboard/live-class/:liveClassId', element: <LiveClassPage /> },
     ],
   },
   // Dedicated Administrative & Instructor Management Routes
@@ -237,15 +205,6 @@ const router = createBrowserRouter([
       { path: 'users/:id', element: <AdminUserProfile /> },
       { path: 'content', element: <AdminContentManagement /> },
       { path: 'content-management', element: <AdminContentManagement /> },
-      { path: 'live-classroom', element: <LiveClassroomDashboard /> },
-      { path: 'live-classes', element: <AdminLiveClassList /> },
-      { path: 'live-classes/create', element: <AdminCreateLiveClass /> },
-      { path: 'live-classes/:id/edit', element: <AdminCreateLiveClass /> },
-      { path: 'live-classes/:id/control', element: <AdminLiveControlCenter /> },
-      { path: 'live-control-panel', element: <AdminLiveClassroom /> },
-      { path: 'live-classroom/control-panel', element: <AdminLiveClassroom /> },
-      { path: 'live-classroom/studio', element: <LiveClassroomDashboard /> },
-      { path: 'live-classroom/mentor-analytics', element: <MentorAnalytics /> },
       {
         path: 'analytics',
         element: <PlaceholderPage title="Analytics" subtitle="Platform analytics, student progress reports, and engagement metrics are coming soon." />,
@@ -272,39 +231,6 @@ const router = createBrowserRouter([
       <AdminRoute allowInstructor={true}>
         <AdminContentStudio />
       </AdminRoute>
-    ),
-  },
-  // Dedicated Full-screen Protected Live Classroom routes
-  {
-    path: '/student/live-class/:liveClassId',
-    element: (
-      <ProtectedRoute>
-        <LiveClassPage />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/live-class/:liveClassId',
-    element: (
-      <ProtectedRoute>
-        <LiveClassPage />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/live-classroom/room/:classId',
-    element: (
-      <ProtectedRoute>
-        <LiveClassroomScreen />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/live-classroom/:classId',
-    element: (
-      <ProtectedRoute>
-        <LiveClassroomScreen />
-      </ProtectedRoute>
     ),
   },
   // Fallback 404

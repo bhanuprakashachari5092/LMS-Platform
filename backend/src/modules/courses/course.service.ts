@@ -256,6 +256,32 @@ export class CourseService {
     return courseContentService.restoreRevision(resolvedId, auditLogId, userId, authToken);
   }
 
+  async getCourseAssets(courseIdOrSlug: string, limitCount = 100) {
+    let resolvedId = courseIdOrSlug;
+    try {
+      const course = (await this.getCourseById(courseIdOrSlug)) || (await this.getCourseBySlug(courseIdOrSlug));
+      if (course && course.id) {
+        resolvedId = String(course.id);
+      }
+    } catch (e) {}
+
+    const { courseContentService } = await import('../../services/course/courseContent.service');
+    return courseContentService.getCourseAssets(resolvedId, limitCount);
+  }
+
+  async createCourseAsset(courseIdOrSlug: string, assetData: any, userId?: string) {
+    let resolvedId = courseIdOrSlug;
+    try {
+      const course = (await this.getCourseById(courseIdOrSlug)) || (await this.getCourseBySlug(courseIdOrSlug));
+      if (course && course.id) {
+        resolvedId = String(course.id);
+      }
+    } catch (e) {}
+
+    const { courseContentService } = await import('../../services/course/courseContent.service');
+    return courseContentService.createCourseAsset({ ...assetData, courseId: resolvedId }, userId);
+  }
+
   async bulkImportCourse(payload: any, adminId: string) {
     const courseData = payload.course || payload;
     if (!courseData || !courseData.title) {

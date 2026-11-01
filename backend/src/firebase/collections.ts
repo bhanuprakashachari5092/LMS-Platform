@@ -45,7 +45,6 @@ export const quizAttemptsCollection = () => getCollection('quiz_attempts');
 export const assignmentsCollection = () => getCollection('assignments');
 export const assignmentSubmissionsCollection = () => getCollection('assignment_submissions');
 export const certificatesCollection = () => getCollection('certificates');
-export const liveClassesCollection = () => getCollection('liveClasses');
 export const notificationsCollection = () => getCollection('notifications');
 export const emailLogsCollection = () => getCollection('email_logs');
 export const resourcesCollection = () => getCollection('resources');
@@ -53,5 +52,3 @@ export const courseKnowledgeCollection = () => getCollection('course_knowledge')
 export const questionBankCollection = () => getCollection('question_bank');
 export const generatedQuizzesCollection = () => getCollection('generated_quizzes');
 export const certificateJobsCollection = () => getCollection('certificateJobs');
-
-

@@ -55,17 +55,6 @@ const DEFAULT_ENTERPRISE_NOTIFICATIONS: NotificationItem[] = [
     recipientRole: 'all',
   },
   {
-    id: 'notif_live_class_scheduled',
-    title: 'Live Interactive Session Ready',
-    desc: 'Join the upcoming Live Engineering Masterclass with real-time Q&A and code reviews.',
-    time: '1h ago',
-    read: true,
-    type: 'live_class',
-    createdAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-    link: '/dashboard/live-classroom',
-    recipientRole: 'all',
-  },
-  {
     id: 'notif_leaderboard_update',
     title: 'Cohort Leaderboard Live Sync',
     desc: 'Rankings have been updated with latest XP and module completion metrics.',
@@ -175,8 +164,8 @@ class NotificationService {
                   if (isRecent) {
                     webNotificationService.sendNotification(data.title || 'Platform Notification', {
                       body: data.desc || '',
-                      url: data.link || '/dashboard/live-classroom',
-                      urgent: data.type === 'live_class',
+                      url: data.link || '/dashboard/courses',
+                      urgent: false,
                     });
                     toast.info(data.title || 'Platform Notification', {
                       description: data.desc || '',
@@ -266,69 +255,9 @@ class NotificationService {
       }
     }
 
-    // Attach Socket.IO real-time notification listener for instant delivery
-    let socketUnsub: (() => void) | null = null;
-    try {
-      import('@/services/socketService').then(({ socketService }) => {
-        const socket = socketService.getSocket();
-        if (socket) {
-          const handleNewNotification = (data: any) => {
-            if (!data) return;
-            const notifId = data.id || `notif_${Date.now()}`;
-            const deletedIds = this.getDeletedIds();
-            if (deletedIds.has(notifId)) return;
-
-            const newItem: NotificationItem = {
-              id: notifId,
-              title: data.title || 'Live Class Update',
-              desc: data.desc || data.message || '',
-              time: 'Just now',
-              read: Boolean(data.read),
-              type: data.type || 'live_class',
-              createdAt: data.createdAt || new Date().toISOString(),
-              link: data.link,
-              recipientId: data.recipientId,
-              recipientRole: data.recipientRole || 'student',
-            };
-
-            const current = this.getLocalNotifications();
-            if (!current.some((item) => item.id === notifId)) {
-              const updated = [newItem, ...current];
-              this.saveLocalNotifications(updated);
-
-              // Surface web toast & push alert
-              webNotificationService.sendNotification(newItem.title, {
-                body: newItem.desc,
-                url: newItem.link || '/dashboard/live-classroom',
-                urgent: newItem.type === 'live_class',
-              });
-              toast.info(newItem.title, {
-                description: newItem.desc,
-                duration: 8000,
-                action: newItem.link
-                  ? {
-                      label: 'Join Class',
-                      onClick: () => {
-                        window.location.href = newItem.link!;
-                      },
-                    }
-                  : undefined,
-              });
-            }
-          };
-
-          socket.on('notification:new', handleNewNotification);
-          socketUnsub = () => {
-            socket.off('notification:new', handleNewNotification);
-          };
-        }
-      }).catch(() => {});
-    } catch {}
-
     return () => {
       this.listeners.delete(callback);
       unsubscribers.forEach((unsub) => unsub());
-      if (socketUnsub) socketUnsub();
     };
   }
 

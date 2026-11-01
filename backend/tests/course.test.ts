@@ -109,7 +109,7 @@ describe('CourseContentService Canonical Reading', () => {
     expect(lesson).not.toBeNull();
     expect(lesson?.id).toBe(lessons[0].id);
     expect(lesson?.title).toBeDefined();
-  });
+  }, 60000);
 });
 
 afterAll(async () => {

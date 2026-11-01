@@ -3,9 +3,13 @@ import path from 'path';
 import { z } from 'zod';
 
 // Load .env file from process cwd or root, then load/merge backend-specific .env
+const initialNodeEnv = process.env.NODE_ENV;
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 dotenv.config({ path: path.resolve(__dirname, '../../.env'), override: true });
+if (initialNodeEnv === 'test' || Boolean(process.env.JEST_WORKER_ID)) {
+  process.env.NODE_ENV = 'test';
+}
 
 const envSchema = z.object({
   PORT: z.string().default('5000'),
@@ -30,9 +34,6 @@ const envSchema = z.object({
   RAZORPAY_KEY_SECRET: z.string().optional(),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
 
-  // Optional MongoDB for caching/live classroom
-  MONGODB_URI: z.string().optional(),
-
   // Email Notification System Configurations (Brevo HTTP Transactional API)
   EMAIL_PROVIDER: z.enum(['brevo', 'nodemailer', 'resend', 'mock']).default('brevo'),
   BREVO_API_KEY: z.string().optional(),
@@ -49,6 +50,7 @@ const envSchema = z.object({
   SMTP_FROM_EMAIL: z.string().default('no-reply@kaizenq.in'),
   SMTP_FROM_NAME: z.string().default('KaizenQ'),
   SMTP_FROM: z.string().default('KaizenQ <no-reply@kaizenq.in>'),
+
   // Google Drive Credentials
   GOOGLE_DRIVE_CLIENT_EMAIL: z.string().optional(),
   GOOGLE_DRIVE_PRIVATE_KEY: z.string().optional(),
@@ -60,17 +62,6 @@ const envSchema = z.object({
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional(),
   GOOGLE_OAUTH_REFRESH_TOKEN: z.string().optional(),
   REDIS_URL: z.string().default('redis://localhost:6379'),
-
-  // Pre-Launch Gate & Developer Access Configuration
-  PRELAUNCH_MODE: z.string().default('false'),
-  DEVELOPER_ACCESS_PASSCODE: z.string().default('googlemanoj'),
-  DEVELOPER_SESSION_TTL: z.string().default('8h'),
-  DEVELOPER_SESSION_SECRET: z.string().default('kz_dev_session_sign_secret_2026'),
-
-  // LiveKit SFU Infrastructure
-  LIVEKIT_API_KEY: z.string().optional(),
-  LIVEKIT_API_SECRET: z.string().optional(),
-  LIVEKIT_HOST: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);

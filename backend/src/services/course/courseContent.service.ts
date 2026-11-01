@@ -1,10 +1,11 @@
 import { db } from '../../firebase';
-import { CourseModuleDoc, CourseLessonDoc, CourseContentSummary, LessonQueryOptions } from '../../types/courseContent.types';
+import { CourseModuleDoc, CourseLessonDoc, CourseContentSummary, LessonQueryOptions, ICourseAsset } from '../../types/courseContent.types';
 import { fromDocument, toDocument } from '../../utils/firestore';
-import { ApiError } from '../../utils/ApiError';
+import { ApiError, ConflictError } from '../../utils/errors';
 import { resolveCanonicalId } from '../../modules/courses/course.repository';
 import { firestoreRest } from '../firestore/firestoreRestClient';
 import { processCanonicalLessonContent } from '../../utils/lessonNormalizer';
+import { lessonToBlocks, blocksToLegacyFields, ILessonBlock } from '../../utils/lessonBlockAdapter';
 
 interface CacheEntry<T> {
   data: T;
@@ -613,52 +614,99 @@ export class CourseContentService {
     const orderIndex = moduleDoc.orderIndex ?? moduleDoc.order ?? 1;
     const docRef = db.collection('courses').doc(targetCourseId).collection('modules').doc(moduleDoc.id);
 
-    let existingSnap: any = { exists: false };
-    let currentRevision = 0;
-    try {
-      existingSnap = await docRef.get();
-      if (existingSnap.exists) {
-        const data = existingSnap.data() || {};
-        currentRevision = typeof data.revision === 'number' ? data.revision : 1;
+    const now = new Date().toISOString();
+    let nextRevision = 1;
+    let previousRevision = 0;
+    let wasExisting = false;
+    let cleanDoc: any = null;
+
+    let transactionSuccess = false;
+    if (db) {
+      try {
+        await db.runTransaction(async (transaction) => {
+          const snap = await transaction.get(docRef);
+          let currentRev = 0;
+          if (snap.exists) {
+            wasExisting = true;
+            const data = snap.data() || {};
+            currentRev = typeof data.revision === 'number' ? data.revision : 1;
+          }
+
+          if (moduleDoc.expectedRevision !== undefined && snap.exists) {
+            if (currentRev !== moduleDoc.expectedRevision) {
+              throw new ConflictError(
+                `Conflict: Module "${moduleDoc.id}" was modified by another session. Current revision is ${currentRev}, but expected ${moduleDoc.expectedRevision}.`,
+                currentRev,
+                moduleDoc.expectedRevision
+              );
+            }
+          }
+
+          previousRevision = currentRev;
+          nextRevision = currentRev + 1;
+
+          cleanDoc = toDocument({
+            ...moduleDoc,
+            courseId: targetCourseId,
+            orderIndex,
+            order: orderIndex,
+            status: moduleDoc.status || 'draft',
+            revision: nextRevision,
+            lastSavedAt: now,
+            updatedAt: now,
+            updatedBy: userId || (moduleDoc as any).updatedBy || null,
+          });
+          delete (cleanDoc as any).expectedRevision;
+
+          transaction.set(docRef, cleanDoc, { merge: true });
+        });
+        transactionSuccess = true;
+      } catch (txErr: any) {
+        if (txErr instanceof ConflictError || txErr.conflict || txErr.statusCode === 409) {
+          throw txErr;
+        }
+        console.warn(`[CourseContentService] db.runTransaction notice for module ${moduleDoc.id}:`, txErr);
       }
-    } catch (getErr) {
+    }
+
+    if (!transactionSuccess) {
+      let currentRevision = 0;
+      let existingSnap = false;
       try {
         const restDoc = await firestoreRest.getDocument<any>(`courses/${targetCourseId}/modules/${moduleDoc.id}`, authToken);
         if (restDoc) {
-          existingSnap = { exists: true };
+          existingSnap = true;
+          wasExisting = true;
           currentRevision = typeof restDoc.revision === 'number' ? restDoc.revision : 1;
         }
       } catch {}
-    }
 
-    if (moduleDoc.expectedRevision !== undefined && existingSnap.exists) {
-      if (currentRevision !== moduleDoc.expectedRevision) {
-        throw new ApiError(
-          409,
-          `Conflict: Module "${moduleDoc.id}" was modified by another session. Current revision is ${currentRevision}, but expected ${moduleDoc.expectedRevision}.`
-        );
+      if (moduleDoc.expectedRevision !== undefined && existingSnap) {
+        if (currentRevision !== moduleDoc.expectedRevision) {
+          throw new ConflictError(
+            `Conflict: Module "${moduleDoc.id}" was modified by another session. Current revision is ${currentRevision}, but expected ${moduleDoc.expectedRevision}.`,
+            currentRevision,
+            moduleDoc.expectedRevision
+          );
+        }
       }
-    }
 
-    const nextRevision = currentRevision + 1;
-    const now = new Date().toISOString();
+      previousRevision = currentRevision;
+      nextRevision = currentRevision + 1;
 
-    const cleanDoc = toDocument({
-      ...moduleDoc,
-      courseId: targetCourseId,
-      orderIndex,
-      order: orderIndex,
-      revision: nextRevision,
-      lastSavedAt: now,
-      updatedAt: now,
-    });
-    delete (cleanDoc as any).expectedRevision;
+      cleanDoc = toDocument({
+        ...moduleDoc,
+        courseId: targetCourseId,
+        orderIndex,
+        order: orderIndex,
+        status: moduleDoc.status || 'draft',
+        revision: nextRevision,
+        lastSavedAt: now,
+        updatedAt: now,
+        updatedBy: userId || (moduleDoc as any).updatedBy || null,
+      });
+      delete (cleanDoc as any).expectedRevision;
 
-    // Primary Canonical Subcollection: courses/{targetCourseId}/modules/{moduleId}
-    try {
-      await docRef.set(cleanDoc, { merge: true });
-    } catch (setErr) {
-      console.warn(`[CourseContentService] db docRef.set failed for module ${moduleDoc.id}, using firestoreRest:`, setErr);
       await firestoreRest.setDocument(`courses/${targetCourseId}/modules/${moduleDoc.id}`, cleanDoc, { merge: true }, authToken);
     }
 
@@ -671,23 +719,25 @@ export class CourseContentService {
       courseId: targetCourseId,
       orderIndex,
       order: orderIndex,
+      status: moduleDoc.status || 'draft',
       revision: nextRevision,
       lastSavedAt: now,
       updatedAt: now,
+      updatedBy: userId || (moduleDoc as any).updatedBy || null,
     };
 
     await this.recordAuditLog({
       courseId: targetCourseId,
       moduleId: moduleDoc.id,
       entityType: 'module',
-      action: existingSnap.exists ? 'save' : 'create',
+      action: wasExisting ? 'save' : 'create',
       title: moduleDoc.title || moduleDoc.id,
-      previousRevision: currentRevision,
+      previousRevision,
       newRevision: nextRevision,
-      adminId: (moduleDoc as any).updatedBy || 'admin',
+      adminId: userId || (moduleDoc as any).updatedBy || 'admin',
       timestamp: now,
-      changesSummary: existingSnap.exists
-        ? `Updated module "${moduleDoc.title}" (Rev ${currentRevision} -> ${nextRevision}).`
+      changesSummary: wasExisting
+        ? `Updated module "${moduleDoc.title}" (Rev ${previousRevision} -> ${nextRevision}).`
         : `Created new module "${moduleDoc.title}" (Rev 1).`,
       snapshot: cleanDoc,
     }, authToken);
@@ -710,64 +760,157 @@ export class CourseContentService {
       .collection('lessons')
       .doc(lessonDoc.id);
 
-    let existingSnap: any = { exists: false };
-    let currentRevision = 0;
-    try {
-      existingSnap = await docRef.get();
-      if (existingSnap.exists) {
-        const data = existingSnap.data() || {};
-        currentRevision = typeof data.revision === 'number' ? data.revision : 1;
-      }
-    } catch (getErr) {
-      try {
-        const restDoc = await firestoreRest.getDocument<any>(`courses/${targetCourseId}/modules/${moduleId}/lessons/${lessonDoc.id}`, authToken);
-        if (restDoc) {
-          existingSnap = { exists: true };
-          currentRevision = typeof restDoc.revision === 'number' ? restDoc.revision : 1;
-        }
-      } catch {}
-    }
-
-    if (lessonDoc.expectedRevision !== undefined && existingSnap.exists) {
-      if (currentRevision !== lessonDoc.expectedRevision) {
-        throw new ApiError(
-          409,
-          `Conflict: Lesson "${lessonDoc.id}" was modified by another session. Current revision is ${currentRevision}, but expected ${lessonDoc.expectedRevision}.`
-        );
-      }
-    }
-
-    const nextRevision = currentRevision + 1;
     const now = new Date().toISOString();
-
     const rawContent = (lessonDoc as any).content || (lessonDoc as any).readingContent || (lessonDoc as any).conceptTheory || '';
     const normalizedContent = processCanonicalLessonContent(rawContent);
 
-    const cleanDoc = toDocument({
-      ...lessonDoc,
-      courseId: targetCourseId,
-      moduleId,
-      content: normalizedContent,
-      readingContent: normalizedContent,
-      conceptTheory: normalizedContent,
-      orderIndex,
-      order: orderIndex,
-      revision: nextRevision,
-      lastSavedAt: now,
-      updatedAt: now,
-      updatedBy: userId || (lessonDoc as any).updatedBy || 'admin',
-    });
-    delete (cleanDoc as any).expectedRevision;
+    let nextRevision = 1;
+    let previousRevision = 0;
+    let wasExisting = false;
+    let cleanDoc: any = null;
 
-    // Primary Canonical Subcollection: courses/{targetCourseId}/modules/{moduleId}/lessons/{lessonDoc.id}
-    try {
-      await docRef.set(cleanDoc, { merge: true });
-    } catch (setErr) {
-      console.warn(`[CourseContentService] db docRef.set failed for lesson ${lessonDoc.id}, using firestoreRest:`, setErr);
-      await firestoreRest.setDocument(`courses/${targetCourseId}/modules/${moduleId}/lessons/${lessonDoc.id}`, cleanDoc, { merge: true }, authToken);
+    // ── 1. Authoritative Firestore Transaction ──────────────────────────────
+    let transactionSuccess = false;
+    if (db) {
+      try {
+        await db.runTransaction(async (transaction) => {
+          const snap = await transaction.get(docRef);
+          let currentRev = 0;
+          if (snap.exists) {
+            wasExisting = true;
+            const data = snap.data() || {};
+            currentRev = typeof data.revision === 'number' ? data.revision : 1;
+          }
+
+          // Optimistic Concurrency Conflict Check
+          if (lessonDoc.expectedRevision !== undefined && snap.exists) {
+            if (currentRev !== lessonDoc.expectedRevision) {
+              throw new ConflictError(
+                `Conflict: Lesson "${lessonDoc.id}" was modified by another session. Current revision is ${currentRev}, but expected ${lessonDoc.expectedRevision}.`,
+                currentRev,
+                lessonDoc.expectedRevision
+              );
+            }
+          }
+
+          previousRevision = currentRev;
+          nextRevision = currentRev + 1;
+
+          cleanDoc = toDocument({
+            ...lessonDoc,
+            courseId: targetCourseId,
+            moduleId,
+            content: normalizedContent,
+            readingContent: normalizedContent,
+            conceptTheory: normalizedContent,
+            orderIndex,
+            order: orderIndex,
+            revision: nextRevision,
+            lastSavedAt: now,
+            updatedAt: now,
+            updatedBy: userId || (lessonDoc as any).updatedBy || 'admin',
+          });
+          delete (cleanDoc as any).expectedRevision;
+
+          // Commit write atomically inside transaction
+          transaction.set(docRef, cleanDoc, { merge: true });
+
+          // Record immutable audit revision inside subcollection
+          const auditRevisionRef = db
+            .collection('courses')
+            .doc(targetCourseId)
+            .collection('course_audit_revisions')
+            .doc();
+
+          transaction.set(
+            auditRevisionRef,
+            toDocument({
+              id: auditRevisionRef.id,
+              courseId: targetCourseId,
+              moduleId,
+              lessonId: lessonDoc.id,
+              action: snap.exists ? ((lessonDoc as any).isDraft ? 'save_draft' : 'save_lesson') : 'create_lesson',
+              revision: nextRevision,
+              expectedRevision: lessonDoc.expectedRevision ?? currentRev,
+              summary: snap.exists
+                ? `Saved lesson "${lessonDoc.title}" (Rev ${currentRev} -> ${nextRevision})`
+                : `Created lesson "${lessonDoc.title}" (Rev 1)`,
+              updatedBy: userId || (lessonDoc as any).updatedBy || 'admin',
+              timestamp: now,
+              snapshot: {
+                id: lessonDoc.id,
+                title: lessonDoc.title,
+                revision: nextRevision,
+                duration: lessonDoc.duration,
+                type: lessonDoc.type,
+              },
+            })
+          );
+        });
+
+        transactionSuccess = true;
+      } catch (txErr: any) {
+        if (txErr instanceof ConflictError || txErr.conflict || txErr.statusCode === 409) {
+          throw txErr;
+        }
+        console.warn(`[CourseContentService] db.runTransaction notice, attempting fallback:`, txErr);
+      }
     }
 
-    // Lightweight summary for parent module topic structure (preventing megabyte document bloat while maintaining navigation hierarchy)
+    // ── 2. Fallback to REST Client if db unavailable ────────────────────────
+    if (!transactionSuccess) {
+      let currentRevision = 0;
+      let existingSnap = false;
+      try {
+        const restDoc = await firestoreRest.getDocument<any>(
+          `courses/${targetCourseId}/modules/${moduleId}/lessons/${lessonDoc.id}`,
+          authToken
+        );
+        if (restDoc) {
+          existingSnap = true;
+          wasExisting = true;
+          currentRevision = typeof restDoc.revision === 'number' ? restDoc.revision : 1;
+        }
+      } catch {}
+
+      if (lessonDoc.expectedRevision !== undefined && existingSnap) {
+        if (currentRevision !== lessonDoc.expectedRevision) {
+          throw new ConflictError(
+            `Conflict: Lesson "${lessonDoc.id}" was modified by another session. Current revision is ${currentRevision}, but expected ${lessonDoc.expectedRevision}.`,
+            currentRevision,
+            lessonDoc.expectedRevision
+          );
+        }
+      }
+
+      previousRevision = currentRevision;
+      nextRevision = currentRevision + 1;
+
+      cleanDoc = toDocument({
+        ...lessonDoc,
+        courseId: targetCourseId,
+        moduleId,
+        content: normalizedContent,
+        readingContent: normalizedContent,
+        conceptTheory: normalizedContent,
+        orderIndex,
+        order: orderIndex,
+        revision: nextRevision,
+        lastSavedAt: now,
+        updatedAt: now,
+        updatedBy: userId || (lessonDoc as any).updatedBy || 'admin',
+      });
+      delete (cleanDoc as any).expectedRevision;
+
+      await firestoreRest.setDocument(
+        `courses/${targetCourseId}/modules/${moduleId}/lessons/${lessonDoc.id}`,
+        cleanDoc,
+        { merge: true },
+        authToken
+      );
+    }
+
+    // ── 3. Lightweight summary sync to parent module & root course ──────────
     const summaryUnit = {
       id: lessonDoc.id,
       title: lessonDoc.title,
@@ -782,67 +925,62 @@ export class CourseContentService {
       updatedAt: now,
     };
 
-    // Sync lightweight metadata to parent module document and root course document
     try {
-      const modRef = db.collection('courses').doc(targetCourseId).collection('modules').doc(moduleId);
-      const modSnap = await modRef.get();
-      if (modSnap.exists) {
-        const modData = modSnap.data() || {};
-        if (Array.isArray(modData.topics) && modData.topics.length > 0) {
-          const updatedTopics = modData.topics.map((top: any) => ({
-            ...top,
-            learningUnits: (top.learningUnits || []).map((u: any) => {
-              if (u.id === lessonDoc.id) {
+      if (db) {
+        const modRef = db.collection('courses').doc(targetCourseId).collection('modules').doc(moduleId);
+        const modSnap = await modRef.get();
+        if (modSnap.exists) {
+          const modData = modSnap.data() || {};
+          if (Array.isArray(modData.topics) && modData.topics.length > 0) {
+            const updatedTopics = modData.topics.map((top: any) => ({
+              ...top,
+              learningUnits: (top.learningUnits || []).map((u: any) => {
+                if (u.id === lessonDoc.id) {
+                  return { ...u, ...summaryUnit };
+                }
+                return u;
+              }),
+            }));
+            await modRef.set(toDocument({ topics: updatedTopics, updatedAt: now }), { merge: true });
+          }
+        }
+
+        const courseRef = db.collection('courses').doc(targetCourseId);
+        const courseSnap = await courseRef.get();
+        if (courseSnap.exists) {
+          const cData = courseSnap.data() || {};
+          if (Array.isArray(cData.modules) && cData.modules.length > 0) {
+            const updatedModules = cData.modules.map((m: any) => {
+              if (m.id === moduleId) {
                 return {
-                  ...u,
-                  ...summaryUnit,
+                  ...m,
+                  topics: (m.topics || []).map((top: any) => ({
+                    ...top,
+                    learningUnits: (top.learningUnits || []).map((u: any) => {
+                      if (u.id === lessonDoc.id) {
+                        return { ...u, ...summaryUnit };
+                      }
+                      return u;
+                    }),
+                  })),
                 };
               }
-              return u;
-            }),
-          }));
-          await modRef.set(toDocument({ topics: updatedTopics, updatedAt: now }), { merge: true });
-        }
-      }
-
-      const courseRef = db.collection('courses').doc(targetCourseId);
-      const courseSnap = await courseRef.get();
-      if (courseSnap.exists) {
-        const cData = courseSnap.data() || {};
-        if (Array.isArray(cData.modules) && cData.modules.length > 0) {
-          const updatedModules = cData.modules.map((m: any) => {
-            if (m.id === moduleId) {
-              return {
-                ...m,
-                topics: (m.topics || []).map((top: any) => ({
-                  ...top,
-                  learningUnits: (top.learningUnits || []).map((u: any) => {
-                    if (u.id === lessonDoc.id) {
-                      return {
-                        ...u,
-                        ...summaryUnit,
-                      };
-                    }
-                    return u;
-                  }),
-                })),
-              };
-            }
-            return m;
-          });
-          await courseRef.set(toDocument({ modules: updatedModules, updatedAt: now }), { merge: true });
+              return m;
+            });
+            await courseRef.set(toDocument({ modules: updatedModules, updatedAt: now }), { merge: true });
+          }
         }
       }
     } catch (syncErr) {
       console.warn('[SYNC_MODULE_DOC_NOTICE]', syncErr);
     }
 
+    // ── 4. Cache Invalidation ────────────────────────────────────────────────
     this.invalidateCourseCache(targetCourseId, moduleId, lessonDoc.id);
     this.invalidateCache(`lessons:${targetCourseId}:${moduleId}`);
     this.invalidateCache(`lesson:${targetCourseId}:${moduleId}:${lessonDoc.id}`);
     this.invalidateCache(`modules:${targetCourseId}`);
 
-    // Synchronize parent course metadata
     await this.syncCourseStats(targetCourseId, authToken);
 
     const savedResult = {
@@ -859,24 +997,215 @@ export class CourseContentService {
       updatedAt: now,
     };
 
-    await this.recordAuditLog({
-      courseId: targetCourseId,
-      moduleId,
-      lessonId: lessonDoc.id,
-      entityType: 'lesson',
-      action: existingSnap.exists ? ((lessonDoc as any).isDraft ? 'save' : 'publish') : 'create',
-      title: lessonDoc.title || lessonDoc.id,
-      previousRevision: currentRevision,
-      newRevision: nextRevision,
-      adminId: userId || (lessonDoc as any).updatedBy || 'admin',
-      timestamp: now,
-      changesSummary: existingSnap.exists
-        ? `Saved lesson "${lessonDoc.title}" in module "${moduleId}" (Rev ${currentRevision} -> ${nextRevision}).`
-        : `Created new lesson "${lessonDoc.title}" in module "${moduleId}" (Rev 1).`,
-      snapshot: cleanDoc,
-    }, authToken);
+    // ── 5. Audit Log Persistence ─────────────────────────────────────────────
+    await this.recordAuditLog(
+      {
+        courseId: targetCourseId,
+        moduleId,
+        lessonId: lessonDoc.id,
+        entityType: 'lesson',
+        action: wasExisting ? ((lessonDoc as any).isDraft ? 'save' : 'publish') : 'create',
+        title: lessonDoc.title || lessonDoc.id,
+        previousRevision,
+        newRevision: nextRevision,
+        adminId: userId || (lessonDoc as any).updatedBy || 'admin',
+        timestamp: now,
+        changesSummary: wasExisting
+          ? `Saved lesson "${lessonDoc.title}" in module "${moduleId}" (Rev ${previousRevision} -> ${nextRevision}).`
+          : `Created new lesson "${lessonDoc.title}" in module "${moduleId}" (Rev 1).`,
+        snapshot: cleanDoc,
+      },
+      authToken
+    );
 
     return savedResult;
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // CONTENT BLOCK OPERATIONS (Phase 1 Data Foundation)
+  // ════════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Retrieves discrete content blocks for a lesson.
+   * If no discrete blocks exist in the subcollection, automatically converts
+   * legacy lesson fields into blocks via lessonToBlocks adapter.
+   */
+  async getLessonBlocks(
+    courseId: string,
+    moduleId: string,
+    lessonId: string,
+    authToken?: string
+  ): Promise<ILessonBlock[]> {
+    const targetCourseId = resolveCanonicalId(courseId);
+    try {
+      if (db) {
+        const blocksSnap = await db
+          .collection('courses')
+          .doc(targetCourseId)
+          .collection('modules')
+          .doc(moduleId)
+          .collection('lessons')
+          .doc(lessonId)
+          .collection('blocks')
+          .orderBy('order', 'asc')
+          .get();
+
+        if (blocksSnap && !blocksSnap.empty) {
+          return blocksSnap.docs.map((d) => fromDocument<ILessonBlock>(d));
+        }
+      }
+    } catch (dbErr) {
+      console.warn(`[CourseContentService] Blocks query fallback:`, dbErr);
+    }
+
+    // Legacy Fallback: synthesize discrete blocks from existing lesson document
+    const lesson = await this.getLessonById(lessonId, targetCourseId, moduleId, undefined);
+    if (!lesson) return [];
+    return lessonToBlocks(lesson);
+  }
+
+  /**
+   * Saves discrete content blocks to the lesson subcollection.
+   */
+  async saveLessonBlocks(
+    courseId: string,
+    moduleId: string,
+    lessonId: string,
+    blocks: ILessonBlock[],
+    userId?: string
+  ): Promise<ILessonBlock[]> {
+    const targetCourseId = resolveCanonicalId(courseId);
+    if (!db) {
+      throw new ApiError(500, 'Database is not initialized.');
+    }
+
+    const batch = db.batch();
+    const blocksRef = db
+      .collection('courses')
+      .doc(targetCourseId)
+      .collection('modules')
+      .doc(moduleId)
+      .collection('lessons')
+      .doc(lessonId)
+      .collection('blocks');
+
+    // Clean up any blocks that were deleted from the lesson
+    const existingSnap = await blocksRef.get();
+    const activeBlockIds = new Set(blocks.map((b) => b.id).filter(Boolean));
+    existingSnap.docs.forEach((doc) => {
+      if (!activeBlockIds.has(doc.id)) {
+        batch.delete(doc.ref);
+      }
+    });
+
+    const now = new Date().toISOString();
+    const savedBlocks: ILessonBlock[] = [];
+
+    blocks.forEach((block, idx) => {
+      const bId = block.id || `block_${Date.now()}_${idx}`;
+      const docRef = blocksRef.doc(bId);
+      const cleanBlock: ILessonBlock = {
+        ...block,
+        id: bId,
+        lessonId,
+        order: typeof block.order === 'number' ? block.order : idx,
+        isVisible: block.isVisible !== false,
+        createdAt: block.createdAt || now,
+        updatedAt: now,
+        updatedBy: userId || 'admin',
+      };
+      batch.set(docRef, toDocument(cleanBlock), { merge: true });
+      savedBlocks.push(cleanBlock);
+    });
+
+    // Synchronize compiled legacy fields to the parent lesson document
+    const lessonRef = db
+      .collection('courses')
+      .doc(targetCourseId)
+      .collection('modules')
+      .doc(moduleId)
+      .collection('lessons')
+      .doc(lessonId);
+
+    const legacyFields = blocksToLegacyFields(savedBlocks);
+    batch.set(
+      lessonRef,
+      toDocument({
+        ...legacyFields,
+        blocksCount: savedBlocks.length,
+        updatedAt: now,
+        updatedBy: userId || 'admin',
+      }),
+      { merge: true }
+    );
+
+    await batch.commit();
+    return savedBlocks;
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // COURSE ASSETS OPERATIONS (Centralized Asset Metadata)
+  // ════════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Creates or updates metadata for a course asset in /course_assets/{assetId}
+   */
+  async createCourseAsset(assetData: Partial<ICourseAsset>, userId?: string): Promise<ICourseAsset> {
+    if (!assetData.courseId || !assetData.url) {
+      throw new ApiError(400, 'courseId and url are required to register an asset.');
+    }
+
+    const assetId = assetData.id || `asset_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const now = new Date().toISOString();
+
+    const asset: ICourseAsset = {
+      id: assetId,
+      courseId: resolveCanonicalId(assetData.courseId),
+      lessonId: assetData.lessonId || null,
+      type: assetData.type || 'image',
+      provider: assetData.provider || 'cloudinary',
+      url: assetData.url,
+      publicId: assetData.publicId || null,
+      storagePath: assetData.storagePath || null,
+      filename: assetData.filename || 'asset',
+      mimeType: assetData.mimeType || 'application/octet-stream',
+      size: assetData.size || 0,
+      width: assetData.width || null,
+      height: assetData.height || null,
+      duration: assetData.duration || null,
+      altText: assetData.altText || '',
+      uploadedBy: userId || 'admin',
+      createdAt: assetData.createdAt || now,
+      updatedAt: now,
+    };
+
+    if (db) {
+      await db.collection('course_assets').doc(assetId).set(toDocument(asset), { merge: true });
+    }
+
+    return asset;
+  }
+
+  /**
+   * Retrieves assets associated with a course from /course_assets
+   */
+  async getCourseAssets(courseId: string, limitCount = 100): Promise<ICourseAsset[]> {
+    const targetCourseId = resolveCanonicalId(courseId);
+    if (!db) return [];
+
+    try {
+      const snap = await db
+        .collection('course_assets')
+        .where('courseId', '==', targetCourseId)
+        .limit(limitCount)
+        .get();
+
+      if (snap.empty) return [];
+      return snap.docs.map((d) => fromDocument<ICourseAsset>(d));
+    } catch (err) {
+      console.warn(`[CourseContentService] Failed to query course_assets:`, err);
+      return [];
+    }
   }
 
   /**
@@ -1099,17 +1428,19 @@ export class CourseContentService {
 
       try {
         if (db) {
-          await db
-            .collection('courses')
-            .doc(targetCourseId)
-            .collection('audit_logs')
-            .doc(logId)
-            .set(logDoc);
+          const batch = db.batch();
+          const legacyAuditRef = db.collection('courses').doc(targetCourseId).collection('audit_logs').doc(logId);
+          const canonicalAuditRef = db.collection('courses').doc(targetCourseId).collection('course_audit_revisions').doc(logId);
+          batch.set(legacyAuditRef, logDoc, { merge: true });
+          batch.set(canonicalAuditRef, logDoc, { merge: true });
+          await batch.commit();
         } else {
           await firestoreRest.setDocument(`courses/${targetCourseId}/audit_logs/${logId}`, logDoc, { merge: true }, authToken);
+          await firestoreRest.setDocument(`courses/${targetCourseId}/course_audit_revisions/${logId}`, logDoc, { merge: true }, authToken);
         }
       } catch (err) {
         await firestoreRest.setDocument(`courses/${targetCourseId}/audit_logs/${logId}`, logDoc, { merge: true }, authToken).catch(() => {});
+        await firestoreRest.setDocument(`courses/${targetCourseId}/course_audit_revisions/${logId}`, logDoc, { merge: true }, authToken).catch(() => {});
       }
     } catch (err) {
       console.warn(`[AUDIT_LOG_WARNING] Could not persist audit log for course ${entry.courseId}:`, err);

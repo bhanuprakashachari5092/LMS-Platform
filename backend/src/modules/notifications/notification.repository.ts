@@ -15,9 +15,7 @@ export interface IDurableNotification {
   serverCreatedAt?: any;
   link: string;
   recipientId: string;
-  recipientRole: 'student' | 'admin' | 'all';
-  liveClassId?: string;
-  courseId?: string;
+  recipientRole: 'student' | 'admin' | 'all';  courseId?: string;
   instructorId?: string;
 }
 

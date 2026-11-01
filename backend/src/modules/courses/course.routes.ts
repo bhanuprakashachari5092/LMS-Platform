@@ -32,4 +32,8 @@ router.post('/:id/duplicate', verifyFirebaseToken, requireRole('admin'), control
 router.post('/bulk-import', verifyFirebaseToken, requireRole('admin'), controller.bulkImportCourse);
 router.post('/:id/bulk-import', verifyFirebaseToken, requireRole('admin'), controller.bulkImportToCourse);
 
+// Course assets endpoints
+router.get('/:id/assets', controller.getCourseAssets);
+router.post('/:id/assets', verifyFirebaseToken, requireRole('admin'), controller.createCourseAsset);
+
 export default router;

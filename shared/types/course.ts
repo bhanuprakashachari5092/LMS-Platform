@@ -123,9 +123,12 @@ export interface ILessonItem {
   themeIcon?: string | null;
   revision?: number;
   expectedRevision?: number;
+  status?: 'draft' | 'published';
+  blocksCount?: number;
   lastSavedAt?: string;
   createdAt?: string;
   updatedAt?: string;
+  updatedBy?: string | null;
 }
 
 export interface IModuleItem {
@@ -141,11 +144,13 @@ export interface IModuleItem {
   topicImagePublicId?: string | null;
   themeColor?: string | null;
   themeIcon?: string | null;
+  status?: 'draft' | 'published';
   revision?: number;
   expectedRevision?: number;
   lastSavedAt?: string;
   createdAt?: string;
   updatedAt?: string;
+  updatedBy?: string | null;
 }
 
 export interface IVideoProgress {
@@ -217,6 +222,12 @@ export interface ICourse {
   progress?: number; // Enrollment completion percentage (0-100)
   isEnrolled?: boolean; // Whether current student is enrolled
   version?: number; // Optimistic concurrency version
+  builderVersion?: number; // Course builder schema version (default: 1)
+  contentVersion?: number; // Course content version (default: 1)
+  draftRevision?: number;
+  publishedRevision?: number;
+  lastPublishedAt?: string | null;
+  lastPublishedBy?: string | null;
   revision?: number;
   expectedRevision?: number;
   isDeleted?: boolean; // Soft delete flag
@@ -260,3 +271,211 @@ export interface CoursePaginationResult {
   limit: number;
   totalPages: number;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   CONTENT BLOCK ARCHITECTURE (Phase 1 Data Foundation)
+   Path: /courses/{courseId}/modules/{moduleId}/lessons/{lessonId}/blocks/{blockId}
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+export type LessonBlockType =
+  | 'text'
+  | 'heading'
+  | 'image'
+  | 'video'
+  | 'pdf'
+  | 'code'
+  | 'callout'
+  | 'quote'
+  | 'list'
+  | 'link'
+  | 'quiz'
+  | 'assignment'
+  | 'download'
+  | 'embed'
+  | 'divider';
+
+export interface ILessonBlock<T = any> {
+  id: string;
+  lessonId: string;
+  type: LessonBlockType;
+  order: number;
+  data: T;
+  isVisible: boolean;
+  createdAt: string;
+  updatedAt: string;
+  updatedBy?: string | null;
+}
+
+export interface TextBlockData {
+  html?: string;
+  markdown: string;
+}
+
+export interface HeadingBlockData {
+  text: string;
+  level: 1 | 2 | 3 | 4 | 5 | 6;
+}
+
+export interface ImageBlockData {
+  assetId?: string;
+  url: string;
+  alt?: string;
+  caption?: string;
+  width?: number;
+  height?: number;
+}
+
+export interface VideoBlockData {
+  provider: 'youtube' | 'vimeo' | 'cloudinary' | 'firebase-storage' | 'custom';
+  url: string;
+  thumbnailUrl?: string;
+  duration?: number; // seconds
+}
+
+export interface PdfBlockData {
+  assetId?: string;
+  url: string;
+  title: string;
+  size?: number;
+}
+
+export interface CodeBlockData {
+  language: string;
+  code: string;
+  explanation?: string;
+  title?: string;
+}
+
+export interface CalloutBlockData {
+  tone: 'info' | 'warning' | 'tip' | 'note';
+  title?: string;
+  message: string;
+}
+
+export interface QuoteBlockData {
+  quote: string;
+  author?: string;
+  citation?: string;
+}
+
+export interface ListBlockData {
+  style: 'bullet' | 'numbered' | 'checklist';
+  items: string[];
+}
+
+export interface LinkBlockData {
+  title: string;
+  url: string;
+  description?: string;
+  isExternal?: boolean;
+}
+
+export interface QuizBlockData {
+  quizId?: string;
+  title?: string;
+  questions: IQuizQuestion[];
+}
+
+export interface AssignmentBlockData {
+  assignmentId?: string;
+  title: string;
+  instructions: string;
+  deadline?: string;
+  points?: number;
+}
+
+export interface DownloadBlockData {
+  assetId?: string;
+  title: string;
+  url: string;
+  fileSize?: string;
+  category?: string;
+}
+
+export interface EmbedBlockData {
+  embedUrl: string;
+  title?: string;
+  height?: number;
+}
+
+export interface DividerBlockData {
+  style?: 'solid' | 'dashed' | 'dots';
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   CENTRALIZED ASSET METADATA SCHEMA
+   Collection: /course_assets/{assetId}
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+export interface ICourseAsset {
+  id: string;
+  courseId: string;
+  lessonId?: string | null;
+  type: 'image' | 'video' | 'pdf' | 'document' | 'archive' | 'audio';
+  provider: 'cloudinary' | 'firebase-storage' | 'external';
+  url: string;
+  publicId?: string | null;
+  storagePath?: string | null;
+  filename: string;
+  mimeType: string;
+  size: number;
+  width?: number | null;
+  height?: number | null;
+  duration?: number | null;
+  altText?: string;
+  uploadedBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   COURSE AUDIT REVISION SCHEMA
+   Subcollection: /courses/{courseId}/course_audit_revisions/{auditId}
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+export interface ICourseAuditRevision {
+  id: string;
+  courseId: string;
+  moduleId?: string | null;
+  lessonId?: string | null;
+  action: 'create_course' | 'update_course' | 'save_module' | 'delete_module' | 'save_lesson' | 'delete_lesson' | 'batch_reorder' | 'restore_revision';
+  revision: number;
+  expectedRevision?: number | null;
+  summary?: string;
+  updatedBy: string;
+  timestamp: string;
+  snapshot?: any;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   STANDARDIZED SAVE RESPONSE CONTRACTS
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+export interface LessonSaveSuccessResult {
+  success: true;
+  conflict: false;
+  revision: number;
+  updatedAt: string;
+  lessonId: string;
+  data?: any;
+  message?: string;
+}
+
+export interface LessonSaveConflictResult {
+  success: false;
+  conflict: true;
+  currentRevision: number;
+  expectedRevision: number;
+  error: string;
+  message: string;
+}
+
+export type LessonSaveResponse = LessonSaveSuccessResult | LessonSaveConflictResult;
+
+/* ── Standard Convenience Aliases ── */
+export type Course = ICourse;
+export type Module = IModuleItem;
+export type Lesson = ILessonItem;
+export type LessonBlock = ILessonBlock;
+export type CourseAsset = ICourseAsset;
+export type CourseRevision = ICourseAuditRevision;

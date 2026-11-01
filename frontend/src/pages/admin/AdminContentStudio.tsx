@@ -52,6 +52,10 @@ import { aiAutofillService } from '@/services/aiAutofillService';
 import { courseService } from '@/services/courseService';
 import { CloudinaryUploadZone } from '@/components/admin/CloudinaryUploadZone';
 import { cloudinaryService } from '@/services/cloudinaryService';
+import { CourseBuilderTree } from '@/components/admin/courses/CourseBuilderTree';
+import { VideoEditorSection, QuizEditorSection, AssignmentEditorSection } from '@/components/admin/courses/ItemTypeEditors';
+import { LessonBuilderStudio } from '@/components/admin/lessonBuilder/LessonBuilderStudio';
+import type { LearningUnitType } from '@/contexts/CourseContext';
 
 export const THEME_COLOR_PRESETS = [
   { id: 'indigo', name: 'Indigo Brand', hex: '#6366f1', bgClass: 'bg-indigo-500', textClass: 'text-indigo-400', borderClass: 'border-indigo-500' },
@@ -176,7 +180,7 @@ export const AdminContentStudio: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Editor Tabs
-  const [activeTab, setActiveTab] = useState<'reading' | 'overview' | 'video' | 'resources' | 'quiz' | 'assignment'>('reading');
+  const [activeTab, setActiveTab] = useState<'reading' | 'overview' | 'video' | 'resources' | 'quiz' | 'assignment' | 'blocks'>('reading');
 
   // Real-time Save & Autosave Status
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -471,6 +475,17 @@ export const AdminContentStudio: React.FC = () => {
       setActiveTopicId(tId);
       setIsDirty(false);
       setLastSavedTimestamp(unit.lastSavedAt || null);
+
+      const norm = (unit.type || '').toLowerCase();
+      if (norm === 'video') {
+        setActiveTab('video');
+      } else if (norm === 'quiz') {
+        setActiveTab('quiz');
+      } else if (norm === 'assignment') {
+        setActiveTab('assignment');
+      } else {
+        setActiveTab('reading');
+      }
     });
   };
 
@@ -736,22 +751,54 @@ export const AdminContentStudio: React.FC = () => {
     toast.success('Lesson order updated.');
   };
 
-  // Add new lesson
-  const addLessonNode = async (mId: string, tId?: string) => {
+  // Add new curriculum item (Lesson, Video, Quiz, Assignment)
+  const addLessonNode = async (mId: string, tId?: string, itemType: LearningUnitType = 'Reading') => {
     if (!activeCourse?.modules) return;
     const targetModule = activeCourse.modules.find(m => m.id === mId);
     const existingCount = targetModule?.lessons?.length || targetModule?.topics?.flatMap(t => t.learningUnits).length || 0;
     const newLessonId = `lesson_${Date.now()}`;
+
+    let defaultTitle = `Lesson ${existingCount + 1}: New Topic`;
+    let defaultDuration = '15 mins';
+    let defaultReadingContent = `# New Educational Topic\n\n## 1. Overview\nProvide a clear overview of the lesson objectives here.\n\n## 2. Core Concepts\nExplain the foundational concepts in detail.\n\n\`\`\`javascript\n// Code example\nconsole.log("Welcome to KaizenQ!");\n\`\`\`\n\n> 💡 **Tip:** Add actionable advice for students.\n\n### Practice\n1. Write a test case.\n2. Run the validation pipeline.\n`;
+    let defaultVideoUrl = '';
+    let defaultQuizQuestions: any[] = [];
+
+    if (itemType === 'Video') {
+      defaultTitle = `Video ${existingCount + 1}: Lecture Video`;
+      defaultDuration = '12 mins';
+      defaultReadingContent = `## Video Lecture Summary\n\nKey takeaways and core principles covered in this lecture.`;
+    } else if (itemType === 'Quiz') {
+      defaultTitle = `Quiz ${existingCount + 1}: Knowledge Assessment`;
+      defaultDuration = '10 mins';
+      defaultQuizQuestions = [
+        {
+          id: `q_${Date.now()}`,
+          questionText: 'What is the primary concept covered in this module?',
+          options: ['Option A (Recommended answer)', 'Option B', 'Option C', 'Option D'],
+          correctAnswerIndex: 0,
+          marks: 5,
+          explanation: 'Option A is the correct answer based on curriculum material.'
+        }
+      ];
+    } else if (itemType === 'Assignment') {
+      defaultTitle = `Assignment ${existingCount + 1}: Practical Challenge`;
+      defaultDuration = '30 mins';
+      defaultReadingContent = `## Practical Assignment\n\n### Objective\nApply the concepts covered in this module in a hands-on project.\n\n### Requirements\n1. Review the requirement specifications.\n2. Implement the solution.\n3. Submit your results.\n`;
+    }
+
     const newLesson: LearningUnitItem = {
       id: newLessonId,
-      title: `Lesson ${existingCount + 1}: New Educational Topic`,
-      description: 'Comprehensive lesson notes and explanations.',
-      duration: '15 mins',
-      type: 'Reading',
+      title: defaultTitle,
+      description: `Comprehensive ${itemType.toLowerCase()} content.`,
+      duration: defaultDuration,
+      type: itemType,
       order: existingCount + 1,
       orderIndex: existingCount + 1,
       lastSavedAt: new Date().toISOString(),
-      readingContent: `# New Educational Topic\n\n## 1. Overview\nProvide a clear overview of the lesson objectives here.\n\n## 2. Core Concepts\nExplain the foundational concepts in detail.\n\n\`\`\`javascript\n// Code example\nconsole.log("Welcome to KaizenQ!");\n\`\`\`\n\n> 💡 **Tip:** Add actionable advice for students.\n\n### Practice\n1. Write a test case.\n2. Run the validation pipeline.\n`
+      readingContent: defaultReadingContent,
+      videoUrl: defaultVideoUrl,
+      quizQuestions: defaultQuizQuestions.length > 0 ? defaultQuizQuestions : undefined,
     };
 
     const effectiveTopicId = tId || `${mId}-t1`;
@@ -778,7 +825,14 @@ export const AdminContentStudio: React.FC = () => {
     setActiveTopicId(effectiveTopicId);
     setIsDirty(false);
     setLastSavedTimestamp(newLesson.lastSavedAt || null);
-    toast.success('Added new Lesson. Ready to edit!');
+
+    const norm = itemType.toLowerCase();
+    if (norm === 'video') setActiveTab('video');
+    else if (norm === 'quiz') setActiveTab('quiz');
+    else if (norm === 'assignment') setActiveTab('assignment');
+    else setActiveTab('reading');
+
+    toast.success(`Added new ${itemType}. Ready to edit!`);
   };
 
   // Add new module
@@ -1115,7 +1169,7 @@ export const AdminContentStudio: React.FC = () => {
               <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search lessons..."
+                placeholder="Search curriculum..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white focus:outline-hidden focus:border-indigo-500 placeholder:text-slate-500"
@@ -1123,167 +1177,21 @@ export const AdminContentStudio: React.FC = () => {
             </div>
           </div>
 
-          {/* Scrollable Curriculum Tree with Drag & Drop */}
-          <div className="flex-1 overflow-y-auto p-2.5 space-y-2">
-            {(!activeCourse?.modules || activeCourse.modules.length === 0) ? (
-              <div className="text-center py-12 space-y-2">
-                <p className="text-xs text-slate-500">No modules in this course yet.</p>
-                <button
-                  type="button"
-                  onClick={addModuleNode}
-                  className="text-xs text-indigo-400 font-bold hover:underline cursor-pointer"
-                >
-                  + Create First Module
-                </button>
-              </div>
-            ) : (
-              activeCourse.modules.map((module, modIdx) => {
-                const isModExpanded = expandedModules[module.id] !== false;
-                const allUnits = module.lessons || module.topics?.flatMap(t => t.learningUnits) || [];
-                const firstTopicId = module.topics?.[0]?.id || `${module.id}-t1`;
-                const isDragOverMod = dragOverModId === module.id;
-
-                return (
-                  <div
-                    key={module.id}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      setDragOverModId(module.id);
-                    }}
-                    onDragLeave={() => setDragOverModId(null)}
-                    onDrop={(e) => handleDropOnLesson(e, allUnits[0]?.id || '', module.id, firstTopicId)}
-                    className={`border rounded-2xl overflow-hidden transition-all ${
-                      isDragOverMod ? 'border-indigo-500 bg-indigo-950/40' : 'border-slate-800/80 bg-slate-950/40'
-                    }`}
-                  >
-                    {/* Module Accordion Header */}
-                    <div
-                      onClick={() => setExpandedModules(prev => ({ ...prev, [module.id]: !isModExpanded }))}
-                      className="p-2.5 bg-slate-900/90 flex items-center justify-between gap-2 cursor-pointer hover:bg-slate-900 transition-colors select-none"
-                    >
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        {isModExpanded ? <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
-                        <span className="font-extrabold text-xs text-slate-200 truncate">
-                          {module.title}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
-                        <span className="text-[10px] font-bold text-slate-400 px-1.5 py-0.5 bg-slate-950 rounded-md border border-slate-800">
-                          {allUnits.length}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            addLessonNode(module.id, firstTopicId);
-                          }}
-                          className="p-1 hover:bg-slate-800 text-indigo-400 rounded-md cursor-pointer"
-                          title="Add Lesson"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setModuleToDelete(module)}
-                          className="p-1 hover:bg-slate-800 text-rose-400 rounded-md cursor-pointer"
-                          title="Delete Module"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Flat Lessons inside Module */}
-                    {isModExpanded && (
-                      <div className="p-1.5 space-y-1">
-                        {allUnits
-                          .filter(u => !searchQuery || u.title.toLowerCase().includes(searchQuery.toLowerCase()))
-                          .map((unit, uIdx) => {
-                            const isSelected = selectedLesson?.id === unit.id;
-                            const readMins = calculateEstimatedReadMinutes(unit.readingContent);
-                            const isDragOverThis = dragOverLessonId === unit.id;
-                            const UnitThemeIcon = getThemeIconComponent(unit.themeIcon);
-                            const presetTheme = THEME_COLOR_PRESETS.find(p => p.id === unit.themeColor);
-                            const displayLessonTitle = getPresentationLessonTitle(unit.title, modIdx + 1, allUnits.length);
-
-                            return (
-                              <div
-                                key={unit.id}
-                                draggable
-                                onDragStart={(e) => handleDragStart(e, unit.id, module.id, firstTopicId)}
-                                onDragOver={(e) => {
-                                  e.preventDefault();
-                                  setDragOverLessonId(unit.id);
-                                }}
-                                onDragLeave={() => setDragOverLessonId(null)}
-                                onDrop={(e) => handleDropOnLesson(e, unit.id, module.id, firstTopicId)}
-                                onClick={() => handleSelectLesson(unit, module.id, firstTopicId)}
-                                className={`group flex items-center justify-between gap-2 p-2 rounded-xl cursor-pointer transition-all ${
-                                  isDragOverThis
-                                    ? 'border-2 border-indigo-500 bg-indigo-950'
-                                    : isSelected
-                                    ? 'bg-indigo-600 text-white shadow-md'
-                                    : 'bg-slate-900/60 text-slate-300 hover:bg-slate-800 border border-slate-800/60'
-                                }`}
-                              >
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <GripVertical className={`w-3.5 h-3.5 shrink-0 cursor-grab ${isSelected ? 'text-indigo-200' : 'text-slate-500'}`} />
-                                  <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded shrink-0 ${isSelected ? 'bg-indigo-700 text-indigo-100' : 'bg-slate-800 text-slate-400'}`}>
-                                    #{unit.order || uIdx + 1}
-                                  </span>
-                                  {unit.themeColor && (
-                                    <span className={`w-2 h-2 rounded-full shrink-0 ${presetTheme?.bgClass || 'bg-indigo-400'}`} title={`Theme: ${unit.themeColor}`} />
-                                  )}
-                                  {UnitThemeIcon && (
-                                    <UnitThemeIcon className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-indigo-200' : 'text-slate-400'}`} />
-                                  )}
-                                  <div className="min-w-0">
-                                    <h5 className="font-bold text-xs truncate">{displayLessonTitle}</h5>
-                                    <div className="flex items-center gap-1.5 text-[10px] opacity-75 mt-0.5">
-                                      <span>📖 ~{readMins}m</span>
-                                      {unit.topicImageUrl && <span title="Has Topic Image">🖼️</span>}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Action Buttons */}
-                                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={e => e.stopPropagation()}>
-                                  <button
-                                    type="button"
-                                    onClick={() => moveLesson(module.id, firstTopicId, unit.id, 'up')}
-                                    disabled={uIdx === 0}
-                                    className={`p-1 rounded cursor-pointer ${isSelected ? 'hover:bg-indigo-700 text-indigo-100' : 'hover:bg-slate-800 text-slate-400'}`}
-                                    title="Move Up"
-                                  >
-                                    <ChevronUp className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => moveLesson(module.id, firstTopicId, unit.id, 'down')}
-                                    disabled={uIdx === allUnits.length - 1}
-                                    className={`p-1 rounded cursor-pointer ${isSelected ? 'hover:bg-indigo-700 text-indigo-100' : 'hover:bg-slate-800 text-slate-400'}`}
-                                    title="Move Down"
-                                  >
-                                    <ChevronDown className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setLessonToDelete({ unit, mId: module.id, tId: firstTopicId })}
-                                    className={`p-1 rounded cursor-pointer ${isSelected ? 'hover:bg-indigo-700 text-rose-200' : 'hover:bg-slate-800 text-rose-400'}`}
-                                    title="Delete Lesson"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            )}
+          {/* Course Builder Visual Curriculum Tree */}
+          <div className="flex-1 overflow-hidden p-2.5">
+            <CourseBuilderTree
+              modules={activeCourse?.modules || []}
+              selectedLessonId={selectedLesson?.id}
+              onSelectLesson={handleSelectLesson}
+              onAddItem={(mId, type, tId) => addLessonNode(mId, tId, type)}
+              onDeleteModule={(mod) => setModuleToDelete(mod)}
+              onDeleteLesson={(unit, mId) => setLessonToDelete({ unit, mId, tId: `${mId}-t1` })}
+              onAddModule={addModuleNode}
+              onReorderLesson={async (_draggedId, targetId, _srcModId, targetModId) => {
+                await handleDropOnLesson({ preventDefault: () => {} } as any, targetId, targetModId);
+              }}
+              searchQuery={searchQuery}
+            />
           </div>
         </aside>
 
@@ -1330,6 +1238,17 @@ export const AdminContentStudio: React.FC = () => {
                     className="bg-transparent text-white font-extrabold text-sm focus:outline-hidden focus:bg-slate-950/80 px-2 py-1 rounded-lg border border-transparent focus:border-slate-700 transition-colors max-w-sm sm:max-w-md truncate"
                     placeholder="Lesson Title..."
                   />
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab(activeTab === 'blocks' ? 'reading' : 'blocks')}
+                    className={`ml-2 inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                      activeTab === 'blocks'
+                        ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm shadow-indigo-500/30'
+                        : 'bg-indigo-950/40 hover:bg-indigo-900/50 text-indigo-300 border-indigo-800/60'
+                    }`}
+                  >
+                    <span>🧱 Block Studio</span>
+                  </button>
                 </div>
 
                 {/* View Mode & Secondary Tabs */}
@@ -1374,6 +1293,7 @@ export const AdminContentStudio: React.FC = () => {
                   {/* Secondary Tab Switchers */}
                   <div className="flex items-center bg-slate-950 border border-slate-800 p-0.5 rounded-xl text-xs font-bold overflow-x-auto">
                     {[
+                      { id: 'blocks', label: '🧱 Blocks' },
                       { id: 'reading', label: '📖 Notes' },
                       { id: 'overview', label: '⚙️ Details' },
                       { id: 'video', label: '🎥 Video' },
@@ -1395,6 +1315,31 @@ export const AdminContentStudio: React.FC = () => {
                   </div>
                 </div>
               </div>
+
+              {/* TAB 0: MODULAR BLOCK-BASED LESSON BUILDER */}
+              {activeTab === 'blocks' && (
+                <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                  <LessonBuilderStudio
+                    courseId={activeCourse?.id || ''}
+                    moduleId={activeModuleId || ''}
+                    lesson={{
+                      ...selectedLesson,
+                      lessonId: selectedLesson.id,
+                      courseId: activeCourse?.id || '',
+                      moduleId: activeModuleId || '',
+                      duration: String(selectedLesson.duration || '15 min'),
+                      type: selectedLesson.type as any,
+                    } as any}
+                    onBack={() => setActiveTab('reading')}
+                    onUpdateLesson={(updated) => {
+                      handleInputChange('title', updated.title);
+                      if (updated.description) handleInputChange('description', updated.description);
+                      if (updated.duration) handleInputChange('duration', updated.duration);
+                      if (updated.status) (selectedLesson as any).status = updated.status;
+                    }}
+                  />
+                </div>
+              )}
 
               {/* TAB 1: READING NOTES & MARKDOWN WORKSPACE */}
               {activeTab === 'reading' && (
@@ -1866,24 +1811,17 @@ export const AdminContentStudio: React.FC = () => {
                 </div>
               )}
 
-              {/* TAB 3: VIDEO STREAM */}
+              {/* TAB 3: VIDEO STREAM & PLAYER */}
               {activeTab === 'video' && (
-                <div className="flex-1 overflow-y-auto p-6 max-w-3xl mx-auto w-full space-y-6">
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
-                    <h3 className="font-extrabold text-sm text-white flex items-center gap-2 border-b border-slate-800 pb-3">
-                      <Video className="w-4 h-4 text-sky-400" /> Video Stream URL
-                    </h3>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-300">Direct Video / Embed URL</label>
-                      <input
-                        type="text"
-                        value={selectedLesson.videoUrl || ''}
-                        onChange={(e) => handleInputChange('videoUrl', e.target.value)}
-                        placeholder="https://www.youtube.com/watch?v=... or https://player.vimeo.com/..."
-                        className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl px-3.5 py-2.5 text-xs focus:outline-hidden focus:border-sky-500 font-mono text-[11px]"
-                      />
-                    </div>
-                  </div>
+                <div className="flex-1 overflow-y-auto p-6 max-w-4xl mx-auto w-full">
+                  <VideoEditorSection
+                    videoUrl={selectedLesson.videoUrl || ''}
+                    duration={selectedLesson.duration || '15 mins'}
+                    notes={(selectedLesson as any).notes || ''}
+                    onUpdateVideoUrl={(url) => handleInputChange('videoUrl', url)}
+                    onUpdateDuration={(d) => handleInputChange('duration', d)}
+                    onUpdateNotes={(n) => handleInputChange('notes' as any, n)}
+                  />
                 </div>
               )}
 
@@ -1959,31 +1897,31 @@ export const AdminContentStudio: React.FC = () => {
                 </div>
               )}
 
-              {/* TAB 5: QUIZ */}
+              {/* TAB 5: QUIZ QUESTIONS BUILDER */}
               {activeTab === 'quiz' && (
-                <div className="flex-1 overflow-y-auto p-6 max-w-3xl mx-auto w-full space-y-6">
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
-                    <h3 className="font-extrabold text-sm text-white flex items-center gap-2 border-b border-slate-800 pb-3">
-                      <HelpCircle className="w-4 h-4 text-amber-400" /> Interactive Lesson Quiz
-                    </h3>
-                    <p className="text-xs text-slate-400">
-                      Configure multiple-choice questions for knowledge check after completing reading notes.
-                    </p>
-                  </div>
+                <div className="flex-1 overflow-y-auto p-6 max-w-4xl mx-auto w-full">
+                  <QuizEditorSection
+                    questions={(selectedLesson as any).quizQuestions || []}
+                    onChangeQuestions={(qs) => handleInputChange('quizQuestions' as any, qs)}
+                  />
                 </div>
               )}
 
-              {/* TAB 6: ASSIGNMENT */}
+              {/* TAB 6: HANDS-ON ASSIGNMENT TASK */}
               {activeTab === 'assignment' && (
-                <div className="flex-1 overflow-y-auto p-6 max-w-3xl mx-auto w-full space-y-6">
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
-                    <h3 className="font-extrabold text-sm text-white flex items-center gap-2 border-b border-slate-800 pb-3">
-                      <CheckSquare className="w-4 h-4 text-purple-400" /> Hands-on Assignment Task
-                    </h3>
-                    <p className="text-xs text-slate-400">
-                      Set instructions, deliverables, and sandbox requirements for practical student assessment.
-                    </p>
-                  </div>
+                <div className="flex-1 overflow-y-auto p-6 max-w-4xl mx-auto w-full">
+                  <AssignmentEditorSection
+                    instructions={selectedLesson.readingContent || ''}
+                    requirements={(selectedLesson as any).requirements || []}
+                    points={(selectedLesson as any).points || 100}
+                    deadline={(selectedLesson as any).deadline || ''}
+                    submissionType={(selectedLesson as any).submissionType || 'code'}
+                    onUpdateInstructions={(inst) => handleInputChange('readingContent', inst)}
+                    onUpdateRequirements={(reqs) => handleInputChange('requirements' as any, reqs)}
+                    onUpdatePoints={(pts) => handleInputChange('points' as any, pts)}
+                    onUpdateDeadline={(dl) => handleInputChange('deadline' as any, dl)}
+                    onUpdateSubmissionType={(st) => handleInputChange('submissionType' as any, st)}
+                  />
                 </div>
               )}
             </div>
