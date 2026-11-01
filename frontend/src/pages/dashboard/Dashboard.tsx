@@ -16,13 +16,10 @@ import {
   ExternalLink,
   Users,
   Layers,
-  Video,
   Calendar,
   Link2,
   FolderSearch,
   RefreshCw,
-  Radio,
-  ArrowRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';

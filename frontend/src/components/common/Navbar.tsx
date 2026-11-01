@@ -14,7 +14,6 @@ import {
   Moon,
   Terminal,
   BookOpen,
-  Video,
   ShieldCheck,
   Award,
   Sparkles,
