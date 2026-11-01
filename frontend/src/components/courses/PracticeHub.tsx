@@ -46,6 +46,15 @@ export const PracticeHub: React.FC = () => {
             Write code, complete mini-projects, audit SQL syntax, and verify command scripts.
           </p>
         </div>
+
+        <button
+          type="button"
+          onClick={() => navigate('/dashboard/practice-lab')}
+          className="px-5 py-2.5 rounded-2xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-xs shadow-md shadow-blue-500/20 flex items-center gap-2 cursor-pointer transition-all hover:scale-105 shrink-0"
+        >
+          <Code className="w-4 h-4" />
+          <span>Launch Professional IDE</span>
+        </button>
       </div>
 
       {/* Grid: Main Areas */}

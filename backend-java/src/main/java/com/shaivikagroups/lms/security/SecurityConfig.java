@@ -101,6 +101,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/lessons/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/subscriptions/plans").permitAll()
                         .requestMatchers("/api/v1/coupons/validate").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/practice/languages", "/api/v1/practice/problems", "/api/v1/practice/problems/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/practice/run").permitAll()
 
                         // 5. Public Certificate Verification, Showcase Portfolios, AI & GitHub Integrations
                         .requestMatchers(HttpMethod.GET, "/api/v1/certificates/verify/**").permitAll()
