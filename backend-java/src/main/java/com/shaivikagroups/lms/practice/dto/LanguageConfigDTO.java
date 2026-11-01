@@ -78,3 +78,4 @@ public class LanguageConfigDTO {
         this.enabled = enabled;
     }
 }
+

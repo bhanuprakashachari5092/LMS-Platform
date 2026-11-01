@@ -14,3 +14,4 @@ public interface PracticeTestCaseRepository extends JpaRepository<PracticeTestCa
 
     void deleteByProblemId(String problemId);
 }
+

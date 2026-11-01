@@ -111,3 +111,4 @@ public class PracticeSubmissionResultEntity {
         this.memoryUsedKb = memoryUsedKb;
     }
 }
+

@@ -15,3 +15,4 @@ public interface PracticeProblemTemplateRepository extends JpaRepository<Practic
 
     void deleteByProblemId(String problemId);
 }
+

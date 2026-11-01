@@ -79,3 +79,4 @@ public class PracticeProblemTemplateEntity {
         this.createdAt = createdAt;
     }
 }
+

@@ -95,3 +95,4 @@ public class SubmissionResultItemDTO {
         this.memoryUsedKb = memoryUsedKb;
     }
 }
+

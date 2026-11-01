@@ -10,3 +10,4 @@ public interface PracticeSubmissionResultRepository extends JpaRepository<Practi
 
     List<PracticeSubmissionResultEntity> findBySubmissionId(String submissionId);
 }
+

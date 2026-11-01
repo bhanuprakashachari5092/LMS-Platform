@@ -936,3 +936,4 @@ export const ProfessionalIDE: React.FC<ProfessionalIDEProps> = ({ initialProblem
     </div>
   );
 };
+

@@ -105,3 +105,4 @@ CREATE TABLE practice_drafts (
 );
 
 CREATE INDEX idx_practice_drafts_lookup ON practice_drafts(tenant_id, user_id, problem_id);
+

@@ -24,3 +24,4 @@ public interface PracticeSubmissionRepository extends JpaRepository<PracticeSubm
 
     long countByTenantIdAndProblemId(String tenantId, String problemId);
 }
+

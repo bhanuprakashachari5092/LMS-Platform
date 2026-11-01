@@ -60,3 +60,4 @@ public class PracticeDraftDTO {
         this.updatedAt = updatedAt;
     }
 }
+

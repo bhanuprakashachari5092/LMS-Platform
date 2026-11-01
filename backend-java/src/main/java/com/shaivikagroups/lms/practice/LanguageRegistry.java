@@ -91,3 +91,4 @@ public class LanguageRegistry {
         return config != null && config.isEnabled();
     }
 }
+

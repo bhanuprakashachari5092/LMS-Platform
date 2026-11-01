@@ -161,3 +161,4 @@ public class PracticeProblemDetailDTO {
         this.hiddenTestCaseCount = hiddenTestCaseCount;
     }
 }
+

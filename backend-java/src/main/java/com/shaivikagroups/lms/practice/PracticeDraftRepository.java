@@ -17,3 +17,4 @@ public interface PracticeDraftRepository extends JpaRepository<PracticeDraftEnti
     void deleteByTenantIdAndUserIdAndProblemIdAndLanguage(
             String tenantId, String userId, String problemId, String language);
 }
+

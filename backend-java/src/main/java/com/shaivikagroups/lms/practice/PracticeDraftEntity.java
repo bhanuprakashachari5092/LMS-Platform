@@ -87,3 +87,4 @@ public class PracticeDraftEntity {
         this.updatedAt = updatedAt;
     }
 }
+

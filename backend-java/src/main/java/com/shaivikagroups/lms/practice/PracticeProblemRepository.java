@@ -20,3 +20,4 @@ public interface PracticeProblemRepository extends JpaRepository<PracticeProblem
 
     boolean existsByTenantIdAndSlug(String tenantId, String slug);
 }
+

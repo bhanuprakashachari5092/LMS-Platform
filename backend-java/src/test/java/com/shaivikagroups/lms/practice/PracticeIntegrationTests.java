@@ -243,3 +243,4 @@ public class PracticeIntegrationTests {
                 .andExpect(jsonPath("$.data.title").value("Binary Search Test"));
     }
 }
+
