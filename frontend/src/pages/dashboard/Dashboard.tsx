@@ -73,6 +73,7 @@ const CareerRoadmap = lazyComponent(() => import('../../components/courses/Caree
 const PracticeHub = lazyComponent(() => import('../../components/courses/PracticeHub'), 'PracticeHub');
 const InterviewPrep = lazyComponent(() => import('../../components/courses/InterviewPrep'), 'InterviewPrep');
 const SubscriptionSettings = lazyComponent(() => import('../../components/settings/SubscriptionSettings'), 'SubscriptionSettings');
+const StudentInternshipsTab = lazyComponent(() => import('@/components/internship/StudentInternshipsTab'), 'StudentInternshipsTab');
 
 export const Dashboard: React.FC = () => {
   const { user, userProfile } = useAuth();
@@ -1151,6 +1152,8 @@ export const Dashboard: React.FC = () => {
     'career-roadmap': 'Career Roadmap',
     'practice-hub': 'Practice Hub',
     'interview-prep': 'Interview Prep',
+    internships: 'Internships & Careers',
+    applications: 'Internships & Applications',
     settings: 'Settings & Billing',
   };
 
@@ -2640,6 +2643,11 @@ export const Dashboard: React.FC = () => {
       {/* ------------------- 15. INTERVIEW PREP TAB ------------------- */}
       {currentTab === 'interview-prep' && (
         <InterviewPrep />
+      )}
+
+      {/* ------------------- 16. INTERNSHIPS & APPLICATIONS TAB ------------------- */}
+      {(currentTab === 'internships' || currentTab === 'applications') && (
+        <StudentInternshipsTab />
       )}
 
       {/* ------------------- SETTINGS & BILLING TAB ------------------- */}

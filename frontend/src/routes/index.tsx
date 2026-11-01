@@ -81,6 +81,8 @@ const AdminBulkImport = lazyLoad(() => import('@/pages/admin/AdminBulkImport'), 
 const VerifyCertificate = lazyLoad(() => import('@/pages/certificates/VerifyCertificate'), 'VerifyCertificate');
 const PublicPortfolio = lazyLoad(() => import('@/pages/portfolio/PublicPortfolio'), 'PublicPortfolio');
 const AdminCoupons = lazyLoad(() => import('@/pages/admin/AdminCoupons'), 'AdminCoupons');
+const CareersPage = lazyLoad(() => import('@/pages/careers/CareersPage'), 'CareersPage');
+const AdminInternships = lazyLoad(() => import('@/pages/admin/AdminInternships'), 'AdminInternships');
 
 // ─── Simple placeholder pages for coming-soon admin sections ─────────────────
 const PlaceholderPage = ({ title, subtitle }: { title: string; subtitle: string }) => (
@@ -109,6 +111,8 @@ const router = createBrowserRouter([
       { path: 'courses/:slug', element: <CourseView /> },
       { path: 'verify-certificate', element: <VerifyCertificate /> },
       { path: 'verify-certificate/:verificationId', element: <VerifyCertificate /> },
+      { path: 'careers', element: <CareersPage /> },
+      { path: 'careers/:slug', element: <CareersPage /> },
       { path: 'lms', element: <LmsHub /> },
       { path: 'unauthorized', element: <Unauthorized /> },
     ],
@@ -190,6 +194,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/admin/dashboard" replace /> },
       { path: 'dashboard', element: <AdminDashboard /> },
+      { path: 'internships', element: <AdminInternships /> },
       { path: 'coupons', element: <AdminCoupons /> },
       { path: 'coupon', element: <Navigate to="/admin/coupons" replace /> },
       { path: 'courses', element: <Courses /> },

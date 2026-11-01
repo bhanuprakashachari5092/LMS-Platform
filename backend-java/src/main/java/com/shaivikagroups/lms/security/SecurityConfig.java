@@ -96,13 +96,15 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/tenants/public/**", "/api/v1/tenants/onboard").permitAll()
 
-                        // 4. Public Course & Lesson Browsing (Free previews)
+                        // 4. Public Course, Lesson & Internship Browsing (Free previews)
                         .requestMatchers(HttpMethod.GET, "/api/v1/courses/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/lessons/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/subscriptions/plans").permitAll()
                         .requestMatchers("/api/v1/coupons/validate").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/practice/languages", "/api/v1/practice/problems", "/api/v1/practice/problems/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/practice/run").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/internships", "/api/v1/internships/*", "/api/v1/internships/verify/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/internships/apply").permitAll()
 
                         // 5. Public Certificate Verification, Showcase Portfolios, AI & GitHub Integrations
                         .requestMatchers(HttpMethod.GET, "/api/v1/certificates/verify/**").permitAll()
@@ -115,6 +117,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/payments/webhook/**").permitAll()
 
                         // 7. Role-Protected Endpoints
+                        .requestMatchers("/api/v1/admin/internships/**").hasAnyRole("SUPER_ADMIN", "ORGANIZATION_ADMIN", "LECTURER")
                         .requestMatchers("/api/v1/admin/**").hasAnyRole("SUPER_ADMIN", "ORGANIZATION_ADMIN")
                         .requestMatchers("/api/v1/lecturer/**").hasAnyRole("SUPER_ADMIN", "ORGANIZATION_ADMIN", "LECTURER")
 

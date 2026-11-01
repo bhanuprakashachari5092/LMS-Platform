@@ -160,7 +160,7 @@ export const Footer: React.FC = () => {
                 <li><a href="#about" className="hover:text-blue-600 dark:hover:text-cyan-400 transition-colors">About Brand</a></li>
                 <li className="flex items-center gap-1.5">
                   <Briefcase className="w-3.5 h-3.5 text-blue-500" />
-                  <a href="#contact" className="hover:text-blue-600 dark:hover:text-cyan-400 transition-colors">Careers</a>
+                  <Link to="/careers" className="hover:text-blue-600 dark:hover:text-cyan-400 transition-colors">Careers & Internships</Link>
                 </li>
                 <li><a href="#contact" className="hover:text-blue-600 dark:hover:text-cyan-400 transition-colors">Institutional Inquiries</a></li>
               </ul>
