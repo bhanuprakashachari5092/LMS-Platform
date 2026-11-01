@@ -83,6 +83,7 @@ const PublicPortfolio = lazyLoad(() => import('@/pages/portfolio/PublicPortfolio
 const AdminCoupons = lazyLoad(() => import('@/pages/admin/AdminCoupons'), 'AdminCoupons');
 const CareersPage = lazyLoad(() => import('@/pages/careers/CareersPage'), 'CareersPage');
 const AdminInternships = lazyLoad(() => import('@/pages/admin/AdminInternships'), 'AdminInternships');
+const NotFound = lazyLoad(() => import('@/pages/NotFound'), 'NotFound');
 
 // ─── Simple placeholder pages for coming-soon admin sections ─────────────────
 const PlaceholderPage = ({ title, subtitle }: { title: string; subtitle: string }) => (
@@ -113,6 +114,13 @@ const router = createBrowserRouter([
       { path: 'verify-certificate/:verificationId', element: <VerifyCertificate /> },
       { path: 'careers', element: <CareersPage /> },
       { path: 'careers/:slug', element: <CareersPage /> },
+      { path: 'career', element: <Navigate to="/careers" replace /> },
+      { path: 'career/:slug', element: <CareersPage /> },
+      { path: 'internships', element: <CareersPage /> },
+      { path: 'internships/:slug', element: <CareersPage /> },
+      { path: 'internship', element: <CareersPage /> },
+      { path: 'internship/:slug', element: <CareersPage /> },
+      { path: 'jobs', element: <Navigate to="/careers" replace /> },
       { path: 'lms', element: <LmsHub /> },
       { path: 'unauthorized', element: <Unauthorized /> },
     ],
@@ -151,6 +159,13 @@ const router = createBrowserRouter([
   { path: '/student', element: <Navigate to="/dashboard" replace /> },
   { path: '/student/dashboard', element: <Navigate to="/dashboard" replace /> },
   { path: '/coupons', element: <Navigate to="/admin/coupons" replace /> },
+  { path: '/internships', element: <Navigate to="/careers" replace /> },
+  { path: '/internship', element: <Navigate to="/careers" replace /> },
+  { path: '/career', element: <Navigate to="/careers" replace /> },
+  { path: '/jobs', element: <Navigate to="/careers" replace /> },
+  { path: '/admin/internship', element: <Navigate to="/admin/internships" replace /> },
+  { path: '/admin/careers', element: <Navigate to="/admin/internships" replace /> },
+  { path: '/admin/career', element: <Navigate to="/admin/internships" replace /> },
   // Shared Authenticated Routes (Profile, etc.)
   {
     path: '/',
@@ -195,6 +210,9 @@ const router = createBrowserRouter([
       { index: true, element: <Navigate to="/admin/dashboard" replace /> },
       { path: 'dashboard', element: <AdminDashboard /> },
       { path: 'internships', element: <AdminInternships /> },
+      { path: 'internship', element: <Navigate to="/admin/internships" replace /> },
+      { path: 'careers', element: <Navigate to="/admin/internships" replace /> },
+      { path: 'career', element: <Navigate to="/admin/internships" replace /> },
       { path: 'coupons', element: <AdminCoupons /> },
       { path: 'coupon', element: <Navigate to="/admin/coupons" replace /> },
       { path: 'courses', element: <Courses /> },
@@ -241,7 +259,7 @@ const router = createBrowserRouter([
   // Fallback 404
   {
     path: '*',
-    element: <Unauthorized />,
+    element: <NotFound />,
   },
 ]);
 

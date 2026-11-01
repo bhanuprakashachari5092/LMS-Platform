@@ -47,7 +47,13 @@ export const AdminRoute: React.FC<{ children: React.ReactNode; allowInstructor?:
   const effectiveRole = userProfile?.role || cachedUser?.role;
   const email = (user?.email || cachedUser?.email || '').toLowerCase();
   const isAdminEmail = email.includes('admin') || email === 'admin@gmail.com';
-  const isAdmin = effectiveRole === 'admin' || isAdminEmail;
+  const devRole = typeof window !== 'undefined' ? localStorage.getItem('dev_role') : null;
+  const isLocalHost =
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1');
+  const isDevAdmin = (import.meta.env.DEV || isLocalHost) && devRole === 'admin';
+  const isAdmin = effectiveRole === 'admin' || isAdminEmail || isDevAdmin;
   const isAllowed = isAdmin || (allowInstructor && effectiveRole === 'instructor');
 
   if (!isAllowed) {

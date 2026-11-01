@@ -130,8 +130,14 @@ export const DashboardLayout: React.FC = () => {
   const cachedUser = cachedUserRaw ? (() => { try { return JSON.parse(cachedUserRaw); } catch { return null; } })() : null;
   const userEmail = (user?.email || cachedUser?.email || '').toLowerCase();
   const isAdminEmail = userEmail.includes('admin') || userEmail === 'admin@gmail.com';
-  const role = userProfile?.role || cachedUser?.role || (isAdminEmail ? 'admin' : 'student');
-  const isAdmin = role === 'admin' || isAdminEmail;
+  const devRole = typeof window !== 'undefined' ? localStorage.getItem('dev_role') : null;
+  const isLocalHost =
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1');
+  const isDevAdmin = (import.meta.env.DEV || isLocalHost) && devRole === 'admin';
+  const role = isDevAdmin ? 'admin' : (userProfile?.role || cachedUser?.role || (isAdminEmail ? 'admin' : 'student'));
+  const isAdmin = role === 'admin' || isAdminEmail || isDevAdmin;
   const isInstructor = role === 'instructor';
 
   const adminNavSections = [
