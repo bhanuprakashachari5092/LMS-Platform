@@ -5,602 +5,651 @@ import {
   Sparkles,
   ArrowRight,
   Code2,
-  Terminal,
-  Cpu,
   Cloud,
-  ShieldCheck,
   CheckCircle2,
   ExternalLink,
   Award,
   Layers,
-  Zap,
   Clock,
   MapPin,
   Users,
+  Calendar,
+  Check,
+  ChevronRight,
+  ShieldCheck,
+  Building,
+  GraduationCap,
 } from 'lucide-react';
 
-interface FeaturedTrack {
+interface CareerTrack {
   id: string;
   slug: string;
   title: string;
   domain: string;
   badge: string;
-  badgeColor: string;
   stipend: string;
   duration: string;
   mode: string;
   openings: number;
   skills: string[];
+  imagePng: string;
   mentor: { name: string; title: string };
-  codeSnippet: string;
-  language: string;
+  summary: string;
+  phases: { week: string; title: string; deliverables: string }[];
 }
 
-const FEATURED_TRACKS: FeaturedTrack[] = [
+const CAREER_TRACKS: CareerTrack[] = [
   {
-    id: 'track-ai-genai',
-    slug: 'ai-ml-generative-ai-internship',
-    title: 'AI & Generative AI Systems Engineering',
-    domain: 'Artificial Intelligence & ML',
-    badge: 'HOTTEST TRACK',
-    badgeColor: 'from-amber-500 to-rose-500',
-    stipend: 'Performance Stipend + AI Certificate',
+    id: 'track-fullstack',
+    slug: 'fullstack-web-developer-intern',
+    title: 'Full Stack Web & Cloud Applications',
+    domain: 'Full Stack Development',
+    badge: '2026 COHORT',
+    stipend: '₹10,000 / month + Verified Certificate',
     duration: '12 Weeks',
-    mode: 'Remote, India',
-    openings: 8,
-    skills: ['Google Gemini API', 'Python', 'PyTorch', 'LangChain', 'Vector DB', 'RAG'],
-    mentor: { name: 'Siddharth Menon', title: 'Lead AI Research Engineer' },
-    codeSnippet: `// Gemini Multimodal Inference Pipeline
-import { GoogleGenAI } from '@google/genai';
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
-export async function reviewStudentCode(sourceCode: string) {
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: [{ text: \`Review code for time complexity & edge cases:\\n\${sourceCode}\` }],
-  });
-  return response.text;
-}`,
-    language: 'typescript',
+    mode: 'Remote / Hybrid',
+    openings: 10,
+    skills: ['React 19', 'TypeScript', 'Tailwind CSS', 'Node.js', 'REST APIs', 'PostgreSQL'],
+    imagePng: '/assets/careers/track_fullstack.png',
+    mentor: { name: 'Siddharth Menon', title: 'Staff Frontend Architect' },
+    summary: 'Build production-ready, accessible web applications with modern state management, API integration, and test automation.',
+    phases: [
+      { week: 'Weeks 1-3', title: 'Component Architecture & State', deliverables: 'Design systems, TypeScript contracts & responsive layouts.' },
+      { week: 'Weeks 4-6', title: 'Backend APIs & Data Flow', deliverables: 'Secure REST endpoints, PostgreSQL migrations & auth middleware.' },
+      { week: 'Weeks 7-9', title: 'Real-time Features & Performance', deliverables: 'WebSocket updates, client-side caching & bundle optimization.' },
+      { week: 'Weeks 10-12', title: 'Testing & Cloud Deployment', deliverables: 'Vitest unit suites, CI/CD pipelines & production release.' },
+    ],
   },
   {
-    id: 'track-backend-java',
+    id: 'track-java',
     slug: 'backend-java-spring-boot-internship',
-    title: 'Backend Engineering (Java 21 & Spring Boot 3)',
-    domain: 'Backend Development',
-    badge: 'ENTERPRISE STACK',
-    badgeColor: 'from-blue-600 to-cyan-500',
+    title: 'Enterprise Java 21 & Spring Boot 3',
+    domain: 'Backend Engineering',
+    badge: 'HIGH DEMAND',
     stipend: '₹12,000 / month + Official Certificate',
     duration: '12 Weeks',
     mode: 'Hybrid / Remote',
     openings: 10,
     skills: ['Java 21', 'Spring Boot 3', 'Spring Security', 'PostgreSQL', 'Docker', 'Flyway'],
-    mentor: { name: 'Vikramaditya Roy', title: 'Staff Backend Architect' },
-    codeSnippet: `// High-Throughput Multi-Tenant Controller
-@RestController
-@RequestMapping("/api/v1/internships")
-public class InternshipController {
-    private final InternshipService internshipService;
-
-    @GetMapping("/openings")
-    public ResponseEntity<ApiResponse<Page<InternshipDTO>>> listOpenings(Pageable pageable) {
-        Page<InternshipDTO> results = internshipService.getActiveOpenings(pageable);
-        return ResponseEntity.ok(ApiResponse.success("Active openings retrieved", results));
-    }
-}`,
-    language: 'java',
-  },
-  {
-    id: 'track-fullstack-web',
-    slug: 'full-stack-web-development-internship',
-    title: 'Full Stack Web Development Virtual Internship',
-    domain: 'Full Stack Development',
-    badge: 'MOST POPULAR',
-    badgeColor: 'from-emerald-500 to-teal-500',
-    stipend: 'Performance Stipend + Certificate',
-    duration: '12 Weeks',
-    mode: 'Remote, India',
-    openings: 15,
-    skills: ['React 19', 'TypeScript', 'Node.js', 'PostgreSQL', 'Tailwind CSS', 'Git'],
-    mentor: { name: 'Dr. Aris Thorne', title: 'Principal Software Architect' },
-    codeSnippet: `// Server-Sent Reactive Learning State
-export const useLiveEvaluation = (submissionId: string) => {
-  const [evalState, setEvalState] = useState<EvaluationStatus>('PENDING');
-
-  useEffect(() => {
-    const sse = new EventSource(\`/api/v1/judge/\${submissionId}/stream\`);
-    sse.onmessage = (event) => setEvalState(JSON.parse(event.data));
-    return () => sse.close();
-  }, [submissionId]);
-
-  return evalState;
-};`,
-    language: 'typescript',
+    imagePng: '/assets/careers/track_java_backend.png',
+    mentor: { name: 'Vikramaditya Roy', title: 'Principal Backend Engineer' },
+    summary: 'Architect scalable backend microservices, resilient database connection pooling, and multi-tenant authorization.',
+    phases: [
+      { week: 'Weeks 1-3', title: 'OOP & Modern Java 21', deliverables: 'Virtual threads, records, pattern matching & clean architecture.' },
+      { week: 'Weeks 4-6', title: 'Spring Boot 3 REST Services', deliverables: 'Hibernate 6 JSONB mapping, validation & global exception handlers.' },
+      { week: 'Weeks 7-9', title: 'Security & Connection Pooling', deliverables: 'JWT stateless auth, HikariCP pool tuning & Flyway migrations.' },
+      { week: 'Weeks 10-12', title: 'Containerization & Observability', deliverables: 'Docker multi-stage builds, Prometheus metrics & integration tests.' },
+    ],
   },
   {
     id: 'track-cloud-devops',
-    slug: 'cloud-computing-devops-internship',
-    title: 'Cloud Infrastructure & DevOps Internship',
+    slug: 'cloud-devops-engineer-intern',
+    title: 'Cloud DevOps, Docker & Kubernetes',
     domain: 'Cloud Computing & DevOps',
-    badge: 'INFRASTRUCTURE',
-    badgeColor: 'from-purple-600 to-indigo-600',
-    stipend: 'Performance Stipend + Cloud Badge',
-    duration: '10 Weeks',
+    badge: 'PRODUCTION CLUSTER',
+    stipend: 'Performance Stipend + Cloud Certificate',
+    duration: '12 Weeks',
     mode: 'Remote, India',
-    openings: 6,
-    skills: ['Docker', 'Kubernetes', 'Linux/Bash', 'GitHub Actions', 'Terraform', 'Prometheus'],
-    mentor: { name: 'Kavita Sharma', title: 'Senior Cloud Engineer' },
-    codeSnippet: `# Automated Continuous Deployment Pipeline
-name: Deploy KaizenQ SaaS Backend
-on:
-  push:
-    branches: [main]
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build & Push Container to Registry
-        run: |
-          docker build -t registry.kaizenq.in/lms-core:latest .
-          docker push registry.kaizenq.in/lms-core:latest`,
-    language: 'yaml',
+    openings: 8,
+    skills: ['Kubernetes', 'Docker', 'GitHub Actions', 'AWS Cloud', 'Linux CLI', 'Terraform'],
+    imagePng: '/assets/careers/track_cloud_architecture.png',
+    mentor: { name: 'Ananya Deshmukh', title: 'Senior Cloud & DevOps Architect' },
+    summary: 'Master containerization, infrastructure-as-code, zero-downtime rolling updates, and production deployment automation.',
+    phases: [
+      { week: 'Weeks 1-3', title: 'Linux Administration & Shell', deliverables: 'Kernel mechanics, systemd services & SSH hardening.' },
+      { week: 'Weeks 4-6', title: 'Docker Container Engineering', deliverables: 'Multi-stage Dockerfiles, image minimization & security scanning.' },
+      { week: 'Weeks 7-9', title: 'Kubernetes Cluster Orchestration', deliverables: 'Pods, deployments, services, ingress & Helm chart packaging.' },
+      { week: 'Weeks 10-12', title: 'Automated CI/CD & Observability', deliverables: 'GitHub Actions runners, Grafana dashboards & automated rollbacks.' },
+    ],
   },
   {
-    id: 'track-qa-automation',
-    slug: 'qa-software-testing-internship',
-    title: 'QA & Automated Software Testing Internship',
-    domain: 'Quality Engineering',
-    badge: 'NEW LAUNCH',
-    badgeColor: 'from-rose-500 to-pink-500',
-    stipend: 'Incentive on Coverage + Certificate',
-    duration: '8 Weeks',
+    id: 'track-ai-ml',
+    slug: 'ai-ml-generative-ai-internship',
+    title: 'AI Systems & Machine Learning Engineering',
+    domain: 'Artificial Intelligence & ML',
+    badge: 'ADVANCED TRACK',
+    stipend: 'Performance Stipend + AI Certificate',
+    duration: '12 Weeks',
     mode: 'Remote, India',
-    openings: 10,
-    skills: ['Playwright', 'Selenium', 'Postman', 'API Testing', 'Jest', 'CI/CD Pipelines'],
-    mentor: { name: 'Pooja Sharma', title: 'Principal QA Automation Engineer' },
-    codeSnippet: `// End-to-End Regression Suite with Playwright
-import { test, expect } from '@playwright/test';
-
-test('Verify student code sandbox execution & test evaluation', async ({ page }) => {
-  await page.goto('/dashboard?tab=practice-hub');
-  await page.click('button:has-text("Run Test Cases")');
-  await expect(page.locator('.test-verdict-badge')).toHaveText('All 5 Tests Passed (100%)');
-});`,
-    language: 'typescript',
+    openings: 8,
+    skills: ['Python', 'PyTorch', 'Gemini API', 'LangChain', 'Vector DB', 'RAG Pipelines'],
+    imagePng: '/assets/careers/track_ai_ml.png',
+    mentor: { name: 'Kavita Sundaram', title: 'Lead AI Research Engineer' },
+    summary: 'Design intelligent applications powered by multimodal LLMs, vector database retrieval, and structured evaluation benchmarks.',
+    phases: [
+      { week: 'Weeks 1-3', title: 'Python & Data Engineering', deliverables: 'NumPy, Pandas, data cleaning & feature vector pipelines.' },
+      { week: 'Weeks 4-6', title: 'Embeddings & Vector Databases', deliverables: 'Semantic chunking, similarity indexing & hybrid search.' },
+      { week: 'Weeks 7-9', title: 'RAG & Multimodal LLM Pipelines', deliverables: 'Context retrieval, guardrails & structured JSON schemas.' },
+      { week: 'Weeks 10-12', title: 'Benchmarking & Production Serving', deliverables: 'Latency optimization, evaluation metrics & live API deployment.' },
+    ],
+  },
+  {
+    id: 'track-data-eng',
+    slug: 'data-engineering-postgresql-intern',
+    title: 'Data Engineering & PostgreSQL Architecture',
+    domain: 'Data Science & Engineering',
+    badge: 'DATA ARCHITECTURE',
+    stipend: 'Performance Stipend + Certificate',
+    duration: '12 Weeks',
+    mode: 'Remote, India',
+    openings: 6,
+    skills: ['PostgreSQL', 'SQL Analytics', 'Python', 'ETL Pipelines', 'Index Tuning', 'Redis'],
+    imagePng: '/assets/careers/track_data_eng.png',
+    mentor: { name: 'Arjun Nambiar', title: 'Staff Database Architect' },
+    summary: 'Develop optimized database schemas, automated ETL pipelines, analytics aggregates, and high-performance queries.',
+    phases: [
+      { week: 'Weeks 1-3', title: 'Relational Schema Design & Normalization', deliverables: 'ER diagrams, BCNF normalization & constraints.' },
+      { week: 'Weeks 4-6', title: 'Query Optimization & Indexing', deliverables: 'EXPLAIN ANALYZE, B-Tree vs GIN indexes & connection pooling.' },
+      { week: 'Weeks 7-9', title: 'Automated ETL Pipelines', deliverables: 'Scheduled ingestion jobs, batch transformations & error retries.' },
+      { week: 'Weeks 10-12', title: 'Analytics & BI Dashboards', deliverables: 'Window functions, materialized views & executive reporting.' },
+    ],
+  },
+  {
+    id: 'track-uiux',
+    slug: 'ui-ux-product-designer-intern',
+    title: 'UI/UX Design Systems & Product Design',
+    domain: 'Product Design & UX',
+    badge: 'CREATIVE COHORT',
+    stipend: 'Performance Stipend + Design Certificate',
+    duration: '12 Weeks',
+    mode: 'Remote, India',
+    openings: 5,
+    skills: ['Figma', 'Design Systems', 'User Research', 'Wireframing', 'WCAG Accessibility', 'Micro-Interactions'],
+    imagePng: '/assets/careers/track_uiux.png',
+    mentor: { name: 'Rohan Varma', title: 'Lead Product Designer' },
+    summary: 'Design intuitive enterprise SaaS experiences, accessible design token libraries, and high-fidelity interactive prototypes.',
+    phases: [
+      { week: 'Weeks 1-3', title: 'User Research & Wireframing', deliverables: 'User journey maps, information architecture & low-fi wireframes.' },
+      { week: 'Weeks 4-6', title: 'Design System Component Tokens', deliverables: 'Color/spacing tokens, typography scale & reusable Figma variants.' },
+      { week: 'Weeks 7-9', title: 'High-Fidelity Interactive Prototypes', deliverables: 'Realistic micro-interactions, responsive flows & mobile layouts.' },
+      { week: 'Weeks 10-12', title: 'Design QA & Developer Handoff', deliverables: 'Component specs, WCAG accessibility checks & design tokens export.' },
+    ],
   },
 ];
 
 export const Interactive3DInternshipShowcase: React.FC = () => {
-  const [selectedTrack, setSelectedTrack] = useState<FeaturedTrack>(FEATURED_TRACKS[0]);
-  const [activeIframeTab, setActiveIframeTab] = useState<'ide' | 'roadmap' | 'certificate'>('ide');
+  const [selectedTrack, setSelectedTrack] = useState<CareerTrack>(CAREER_TRACKS[0]);
+  const [activeTab, setActiveTab] = useState<'blueprint' | 'roadmap' | 'credential'>('blueprint');
 
-  // 3D Perspective Card Tilt calculations
-  const [tilt, setTilt] = useState({ rotateX: 0, rotateY: 0, glareX: 50, glareY: 50 });
-  const containerRef = useRef<HTMLDivElement>(null);
+  // 3D Perspective Card Tilt state
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [rotateX, setRotateX] = useState(0);
+  const [rotateY, setRotateY] = useState(0);
+  const [glarePos, setGlarePos] = useState({ x: 50, y: 50 });
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
+    if (!cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    const normX = x / rect.width - 0.5;
-    const normY = y / rect.height - 0.5;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
 
-    // Max 10 deg tilt on X & Y
-    setTilt({
-      rotateX: -normY * 12,
-      rotateY: normX * 12,
-      glareX: (x / rect.width) * 100,
-      glareY: (y / rect.height) * 100,
+    const rotX = -((y - centerY) / centerY) * 5;
+    const rotY = ((x - centerX) / centerX) * 5;
+
+    setRotateX(rotX);
+    setRotateY(rotY);
+    setGlarePos({
+      x: (x / rect.width) * 100,
+      y: (y / rect.height) * 100,
     });
   };
 
   const handleMouseLeave = () => {
-    setTilt({ rotateX: 0, rotateY: 0, glareX: 50, glareY: 50 });
+    setRotateX(0);
+    setRotateY(0);
+    setGlarePos({ x: 50, y: 50 });
   };
 
   return (
-    <section className="w-full py-24 border-t border-slate-200 dark:border-slate-800/80 bg-slate-900 text-white relative overflow-hidden">
-      {/* Dynamic Ambient Background Glows */}
-      <div className="absolute -top-40 left-1/4 w-[600px] h-[600px] bg-gradient-to-tr from-blue-600/20 via-indigo-600/15 to-purple-600/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-40 right-1/4 w-[600px] h-[600px] bg-gradient-to-bl from-emerald-600/15 via-cyan-600/15 to-transparent rounded-full blur-3xl pointer-events-none" />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12 relative z-10">
-        {/* Section Header */}
+    <section className="w-full py-24 bg-white border-t border-b border-slate-200/80 relative overflow-hidden font-['Sora']">
+      <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-16 space-y-16">
+        
+        {/* ========================================================================= */}
+        {/* 1. SECTION HEADER (CLEAN WHITE CORPORATE)                                 */}
+        {/* ========================================================================= */}
         <div className="text-center space-y-4 max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-500/10">
-            <Sparkles className="w-3.5 h-3.5 text-blue-400 animate-pulse" />
-            <span>KaizenQ Career & Internship Portal • 2026 Season</span>
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-100 border border-slate-200/90 text-slate-700 text-xs font-bold tracking-wide">
+            <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+            <span>KAIZENQ &bull; SHAIVIKA GROUPS 2026 INITIATIVE</span>
           </div>
 
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight font-heading">
-            Learn, Build & Grow Through <br />
-            <span className="bg-gradient-to-r from-blue-400 via-indigo-300 to-emerald-400 bg-clip-text text-transparent">
-              Real-World Virtual Internships
-            </span>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
+            Build Real Software as a <br className="hidden sm:inline" />
+            <span className="text-blue-600">KaizenQ Engineering Intern</span>
           </h2>
 
-          <p className="text-sm sm:text-base text-slate-300 font-normal leading-relaxed">
-            Gain structured industry experience, solve production architectural challenges under senior engineering mentorship, and graduate with verifiable digital credentials.
+          <p className="text-sm sm:text-base text-slate-600 leading-relaxed font-normal">
+            Gain verified hands-on industry experience across structured 12-week cohorts. 
+            Work under senior staff mentors, build real production deliverables, and earn verifiable cryptographic credentials.
           </p>
+
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+            <Link
+              to="/careers"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm transition-all hover:scale-[1.02] active:scale-[0.98] shadow-md shadow-blue-600/20"
+            >
+              <span>Explore All Openings</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+
+            <Link
+              to={`/careers#${selectedTrack.slug}`}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs sm:text-sm transition-all border border-slate-200"
+            >
+              <span>Apply for {selectedTrack.domain}</span>
+            </Link>
+          </div>
         </div>
 
-        {/* Domain Navigation Chips */}
-        <div className="flex items-center justify-center gap-2 overflow-x-auto pb-2 scrollbar-none flex-wrap">
-          {FEATURED_TRACKS.map((track) => {
+        {/* ========================================================================= */}
+        {/* 2. TRACK SELECTOR PILLS                                                   */}
+        {/* ========================================================================= */}
+        <div className="flex items-center justify-start lg:justify-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+          {CAREER_TRACKS.map((track) => {
             const isSelected = selectedTrack.id === track.id;
             return (
               <button
                 key={track.id}
                 type="button"
                 onClick={() => setSelectedTrack(track)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer flex items-center gap-2 shrink-0 border ${
+                className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 border ${
                   isSelected
-                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-400 shadow-lg shadow-blue-600/30 scale-105'
-                    : 'bg-slate-800/80 hover:bg-slate-800 text-slate-300 border-slate-700/60 hover:border-slate-600'
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
-                <Briefcase className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : 'text-slate-400'}`} />
                 <span>{track.domain}</span>
-                {isSelected && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                )}
+                {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />}
               </button>
             );
           })}
         </div>
 
-        {/* ─── 3D HOLOGRAPHIC VIEWPORT / SIMULATED DEV WORKSPACE ─── */}
+        {/* ========================================================================= */}
+        {/* 3. 3D INTERACTIVE VIEWPORT CONTAINER (CLEAN PURE WHITE)                   */}
+        {/* ========================================================================= */}
         <div
-          ref={containerRef}
+          ref={cardRef}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
-          className="relative transition-transform duration-300 ease-out"
           style={{
-            perspective: 1200,
+            transform: `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`,
+            transition: 'transform 0.15s ease-out',
           }}
+          className="relative w-full rounded-3xl bg-white border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden"
         >
+          {/* Subtle Dynamic Glare Light Effect */}
           <div
-            className="w-full rounded-3xl bg-slate-900/90 border border-slate-700/70 backdrop-blur-2xl shadow-2xl shadow-indigo-950/50 overflow-hidden relative group"
+            className="absolute inset-0 pointer-events-none rounded-3xl transition-opacity duration-300"
             style={{
-              transform: `rotateX(${tilt.rotateX}deg) rotateY(${tilt.rotateY}deg)`,
-              transformStyle: 'preserve-3d',
-              transition: 'transform 0.15s ease-out',
+              background: `radial-gradient(circle at ${glarePos.x}% ${glarePos.y}%, rgba(37,99,235,0.06) 0%, transparent 60%)`,
             }}
-          >
-            {/* Glossy Reflective Sheen Layer */}
-            <div
-              className="absolute inset-0 pointer-events-none opacity-20 mix-blend-overlay transition-opacity duration-300"
-              style={{
-                background: `radial-gradient(circle 500px at ${tilt.glareX}% ${tilt.glareY}%, rgba(255,255,255,0.4), transparent)`,
-              }}
-            />
+          />
 
-            {/* Top 3D Chrome Header Bar */}
-            <div className="px-5 py-3.5 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between gap-4 select-none">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-rose-500/80 border border-rose-600/50 shadow-xs" />
-                <div className="w-3 h-3 rounded-full bg-amber-500/80 border border-amber-600/50 shadow-xs" />
-                <div className="w-3 h-3 rounded-full bg-emerald-500/80 border border-emerald-600/50 shadow-xs" />
-                <span className="ml-2 text-[11px] font-mono text-slate-400 hidden sm:inline">
-                  workspace://kaizenq-cloud-ide/{selectedTrack.slug}
-                </span>
-              </div>
-
-              {/* Viewport Tabs */}
-              <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-0.5 text-xs font-semibold">
-                <button
-                  type="button"
-                  onClick={() => setActiveIframeTab('ide')}
-                  className={`px-3 py-1 rounded-md transition-colors cursor-pointer flex items-center gap-1.5 ${
-                    activeIframeTab === 'ide'
-                      ? 'bg-blue-600 text-white shadow-xs'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <Code2 className="w-3 h-3" />
-                  <span>Role Specs</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveIframeTab('roadmap')}
-                  className={`px-3 py-1 rounded-md transition-colors cursor-pointer flex items-center gap-1.5 ${
-                    activeIframeTab === 'roadmap'
-                      ? 'bg-blue-600 text-white shadow-xs'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <Layers className="w-3 h-3" />
-                  <span>Syllabus & Sprints</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveIframeTab('certificate')}
-                  className={`px-3 py-1 rounded-md transition-colors cursor-pointer flex items-center gap-1.5 ${
-                    activeIframeTab === 'certificate'
-                      ? 'bg-blue-600 text-white shadow-xs'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <Award className="w-3 h-3" />
-                  <span>Credential</span>
-                </button>
-              </div>
-
-              {/* Live Badge */}
-              <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Live Hiring • {selectedTrack.openings} Openings</span>
-              </div>
+          {/* Window Chrome Header (Apple / Linear Clean Style) */}
+          <div className="px-6 py-4 border-b border-slate-200/90 bg-slate-50/80 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-2.5">
+              <span className="w-3 h-3 rounded-full bg-rose-400" />
+              <span className="w-3 h-3 rounded-full bg-amber-400" />
+              <span className="w-3 h-3 rounded-full bg-emerald-400" />
+              <span className="ml-2 font-mono text-[11px] font-semibold text-slate-500">
+                kaizenq.com/careers/{selectedTrack.slug}
+              </span>
             </div>
 
-            {/* ─── 3D VIEWPORT BODY ─── */}
-            <div className="p-6 sm:p-8 min-h-[420px] flex flex-col justify-between">
-              {/* TAB 1: IDE / ROLE SPECS */}
-              {activeIframeTab === 'ide' && (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-                  {/* Left Column: Track Details */}
-                  <div className="lg:col-span-6 space-y-5">
-                    <div className="space-y-2">
-                      <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-gradient-to-r text-white text-[10px] font-black uppercase tracking-wider" style={{ backgroundImage: 'linear-gradient(to right, #4f46e5, #06b6d4)' }}>
-                        <Zap className="w-3 h-3 text-amber-300" />
-                        <span>{selectedTrack.badge}</span>
-                      </div>
-                      <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                        {selectedTrack.title}
-                      </h3>
-                      <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-normal">
-                        Work directly with production microservices, perform high-impact architecture sprints, and submit weekly pull requests evaluated by our core engineering staff.
-                      </p>
-                    </div>
+            {/* Viewport Tabs */}
+            <div className="flex items-center p-1 rounded-xl bg-white border border-slate-200 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setActiveTab('blueprint')}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === 'blueprint'
+                    ? 'bg-blue-600 text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Track Specs</span>
+              </button>
 
-                    {/* Metadata Grid */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800 text-xs">
-                      <div>
-                        <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-semibold">Duration</span>
-                        <div className="flex items-center gap-1 font-bold text-white mt-0.5">
-                          <Clock className="w-3.5 h-3.5 text-blue-400" />
-                          <span>{selectedTrack.duration}</span>
-                        </div>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-semibold">Mode</span>
-                        <div className="flex items-center gap-1 font-bold text-white mt-0.5">
-                          <MapPin className="w-3.5 h-3.5 text-cyan-400" />
-                          <span>{selectedTrack.mode}</span>
-                        </div>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-semibold">Openings</span>
-                        <div className="flex items-center gap-1 font-bold text-white mt-0.5">
-                          <Users className="w-3.5 h-3.5 text-emerald-400" />
-                          <span>{selectedTrack.openings} Positions</span>
-                        </div>
-                      </div>
-                    </div>
+              <button
+                type="button"
+                onClick={() => setActiveTab('roadmap')}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === 'roadmap'
+                    ? 'bg-blue-600 text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                <span>12-Week Sprints</span>
+              </button>
 
-                    {/* Stipend & Mentor Banner */}
-                    <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-950/40 via-indigo-950/30 to-purple-950/40 border border-blue-800/40 flex items-center justify-between gap-3 text-xs">
-                      <div>
-                        <span className="text-[10px] text-blue-300 font-bold uppercase tracking-wider block">Stipend & Rewards</span>
-                        <strong className="text-white text-xs sm:text-sm font-extrabold">{selectedTrack.stipend}</strong>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-[10px] text-slate-400 block font-semibold">Evaluator</span>
-                        <span className="text-xs text-indigo-300 font-bold">{selectedTrack.mentor.name}</span>
-                      </div>
-                    </div>
+              <button
+                type="button"
+                onClick={() => setActiveTab('credential')}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === 'credential'
+                    ? 'bg-blue-600 text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Award className="w-3.5 h-3.5" />
+                <span>Verified Credential</span>
+              </button>
+            </div>
+          </div>
 
-                    {/* Skills Tag Cloud */}
-                    <div className="space-y-1.5">
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Required Stack & Tools</span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {selectedTrack.skills.map((sk) => (
-                          <span
-                            key={sk}
-                            className="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-xs font-semibold"
-                          >
-                            {sk}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
-                      <Link
-                        to={`/careers/${selectedTrack.slug}`}
-                        className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-900/40 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
-                      >
-                        <span>Apply For This Track</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </Link>
-
-                      <Link
-                        to="/careers"
-                        className="w-full sm:w-auto px-5 py-3 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/80 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                      >
-                        <span>View All 9 Openings</span>
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </Link>
-                    </div>
+          {/* ========================================================================= */}
+          {/* TAB 1: TRACK BLUEPRINT (CLEAN PNG GRAPHIC + STRUCTURED DETAILS)           */}
+          {/* ========================================================================= */}
+          {activeTab === 'blueprint' && (
+            <div className="p-6 sm:p-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-white">
+              {/* Left Column: Details */}
+              <div className="lg:col-span-6 space-y-6">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 text-[11px] font-extrabold uppercase tracking-wider border border-blue-200">
+                      {selectedTrack.domain}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700">
+                      {selectedTrack.badge}
+                    </span>
                   </div>
 
-                  {/* Right Column: Simulated Live Code Editor */}
-                  <div className="lg:col-span-6 bg-slate-950 rounded-2xl border border-slate-800 p-4 font-mono text-[11px] sm:text-xs text-slate-300 space-y-3 shadow-inner relative overflow-hidden">
-                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-2 text-[10px] text-slate-500">
-                      <div className="flex items-center gap-2">
-                        <Terminal className="w-3.5 h-3.5 text-blue-400" />
-                        <span>{selectedTrack.slug}.{selectedTrack.language === 'java' ? 'java' : 'ts'}</span>
-                      </div>
-                      <span className="text-emerald-400 font-bold uppercase tracking-wider">● EVALUATED PRODUCTION CODE</span>
-                    </div>
+                  <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                    {selectedTrack.title}
+                  </h3>
 
-                    <pre className="overflow-x-auto p-2 scrollbar-none leading-relaxed text-blue-200/90 font-mono">
-                      <code>{selectedTrack.codeSnippet}</code>
-                    </pre>
+                  <p className="text-sm text-slate-600 leading-relaxed">
+                    {selectedTrack.summary}
+                  </p>
+                </div>
 
-                    <div className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-800/40 flex items-center justify-between text-xs font-semibold text-emerald-300">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        <span>Automated CI/CD Test Pipeline Passed (100% Code Coverage)</span>
-                      </div>
-                      <span className="font-mono text-[10px] text-emerald-400/80">0.04s</span>
-                    </div>
+                {/* Key Metrics Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                    <span className="text-[11px] font-semibold text-slate-500 block">Duration</span>
+                    <strong className="text-slate-900 font-bold text-sm block">{selectedTrack.duration}</strong>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                    <span className="text-[11px] font-semibold text-slate-500 block">Work Mode</span>
+                    <strong className="text-slate-900 font-bold text-sm block">{selectedTrack.mode}</strong>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 col-span-2 sm:col-span-1">
+                    <span className="text-[11px] font-semibold text-slate-500 block">Openings</span>
+                    <strong className="text-blue-600 font-bold text-sm block">{selectedTrack.openings} Positions</strong>
                   </div>
                 </div>
-              )}
 
-              {/* TAB 2: SYLLABUS & ROADMAP */}
-              {activeIframeTab === 'roadmap' && (
-                <div className="space-y-6 py-2">
-                  <div className="text-center space-y-1">
-                    <h4 className="text-xl font-bold text-white">12-Week Structured Sprint Progression</h4>
-                    <p className="text-xs text-slate-400">From architectural onboarding to automated production deployment</p>
+                {/* Stipend Callout */}
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3">
+                  <div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">Compensation & Perks</span>
+                    <strong className="text-slate-900 font-extrabold text-sm sm:text-base">{selectedTrack.stipend}</strong>
                   </div>
+                  <span className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-xs font-bold">
+                    Verified Intake
+                  </span>
+                </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {[
-                      {
-                        sprint: 'Phase 1 • Weeks 1-3',
-                        title: 'Architecture & Foundations',
-                        desc: 'Deep-dive into tech stack fundamentals, git conventions, database modeling, and domain architecture design.',
-                        deliverable: 'Approved High-Level Design (HLD) & Schema Migration PR',
-                      },
-                      {
-                        sprint: 'Phase 2 • Weeks 4-6',
-                        title: 'Core Microservices & APIs',
-                        desc: 'Construct secure RESTful endpoints, idempotency filters, multi-tenant authentication, and background workers.',
-                        deliverable: 'Functional Endpoints with 90%+ Unit Test Coverage',
-                      },
-                      {
-                        sprint: 'Phase 3 • Weeks 7-9',
-                        title: 'Real-time & AI Integrations',
-                        desc: 'Hook in telemetry, WebSocket events, caching, or LLM agent pipelines with latency optimizations.',
-                        deliverable: 'Performance-tuned Integration PR & Benchmark Report',
-                      },
-                      {
-                        sprint: 'Phase 4 • Weeks 10-12',
-                        title: 'Production Deploy & Defense',
-                        desc: 'Containerize, configure GitHub Actions CI/CD, deploy to cloud cluster, and defend code in technical review.',
-                        deliverable: 'Live Staging Deployment & Verified Internship Credential',
-                      },
-                    ].map((step, idx) => (
-                      <div
-                        key={step.sprint}
-                        className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-2.5 relative flex flex-col justify-between"
+                {/* Tech Skills Chips */}
+                <div className="space-y-2">
+                  <span className="text-xs font-bold text-slate-700 block uppercase tracking-wider">
+                    Evaluated Tech Competencies
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedTrack.skills.map((skill, idx) => (
+                      <span
+                        key={idx}
+                        className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 text-xs font-semibold shadow-2xs"
                       >
-                        <div className="space-y-1">
-                          <span className="text-[10px] font-mono font-bold text-blue-400 uppercase tracking-widest block">
-                            {step.sprint}
-                          </span>
-                          <strong className="text-sm font-bold text-white block">{step.title}</strong>
-                          <p className="text-[11px] text-slate-400 leading-relaxed font-normal">{step.desc}</p>
-                        </div>
-                        <div className="p-2 rounded-lg bg-blue-950/30 border border-blue-900/40 text-[10px] text-blue-300 font-semibold">
-                          📦 <strong>Deliverable:</strong> {step.deliverable}
-                        </div>
-                      </div>
+                        {skill}
+                      </span>
                     ))}
                   </div>
-
-                  <div className="text-center pt-2">
-                    <Link
-                      to="/careers"
-                      className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-colors"
-                    >
-                      <span>Explore Detailed Curriculum Roadmaps</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </Link>
-                  </div>
                 </div>
-              )}
 
-              {/* TAB 3: VERIFIED CREDENTIAL HOLOGRAM */}
-              {activeIframeTab === 'certificate' && (
-                <div className="py-4 flex flex-col items-center justify-center space-y-6">
-                  <div className="max-w-md w-full p-6 rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 border border-indigo-500/30 shadow-2xl text-center space-y-4 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
-
-                    <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 flex items-center justify-center mx-auto shadow-lg shadow-indigo-950/50">
-                      <Award className="w-8 h-8 text-amber-400" />
+                {/* Mentor & Apply Action */}
+                <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-slate-200 border border-slate-300 flex items-center justify-center font-black text-slate-700 text-xs">
+                      {selectedTrack.mentor.name.slice(0, 2).toUpperCase()}
                     </div>
-
-                    <div className="space-y-1">
-                      <span className="text-[10px] font-mono uppercase tracking-widest text-indigo-400 font-bold block">
-                        Official Industry Experience Credential
-                      </span>
-                      <h4 className="text-lg font-black text-white">KaizenQ Virtual Internship Certificate</h4>
-                      <p className="text-xs text-slate-300">
-                        Awarded upon successful completion and code defense of {selectedTrack.title}
-                      </p>
-                    </div>
-
-                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 text-left space-y-1 text-xs">
-                      <div className="flex justify-between text-[11px]">
-                        <span className="text-slate-400">Verification Hash:</span>
-                        <span className="font-mono text-cyan-400 font-bold">sha256-kq-2026-verified</span>
-                      </div>
-                      <div className="flex justify-between text-[11px]">
-                        <span className="text-slate-400">Accreditation:</span>
-                        <span className="text-emerald-400 font-bold">Shaivika Groups LMS Core</span>
-                      </div>
-                      <div className="flex justify-between text-[11px]">
-                        <span className="text-slate-400">QR Cryptographic Seal:</span>
-                        <span className="text-indigo-300 font-bold">Tamper-Proof Digital Verification</span>
-                      </div>
-                    </div>
-
-                    <div className="pt-2">
-                      <Link
-                        to={`/careers/${selectedTrack.slug}`}
-                        className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-colors shadow-lg shadow-emerald-950/50"
-                      >
-                        <span>Start Internship Application</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </Link>
+                    <div>
+                      <strong className="text-xs font-bold text-slate-900 block">{selectedTrack.mentor.name}</strong>
+                      <span className="text-[11px] text-slate-500">{selectedTrack.mentor.title}</span>
                     </div>
                   </div>
+
+                  <Link
+                    to="/careers"
+                    className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition-all shadow-xs"
+                  >
+                    <span>Apply for this Role</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
                 </div>
-              )}
+              </div>
+
+              {/* Right Column: High-Res Professional Track PNG Graphic */}
+              <div className="lg:col-span-6 flex items-center justify-center">
+                <div className="w-full rounded-2xl overflow-hidden border border-slate-200 shadow-md bg-white p-2 group">
+                  <img
+                    src={selectedTrack.imagePng}
+                    alt={selectedTrack.title}
+                    className="w-full h-auto object-cover rounded-xl transition-transform duration-300 group-hover:scale-[1.01]"
+                    loading="lazy"
+                  />
+                  <div className="p-3 bg-white flex items-center justify-between text-xs text-slate-500">
+                    <span className="font-semibold flex items-center gap-1.5">
+                      <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                      Official Shaivika Groups Curriculum
+                    </span>
+                    <span className="font-mono text-[11px]">Shaivika-2026-ENG</span>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* TAB 2: 12-WEEK SPRINT ROADMAP (CLEAN WHITE CARDS)                         */}
+          {/* ========================================================================= */}
+          {activeTab === 'roadmap' && (
+            <div className="p-6 sm:p-10 space-y-6 bg-white">
+              <div className="max-w-2xl">
+                <h4 className="text-lg font-extrabold text-slate-900">
+                  Structured 12-Week Engineering Syllabus & Sprints
+                </h4>
+                <p className="text-xs sm:text-sm text-slate-600">
+                  Every sprint delivers verifiable software reviewed by senior engineers. Zero superficial assignments.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {selectedTrack.phases.map((phase, idx) => (
+                  <div
+                    key={idx}
+                    className="p-5 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-3 relative hover:border-blue-400 transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 text-[10px] font-black border border-blue-200">
+                        {phase.week}
+                      </span>
+                      <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-600 text-xs font-bold flex items-center justify-center">
+                        {idx + 1}
+                      </span>
+                    </div>
+
+                    <h5 className="font-bold text-sm text-slate-900">
+                      {phase.title}
+                    </h5>
+
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      {phase.deliverables}
+                    </p>
+
+                    <div className="pt-2 border-t border-slate-100 flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Code Review & Score</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                <div className="space-y-0.5">
+                  <strong className="text-slate-900 font-bold block">100% Practical Engineering Evaluation</strong>
+                  <span className="text-slate-600">Weekly pull requests reviewed with line-by-line feedback from lead engineers.</span>
+                </div>
+                <Link
+                  to="/careers"
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs self-start sm:self-auto"
+                >
+                  Apply for Track
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* TAB 3: VERIFIABLE DIGITAL CREDENTIAL (CLEAN WHITE CARD)                   */}
+          {/* ========================================================================= */}
+          {activeTab === 'credential' && (
+            <div className="p-6 sm:p-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-white">
+              <div className="lg:col-span-6 space-y-4">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">
+                  <Award className="w-4 h-4" />
+                  <span>CRYPTOGRAPHICALLY VERIFIABLE CREDENTIAL</span>
+                </div>
+
+                <h4 className="text-2xl font-extrabold text-slate-900">
+                  Tamper-Proof Certificate of Internship Completion
+                </h4>
+
+                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                  Upon successful defense of all sprint deliverables and meeting peer evaluation standards, 
+                  you receive a verified certificate issued by Shaivika Groups and KaizenQ.
+                </p>
+
+                <ul className="space-y-2 text-xs text-slate-700 font-medium">
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-600" />
+                    <span>Unique SHA-256 Verification Hash & Direct QR Code Scanner</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-600" />
+                    <span>Public Verification URL shareable on LinkedIn and Resumes</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-600" />
+                    <span>Official Letter of Recommendation for top 15% cohort performers</span>
+                  </li>
+                </ul>
+
+                <div className="pt-2">
+                  <Link
+                    to="/careers"
+                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs"
+                  >
+                    <span>Apply for 2026 Cohort</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </div>
+
+              {/* Certificate Preview Card */}
+              <div className="lg:col-span-6">
+                <div className="p-6 rounded-3xl bg-white border-2 border-slate-200 shadow-lg space-y-4 relative">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                    <div className="flex items-center gap-2">
+                      <GraduationCap className="w-5 h-5 text-blue-600" />
+                      <span className="font-extrabold text-xs text-slate-900 tracking-wider">KAIZENQ ACADEMY</span>
+                    </div>
+                    <span className="font-mono text-[10px] text-slate-400">CERT-2026-ENG-8492</span>
+                  </div>
+
+                  <div className="text-center space-y-1.5 py-4">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block">CERTIFICATE OF COMPLETION</span>
+                    <h5 className="text-xl font-black text-slate-900">Student Engineer</h5>
+                    <p className="text-xs text-slate-600 max-w-sm mx-auto">
+                      has successfully satisfied all engineering requirements and deliverables for the
+                    </p>
+                    <strong className="text-sm text-blue-600 font-bold block pt-1">
+                      {selectedTrack.title}
+                    </strong>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-500">
+                    <div>
+                      <strong className="text-slate-800 block">Shaivika Groups</strong>
+                      <span>Issuing Organization</span>
+                    </div>
+                    <div className="text-right">
+                      <strong className="text-emerald-700 font-bold block flex items-center gap-1 justify-end">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        Status: Valid & Verified
+                      </strong>
+                      <span className="font-mono text-[10px]">verify.kaizenq.in</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* ─── 3 FLOATING STATS CALLOUTS ─── */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
-          <div className="p-5 rounded-2xl bg-slate-850/60 border border-slate-800 backdrop-blur-md flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
+        {/* ========================================================================= */}
+        {/* 4. FOUR CORPORATE TRUST PILLARS (PURE WHITE CARDS)                        */}
+        {/* ========================================================================= */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-3 hover:border-slate-300 transition-colors">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center">
               <Code2 className="w-5 h-5" />
             </div>
-            <div>
-              <strong className="text-white text-sm font-bold block">100% Practical Engineering</strong>
-              <p className="text-xs text-slate-400">Zero superficial tasks. Build and test real cloud software.</p>
-            </div>
+            <strong className="text-slate-900 text-sm font-bold block">100% Practical Deliverables</strong>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Zero simulated quiz-only exercises. Build real cloud applications, microservices, and design systems.
+            </p>
           </div>
 
-          <div className="p-5 rounded-2xl bg-slate-850/60 border border-slate-800 backdrop-blur-md flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-              <Award className="w-5 h-5 text-emerald-400" />
+          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-3 hover:border-slate-300 transition-colors">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center">
+              <Award className="w-5 h-5" />
             </div>
-            <div>
-              <strong className="text-white text-sm font-bold block">Verifiable Credentials</strong>
-              <p className="text-xs text-slate-400">Cryptographically verifiable certificates & letters of completion.</p>
-            </div>
+            <strong className="text-slate-900 text-sm font-bold block">Verifiable Credentials</strong>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Cryptographically verifiable certificates and completion records with unique verification IDs.
+            </p>
           </div>
 
-          <div className="p-5 rounded-2xl bg-slate-850/60 border border-slate-800 backdrop-blur-md flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center shrink-0">
-              <Users className="w-5 h-5 text-purple-400" />
+          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-3 hover:border-slate-300 transition-colors">
+            <div className="w-10 h-10 rounded-xl bg-purple-50 border border-purple-200 text-purple-600 flex items-center justify-center">
+              <Users className="w-5 h-5" />
             </div>
-            <div>
-              <strong className="text-white text-sm font-bold block">Staff Mentor Guidance</strong>
-              <p className="text-xs text-slate-400">Weekly code reviews and architecture guidance from senior engineers.</p>
+            <strong className="text-slate-900 text-sm font-bold block">Staff Mentor Reviews</strong>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Weekly architecture reviews and line-by-line code feedback directly from senior engineering leaders.
+            </p>
+          </div>
+
+          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-3 hover:border-slate-300 transition-colors">
+            <div className="w-10 h-10 rounded-xl bg-cyan-50 border border-cyan-200 text-cyan-600 flex items-center justify-center">
+              <Building className="w-5 h-5" />
             </div>
+            <strong className="text-slate-900 text-sm font-bold block">Placement Support</strong>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Top 15% cohort performers receive letters of recommendation and fast-tracked interviews with Shaivika Groups.
+            </p>
           </div>
         </div>
+
       </div>
     </section>
   );
