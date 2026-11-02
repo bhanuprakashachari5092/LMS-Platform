@@ -80,13 +80,13 @@ export const CourseSidebarOutline: React.FC<CourseSidebarOutlineProps> = ({
 }) => {
   // Build a flat list grouped by module
   const groupedLessons = useMemo(() => {
-    return modules.map((mod: any, modIdx: number) => {
+    return (modules || []).map((mod: any, modIdx: number) => {
       const rawLessons: any[] = [];
-      if (mod.lessons && mod.lessons.length > 0) {
+      if (mod.lessons && Array.isArray(mod.lessons) && mod.lessons.length > 0) {
         mod.lessons.forEach((l: any) => rawLessons.push(l));
-      } else if (mod.topics && mod.topics.length > 0) {
+      } else if (mod.topics && Array.isArray(mod.topics) && mod.topics.length > 0) {
         mod.topics.forEach((t: any) => {
-          if (t.learningUnits && t.learningUnits.length > 0) {
+          if (t.learningUnits && Array.isArray(t.learningUnits) && t.learningUnits.length > 0) {
             t.learningUnits.forEach((u: any) => {
               rawLessons.push(u);
             });
@@ -101,29 +101,29 @@ export const CourseSidebarOutline: React.FC<CourseSidebarOutlineProps> = ({
         themeIcon: mod.themeIcon || rawLessons[0]?.themeIcon || null,
         topicImageUrl: mod.topicImageUrl || rawLessons[0]?.topicImageUrl || null,
         lessons: rawLessons.map((lesson) => {
-          const flatIdx = allLessons.findIndex((l) => String(l.id) === String(lesson.id));
-          const isCompleted = completedLessonIds.some((id) => String(id) === String(lesson.id));
-          const isSelected = String(selectedLessonId) === String(lesson.id);
+          const flatIdx = (allLessons || []).findIndex((l) => String(l.id) === String(lesson?.id));
+          const isCompleted = (completedLessonIds || []).some((id) => String(id) === String(lesson?.id));
+          const isSelected = String(selectedLessonId) === String(lesson?.id);
 
           // Sequential unlock: first lesson always unlocked, rest require previous complete
           let isUnlocked = true;
-          if (flatIdx > 0) {
+          if (flatIdx > 0 && Array.isArray(allLessons)) {
             const prevLesson = allLessons[flatIdx - 1];
-            isUnlocked = completedLessonIds.some((id) => String(id) === String(prevLesson.id));
+            isUnlocked = (completedLessonIds || []).some((id) => String(id) === String(prevLesson?.id));
           }
 
-          const displayTitle = getPresentationLessonTitle(lesson.title, modIdx + 1, rawLessons.length);
+          const displayTitle = getPresentationLessonTitle(lesson?.title, modIdx + 1, rawLessons.length);
 
           return {
-            id: lesson.id,
+            id: lesson?.id,
             title: displayTitle,
             flatIndex: flatIdx,
             isCompleted,
             isSelected,
             isUnlocked,
-            themeColor: lesson.themeColor || null,
-            themeIcon: lesson.themeIcon || null,
-            topicImageUrl: lesson.topicImageUrl || null,
+            themeColor: lesson?.themeColor || null,
+            themeIcon: lesson?.themeIcon || null,
+            topicImageUrl: lesson?.topicImageUrl || null,
           };
         }),
       };

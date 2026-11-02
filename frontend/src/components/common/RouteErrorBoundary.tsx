@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouteError, isRouteErrorResponse, useNavigate, useLocation } from 'react-router-dom';
-import { AlertTriangle, RotateCcw, Home, BookOpen } from 'lucide-react';
+import { AlertTriangle, RotateCcw, Home, BookOpen, Copy, Check } from 'lucide-react';
 
 interface RouteErrorBoundaryProps {
   onReset?: () => void;
@@ -16,6 +16,7 @@ export const RouteErrorBoundary: React.FC<RouteErrorBoundaryProps> = ({
   const error = useRouteError() as any;
   const navigate = useNavigate();
   const location = useLocation();
+  const [copied, setCopied] = useState(false);
 
   let errorMessage = 'An unexpected issue occurred while rendering this page.';
   let errorStatus = 500;
@@ -30,6 +31,25 @@ export const RouteErrorBoundary: React.FC<RouteErrorBoundaryProps> = ({
   } else if (typeof error === 'string') {
     errorMessage = error;
   }
+
+  // Automatic recovery for stale dynamic import chunk caching after Vite production updates
+  useEffect(() => {
+    const isChunkFailure =
+      errorMessage.includes('dynamically imported module') ||
+      errorMessage.includes('Failed to fetch dynamically imported module') ||
+      errorMessage.includes('Loading chunk') ||
+      errorMessage.includes('Importing a module script failed');
+
+    if (isChunkFailure) {
+      const storageKey = `kaizenq_chunk_reload_${location.pathname}`;
+      const lastAttempt = sessionStorage.getItem(storageKey);
+      if (!lastAttempt) {
+        sessionStorage.setItem(storageKey, 'true');
+        console.warn('[RouteErrorBoundary] Detected stale dynamic chunk cache, refreshing page...');
+        window.location.reload();
+      }
+    }
+  }, [errorMessage, location.pathname]);
 
   // Technical debug log
   console.error('[KaizenQ RouteErrorBoundary Caught Error]:', {
@@ -54,6 +74,13 @@ export const RouteErrorBoundary: React.FC<RouteErrorBoundaryProps> = ({
 
   const handleReturnToDashboard = () => {
     navigate('/dashboard');
+  };
+
+  const handleCopyDetails = () => {
+    const details = `Path: ${location.pathname}\nStatus: ${errorStatus}\nMessage: ${errorMessage}\n\nStack:\n${errorStack || 'N/A'}`;
+    navigator.clipboard.writeText(details);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -102,13 +129,24 @@ export const RouteErrorBoundary: React.FC<RouteErrorBoundaryProps> = ({
           </button>
         </div>
 
-        {/* Technical details toggle for developers */}
+        {/* Technical details toggle for developers & debugging */}
         {errorMessage && (
-          <details className="mt-4 text-left p-3 rounded-xl bg-slate-900 border border-slate-800/80 text-xs text-slate-400">
-            <summary className="cursor-pointer font-mono font-medium text-sky-400 hover:text-sky-300">
-              Technical details
+          <details className="mt-4 text-left p-3.5 rounded-xl bg-slate-900 border border-slate-800/80 text-xs text-slate-400">
+            <summary className="cursor-pointer font-mono font-medium text-sky-400 hover:text-sky-300 flex items-center justify-between">
+              <span>Technical details</span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleCopyDetails();
+                }}
+                className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer"
+              >
+                {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-sky-400" />}
+                <span>{copied ? 'Copied' : 'Copy'}</span>
+              </button>
             </summary>
-            <pre className="mt-2 p-2 rounded bg-black/40 overflow-x-auto text-[11px] font-mono text-rose-300 whitespace-pre-wrap">
+            <pre className="mt-2.5 p-3 rounded-lg bg-black/50 overflow-x-auto text-[11px] font-mono text-rose-300 whitespace-pre-wrap leading-relaxed border border-slate-800">
               {errorMessage}
               {errorStack && `\n\n${errorStack}`}
             </pre>

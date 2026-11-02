@@ -500,7 +500,7 @@ export const CourseLearningLayout: React.FC<CourseLearningLayoutProps> = ({
     const duration = currentAny.duration || calculateEstimatedDuration(contentStr);
 
     return {
-      title: effectiveLessonData.title,
+      title: effectiveLessonData.title || allLessons[0]?.title || 'Lesson Overview',
       content: typeof contentStr === 'string' ? contentStr : JSON.stringify(contentStr),
       shortDescription: currentAny.description,
       duration,

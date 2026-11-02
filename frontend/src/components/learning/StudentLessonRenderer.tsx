@@ -77,12 +77,14 @@ export const StudentLessonRenderer: React.FC<StudentLessonRendererProps> = ({
   mode = 'student',
   className = '',
 }) => {
-  // Extract raw markdown content (normalization deferred to single authoritative gate in MarkdownContent)
-  const rawContent = useMemo(() => {
-    return lesson.readingContent || lesson.conceptTheory || lesson.content || lesson.description || '';
-  }, [lesson.readingContent, lesson.conceptTheory, lesson.content, lesson.description]);
+  // Extract raw markdown content safely with null-object fallback
+  const safeLesson = lesson || ({} as CanonicalLessonInput);
 
-  const rawResources = lesson.resourceLinks || lesson.resources || [];
+  const rawContent = useMemo(() => {
+    return safeLesson.readingContent || safeLesson.conceptTheory || safeLesson.content || safeLesson.description || '';
+  }, [safeLesson.readingContent, safeLesson.conceptTheory, safeLesson.content, safeLesson.description]);
+
+  const rawResources = safeLesson.resourceLinks || safeLesson.resources || [];
 
   return (
     <div className={`student-lesson-renderer-root w-full ${mode === 'preview' ? 'preview-mode-active' : ''} ${className}`}>
@@ -99,10 +101,10 @@ export const StudentLessonRenderer: React.FC<StudentLessonRendererProps> = ({
       )}
 
       <LessonContentPanel
-        lessonTitle={lesson.title || 'Module Complete Notes'}
-        moduleTitle={lesson.moduleTitle}
+        lessonTitle={safeLesson.title || 'Module Complete Notes'}
+        moduleTitle={safeLesson.moduleTitle}
         lessonContent={rawContent}
-        shortDescription={lesson.shortDescription || lesson.description}
+        shortDescription={safeLesson.shortDescription || safeLesson.description}
         lessonIndex={lessonIndex}
         totalLessons={totalLessons}
         isCompleted={isCompleted}

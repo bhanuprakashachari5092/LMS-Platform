@@ -613,6 +613,14 @@ export const CourseView: React.FC = () => {
   }
 
   if (isLearningMode && (isEnrolled || isAdminOrInstructor)) {
+    if (isLoadingModules && (!effectiveModules || effectiveModules.length === 0)) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center bg-slate-50 font-['Sora']">
+          <div className="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin mb-4" />
+          <p className="text-slate-600 font-medium">Loading classroom modules & curriculum...</p>
+        </div>
+      );
+    }
     return (
       <CourseLearningLayout
         courseTitle={activeCourseData.title}
