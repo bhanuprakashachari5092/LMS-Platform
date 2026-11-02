@@ -30,6 +30,7 @@ import { SmoothViewTransitionGridCards } from '@/components/landing/SmoothViewTr
 import { ProductPlanCards } from '@/components/landing/ProductPlanCards';
 import { RevealOnScroll, StaggerContainer, StaggerItem } from '@/components/landing/RevealOnScroll';
 import { BackToTop } from '@/components/landing/BackToTop';
+import { Interactive3DInternshipShowcase } from '@/components/landing/Interactive3DInternshipShowcase';
 
 // Minimal Course Card Skeleton
 const CourseSkeleton: React.FC = () => (
@@ -324,10 +325,18 @@ export const LandingPage: React.FC = () => {
           {/* LEFT — TEXT CONTENT (desktop: left col; mobile: second below logo) */}
           <div className="lg:col-span-7 order-last lg:order-first flex flex-col items-center lg:items-start text-center lg:text-left space-y-6">
             
-            {/* Eyebrow: KAIZEN Q */}
-            <span className="text-[11px] font-bold tracking-[0.25em] text-[#475569] dark:text-[#a1a5b7] uppercase">
-              KAIZEN Q
-            </span>
+            {/* Glowing Live Internship Hiring Banner */}
+            <Link
+              to="/careers"
+              className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-blue-600/10 via-indigo-600/10 to-emerald-600/10 border border-blue-500/30 text-blue-600 dark:text-blue-400 text-xs font-semibold hover:border-blue-500/60 hover:shadow-[0_0_20px_rgba(59,130,246,0.25)] transition-all group backdrop-blur-md"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="tracking-wide">2026 Virtual Internships Live • 9 Tech Tracks</span>
+              <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
+            </Link>
 
             {/* Rotating Split-Text Animated Heading */}
             <RotatingSplitText />
@@ -374,12 +383,21 @@ export const LandingPage: React.FC = () => {
                 <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
               </Link>
 
-              {/* Secondary: ghost with gradient border on hover */}
+              {/* Secondary: Explore 2026 Internships CTA */}
+              <Link
+                to="/careers"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-blue-600 dark:text-blue-400 font-semibold text-sm bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500/40 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <Sparkles className="w-4 h-4 text-blue-500 animate-pulse" />
+                <span>Explore Internships</span>
+              </Link>
+
+              {/* Tertiary: ghost with gradient border on hover */}
               <a
                 href="#courses"
                 className="
                   w-full sm:w-auto inline-flex items-center justify-center gap-2
-                  px-7 py-3.5 rounded-xl
+                  px-6 py-3.5 rounded-xl
                   text-[#0f172a] dark:text-[#ffffff] font-semibold text-sm
                   bg-white/80 dark:bg-[#111827]/70
                   border border-[#e2e8f0] dark:border-[#1f2937]
@@ -483,6 +501,11 @@ export const LandingPage: React.FC = () => {
 
         </div>
       </section>
+
+      {/* ========================================================================= */}
+      {/* 9B. SECTION — 2026 VIRTUAL & HYBRID INTERNSHIPS (3D ANIMATED SHOWCASE)   */}
+      {/* ========================================================================= */}
+      <Interactive3DInternshipShowcase />
 
       {/* ========================================================================= */}
       {/* 10. SECTION — TOP COURSES                                                 */}
