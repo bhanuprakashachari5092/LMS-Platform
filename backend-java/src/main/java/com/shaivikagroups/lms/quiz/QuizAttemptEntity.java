@@ -26,7 +26,8 @@ public class QuizAttemptEntity {
     @Column(name = "passed", nullable = false)
     private boolean passed = false;
 
-    @Column(name = "answers_payload", columnDefinition = "text", nullable = false)
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    @Column(name = "answers_payload", columnDefinition = "jsonb", nullable = false)
     private String answersPayload;
 
     @Column(name = "attempt_number", nullable = false)

@@ -13,7 +13,7 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: validate
+      ddl-auto: none
     properties:
       hibernate:
         format_sql: false
@@ -75,9 +75,9 @@ spring:
     activate:
       on-profile: dev
   datasource:
-    url: ${DEV_DATABASE_URL:jdbc:postgresql://localhost:5432/kaizenq_lms}
-    username: ${DEV_DB_USERNAME:postgres}
-    password: ${DEV_DB_PASSWORD:postgres}
+    url: ${DEV_DATABASE_URL:${DATABASE_URL_UNPOOLED:${DATABASE_URL:jdbc:postgresql://localhost:5432/kaizenq_lms}}}
+    username: ${DEV_DB_USERNAME:${SPRING_DATASOURCE_USERNAME:${DB_USERNAME:postgres}}}
+    password: ${DEV_DB_PASSWORD:${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:postgres}}}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10

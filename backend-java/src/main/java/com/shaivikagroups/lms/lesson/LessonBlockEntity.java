@@ -23,7 +23,8 @@ public class LessonBlockEntity {
     @Column(name = "title", length = 255)
     private String title;
 
-    @Column(name = "content_payload", nullable = false, columnDefinition = "TEXT")
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    @Column(name = "content_payload", nullable = false, columnDefinition = "jsonb")
     private String contentPayload;
 
     @Column(name = "created_at", nullable = false, updatable = false)

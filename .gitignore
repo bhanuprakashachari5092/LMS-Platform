@@ -129,3 +129,4 @@ scratch/
 # Java & Maven
 backend-java/target/
 .mvn/wrapper/maven-wrapper.jar
+.neon

@@ -124,3 +124,4 @@ INSERT INTO internship_tasks (
     4,
     CURRENT_TIMESTAMP
 ) ON CONFLICT (id) DO NOTHING;
+

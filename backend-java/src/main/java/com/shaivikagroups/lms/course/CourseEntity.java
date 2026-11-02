@@ -76,7 +76,8 @@ public class CourseEntity {
     @Column(name = "certificate_enabled", nullable = false)
     private boolean certificateEnabled = true;
 
-    @Column(name = "syllabus_meta", columnDefinition = "TEXT")
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    @Column(name = "syllabus_meta", columnDefinition = "jsonb")
     private String syllabusMeta = "[]";
 
     @Column(name = "created_at", nullable = false, updatable = false)

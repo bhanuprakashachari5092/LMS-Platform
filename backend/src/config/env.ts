@@ -2,11 +2,14 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { z } from 'zod';
 
-// Load .env file from process cwd or root, then load/merge backend-specific .env
+// Load .env and .env.local file from process cwd or root, then load/merge backend-specific .env
 const initialNodeEnv = process.env.NODE_ENV;
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../../.env.local') });
 dotenv.config({ path: path.resolve(__dirname, '../../.env'), override: true });
+dotenv.config({ path: path.resolve(__dirname, '../../.env.local'), override: true });
 if (initialNodeEnv === 'test' || Boolean(process.env.JEST_WORKER_ID)) {
   process.env.NODE_ENV = 'test';
 }
@@ -62,6 +65,11 @@ const envSchema = z.object({
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional(),
   GOOGLE_OAUTH_REFRESH_TOKEN: z.string().optional(),
   REDIS_URL: z.string().default('redis://localhost:6379'),
+
+  // Neon PostgreSQL Database Configuration
+  DATABASE_URL: z.string().optional(),
+  DATABASE_URL_UNPOOLED: z.string().optional(),
+  NEON_BRANCH: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);
