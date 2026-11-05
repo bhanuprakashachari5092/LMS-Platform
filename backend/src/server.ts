@@ -6,7 +6,6 @@ import './firebase';
 import { CourseService } from './services/course/CourseService';
 import http from 'http';
 import { connectRedis } from './config/redis';
-import { testNeonConnection } from './config/neon';
 
 const PORT = Number(process.env.PORT) || Number(env.PORT) || 5000;
 
@@ -29,15 +28,6 @@ server.listen(PORT, async () => {
 
   // Initialize Redis Connection (if configured)
   await connectRedis();
-
-  // Initialize & Verify Neon PostgreSQL Connection
-  testNeonConnection().then((neonStatus) => {
-    if (neonStatus.ok) {
-      logger.info(`🐘 [NEON POSTGRES] Connected to branch [${neonStatus.branch}]: ${neonStatus.timestamp}`);
-    } else {
-      logger.warn(`⚠️ [NEON POSTGRES] Connection notice: ${neonStatus.error}`);
-    }
-  }).catch((e) => logger.warn('[NEON POSTGRES] Connection check error:', e));
 
   // Initialize Brevo Transactional Email Provider (Non-blocking HTTPS API)
   import('./services/email/EmailService')

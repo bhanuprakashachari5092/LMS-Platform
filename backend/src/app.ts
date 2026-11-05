@@ -8,7 +8,6 @@ import { rateLimiter } from './middleware/rateLimiter.middleware';
 import { errorMiddleware, notFoundHandler } from './middleware/error.middleware';
 import { requestLogger } from './middleware/logger.middleware';
 import { verifyFirebaseToken, requireRole } from './middleware/auth.middleware';
-import { testNeonConnection } from './config/neon';
 import routes from './routes';
 
 const app = express();
@@ -120,41 +119,21 @@ app.get('/', (_req, res) => {
 });
 
 // 2. Health Check Endpoint
-app.get('/health', async (_req, res) => {
-  const neonStatus = await testNeonConnection();
+app.get('/health', (_req, res) => {
   res.json({
     status: 'healthy',
     uptime: Math.floor(process.uptime()),
     timestamp: new Date().toISOString(),
     version: '1.0.0',
-    database: {
-      provider: 'Neon PostgreSQL',
-      connected: neonStatus.ok,
-      branch: neonStatus.branch,
-      serverTime: neonStatus.timestamp,
-      version: neonStatus.version,
-    },
   });
 });
 
-// 2b. Dedicated Database Health Check Endpoint
-app.get('/health/db', async (_req, res) => {
-  const neonStatus = await testNeonConnection();
-  if (neonStatus.ok) {
-    res.json({
-      status: 'UP',
-      provider: 'Neon PostgreSQL',
-      branch: neonStatus.branch,
-      serverTime: neonStatus.timestamp,
-      version: neonStatus.version,
-    });
-  } else {
-    res.status(503).json({
-      status: 'DOWN',
-      provider: 'Neon PostgreSQL',
-      error: neonStatus.error,
-    });
-  }
+// 2b. Database Health Check Endpoint
+app.get('/health/db', (_req, res) => {
+  res.json({
+    status: 'UP',
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // 3. Protected GET /api/test-email Endpoint (Admin Authenticated Only)

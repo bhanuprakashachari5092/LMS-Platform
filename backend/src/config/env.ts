@@ -66,10 +66,9 @@ const envSchema = z.object({
   GOOGLE_OAUTH_REFRESH_TOKEN: z.string().optional(),
   REDIS_URL: z.string().default('redis://localhost:6379'),
 
-  // Neon PostgreSQL Database Configuration
+  // Database Configuration
   DATABASE_URL: z.string().optional(),
   DATABASE_URL_UNPOOLED: z.string().optional(),
-  NEON_BRANCH: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);

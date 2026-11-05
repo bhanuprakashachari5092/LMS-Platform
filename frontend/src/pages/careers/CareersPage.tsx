@@ -20,7 +20,6 @@ import {
 import { InternshipCard } from '@/components/careers/InternshipCard';
 import { InternshipApplyModal } from '@/components/careers/InternshipApplyModal';
 import { InternshipDetailModal } from '@/components/careers/InternshipDetailModal';
-import { CareerHeroAnimation } from '@/components/careers/CareerHeroAnimation';
 import { internshipService, type Internship, type InternshipDetail } from '@/services/internshipService';
 
 const JOB_TYPE_TABS = [
@@ -143,72 +142,58 @@ export const CareersPage: React.FC = () => {
       <section className="relative overflow-hidden pt-28 pb-20 sm:pt-36 sm:pb-28 border-b border-slate-200/80 dark:border-slate-800/80">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(59,130,246,0.18),rgba(255,255,255,0))] dark:bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(59,130,246,0.25),rgba(2,6,23,0))] pointer-events-none" />
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
-            
-            {/* LEFT COLUMN: HERO CONTENT & ACTIONS */}
-            <div className="lg:col-span-7 text-center lg:text-left space-y-6">
-              
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/70 border border-blue-200/80 dark:border-blue-800/70 text-blue-600 dark:text-blue-400 text-xs font-bold tracking-wide uppercase animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <Sparkles className="w-3.5 h-3.5 text-blue-500" />
-                <span>Shaivika Groups &bull; Education & Career Development</span>
-              </div>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10 text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/70 border border-blue-200/80 dark:border-blue-800/70 text-blue-600 dark:text-blue-400 text-xs font-bold tracking-wide uppercase mb-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+            <span>Shaivika Groups &bull; Education & Career Development</span>
+          </div>
 
-              <h1 className="text-3xl sm:text-5xl lg:text-[3.4rem] font-extrabold text-slate-900 dark:text-white tracking-tight leading-[1.12]">
-                Build the Future of Learning with{' '}
-                <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 dark:from-blue-400 dark:via-indigo-300 dark:to-cyan-400 bg-clip-text text-transparent">
-                  KaizenQ
-                </span>
-              </h1>
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-slate-900 dark:text-white tracking-tight max-w-4xl mx-auto leading-[1.15]">
+            Build the Future of Learning with{' '}
+            <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 dark:from-blue-400 dark:via-indigo-300 dark:to-cyan-400 bg-clip-text text-transparent">
+              KaizenQ
+            </span>
+          </h1>
 
-              <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-normal">
-                KaizenQ is an advanced educational and career-development platform by Shaivika Groups. Gain practical industry experience through structured virtual internships, real-world engineering projects, and dedicated mentorship.
-              </p>
+          <p className="mt-6 text-base sm:text-lg text-slate-600 dark:text-slate-300 max-w-2xl mx-auto leading-relaxed font-normal">
+            KaizenQ is an advanced educational and career-development platform by Shaivika Groups. Gain practical industry experience through structured virtual internships, real-world engineering projects, and dedicated mentorship.
+          </p>
 
-              <div className="pt-2 flex flex-wrap items-center justify-center lg:justify-start gap-4">
-                <button
-                  onClick={scrollToOpenings}
-                  className="px-6 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm transition-all shadow-lg shadow-blue-500/25 hover:shadow-blue-500/35 flex items-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
-                >
-                  <Briefcase className="w-4 h-4" />
-                  <span>Explore Openings</span>
-                </button>
-                <button
-                  onClick={scrollToOpenings}
-                  className="px-6 py-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-700 dark:text-slate-200 font-bold text-sm transition-all shadow-xs flex items-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
-                >
-                  <span>Apply for Internship</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+            <button
+              onClick={scrollToOpenings}
+              className="px-6 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm transition-all shadow-lg shadow-blue-500/25 hover:shadow-blue-500/35 flex items-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <Briefcase className="w-4 h-4" />
+              <span>Explore Openings</span>
+            </button>
+            <button
+              onClick={scrollToOpenings}
+              className="px-6 py-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-700 dark:text-slate-200 font-bold text-sm transition-all shadow-xs flex items-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <span>Apply for Internship</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
 
-              {/* Quick Metrics Bar */}
-              <div className="pt-8 border-t border-slate-200/60 dark:border-slate-800/60 grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 text-center lg:text-left">
-                <div>
-                  <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">8+</div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">Specialized Tracks</div>
-                </div>
-                <div>
-                  <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">100%</div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">Project Based</div>
-                </div>
-                <div>
-                  <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">1-on-1</div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">Mentorship</div>
-                </div>
-                <div>
-                  <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">Verified</div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">QR Credentials</div>
-                </div>
-              </div>
-
+          {/* Quick Metrics Bar */}
+          <div className="mt-14 pt-10 border-t border-slate-200/60 dark:border-slate-800/60 grid grid-cols-2 sm:grid-cols-4 gap-6 max-w-3xl mx-auto text-center">
+            <div>
+              <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">8+</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">Specialized Tracks</div>
             </div>
-
-            {/* RIGHT COLUMN: LOTTIE INTERNSHIP HERO ANIMATION */}
-            <div className="lg:col-span-5 flex items-center justify-center lg:justify-end">
-              <CareerHeroAnimation />
+            <div>
+              <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">100%</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">Project Based</div>
             </div>
-
+            <div>
+              <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">1-on-1</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">Mentorship</div>
+            </div>
+            <div>
+              <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">Verified</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">QR Credentials</div>
+            </div>
           </div>
         </div>
       </section>
