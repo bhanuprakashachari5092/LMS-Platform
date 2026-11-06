@@ -1884,15 +1884,15 @@ export const AdminInternships: React.FC = () => {
                 <Briefcase className="w-4 h-4 text-blue-500" />
               </div>
               <div className="text-3xl font-black text-slate-900 dark:text-white">
-                {analytics?.totalOpportunities ?? analytics?.totalInternships ?? programs.length}
+                {analytics?.totalOpportunities ?? analytics?.totalInternships ?? internships.length}
               </div>
               <div className="flex items-center gap-3 text-xs text-slate-500 pt-1 border-t border-slate-100 dark:border-slate-800">
                 <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                  {analytics?.publishedOpportunities ?? programs.filter((p) => p.status === 'PUBLISHED').length} Published
+                  {analytics?.publishedOpportunities ?? internships.filter((p: Internship) => p.status === 'PUBLISHED').length} Published
                 </span>
                 <span>•</span>
                 <span className="text-amber-600 dark:text-amber-400 font-medium">
-                  {analytics?.draftInternships ?? programs.filter((p) => p.status === 'DRAFT').length} Drafts
+                  {analytics?.draftInternships ?? internships.filter((p: Internship) => p.status === 'DRAFT').length} Drafts
                 </span>
               </div>
             </div>

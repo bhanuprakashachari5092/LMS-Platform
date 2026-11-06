@@ -100,6 +100,15 @@ export interface Internship {
   status: 'OPEN' | 'PUBLISHED' | 'CLOSED' | 'DRAFT' | 'ARCHIVED' | string;
   isFeatured: boolean;
   createdAt: string;
+  updatedAt?: string;
+}
+
+export interface BulkActionResult {
+  action?: string;
+  processedCount: number;
+  processedIds?: string[];
+  failedIds: string[];
+  message?: string;
 }
 
 export interface InternshipTask {
@@ -122,6 +131,7 @@ export interface InternshipApplication {
   referenceNumber?: string;
   internshipId: string;
   internshipTitle: string;
+  position?: string;
   domain: string;
   department?: string;
   workMode?: string;
@@ -654,8 +664,8 @@ export const internshipService = {
   async adminBulkActionInternships(
     action: 'publish' | 'unpublish' | 'archive' | 'feature' | 'unfeature' | 'delete',
     ids: string[]
-  ) {
-    if (!ids || ids.length === 0) return { processedCount: 0, failedIds: [] };
+  ): Promise<BulkActionResult> {
+    if (!ids || ids.length === 0) return { processedCount: 0, failedIds: [], message: 'No opportunities selected' };
 
     // If deleting, immediately register all IDs locally so they vanish instantly
     if (action === 'delete') {
@@ -663,7 +673,7 @@ export const internshipService = {
     }
 
     try {
-      const res = await apiClient.post<ApiResponse<{ action: string; processedCount: number; processedIds: string[]; failedIds: string[] }>>(
+      const res = await apiClient.post<ApiResponse<{ action: string; processedCount: number; processedIds: string[]; failedIds: string[]; message?: string }>>(
         '/admin/careers/opportunities/bulk',
         { action, ids }
       );
@@ -681,7 +691,10 @@ export const internshipService = {
             saveCustomOpportunityLocally(patch);
           }
         });
-        return res.data.data;
+        return {
+          ...res.data.data,
+          message: (res.data as any)?.message || `Successfully executed ${action} on ${ids.length} opportunities`,
+        };
       }
     } catch (apiErr) {
       console.warn('Backend bulk endpoint unavailable, executing directly on Firestore & local cache:', apiErr);
@@ -721,6 +734,7 @@ export const internshipService = {
       processedCount: ids.length,
       processedIds: ids,
       failedIds: [],
+      message: `Successfully executed ${action} on ${ids.length} opportunities`,
     };
   },
 
