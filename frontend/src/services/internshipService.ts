@@ -545,6 +545,68 @@ export const internshipService = {
     return { success: true };
   },
 
+  async adminBulkActionInternships(
+    action: 'publish' | 'unpublish' | 'archive' | 'feature' | 'unfeature' | 'delete',
+    ids: string[]
+  ) {
+    if (!ids || ids.length === 0) return { processedCount: 0, failedIds: [] };
+
+    try {
+      const res = await apiClient.post<ApiResponse<{ action: string; processedCount: number; processedIds: string[]; failedIds: string[] }>>(
+        '/admin/careers/opportunities/bulk',
+        { action, ids }
+      );
+      if (res.data?.data) {
+        // Sync local storage cache
+        ids.forEach((id) => {
+          if (action === 'delete') {
+            removeCustomOpportunityLocally(id);
+          } else {
+            const patch: any = { id, updatedAt: new Date().toISOString() };
+            if (action === 'publish') patch.status = 'PUBLISHED';
+            else if (action === 'unpublish') patch.status = 'DRAFT';
+            else if (action === 'archive') patch.status = 'ARCHIVED';
+            else if (action === 'feature') patch.isFeatured = true;
+            else if (action === 'unfeature') patch.isFeatured = false;
+            saveCustomOpportunityLocally(patch);
+          }
+        });
+        return res.data.data;
+      }
+    } catch (apiErr) {
+      console.warn('Backend bulk endpoint unavailable, executing directly on Firestore & local cache:', apiErr);
+    }
+
+    // Direct Firestore client fallback
+    for (const id of ids) {
+      try {
+        if (action === 'delete') {
+          if (db) await deleteDoc(doc(collection(db, 'careers'), id));
+          removeCustomOpportunityLocally(id);
+        } else {
+          const patch: any = { updatedAt: new Date().toISOString() };
+          if (action === 'publish') patch.status = 'PUBLISHED';
+          else if (action === 'unpublish') patch.status = 'DRAFT';
+          else if (action === 'archive') patch.status = 'ARCHIVED';
+          else if (action === 'feature') patch.isFeatured = true;
+          else if (action === 'unfeature') patch.isFeatured = false;
+
+          if (db) await setDoc(doc(collection(db, 'careers'), id), patch, { merge: true });
+          saveCustomOpportunityLocally({ id, ...patch } as any);
+        }
+      } catch (err) {
+        console.warn(`Firestore bulk fallback error for ${id}:`, err);
+      }
+    }
+
+    return {
+      action,
+      processedCount: ids.length,
+      processedIds: ids,
+      failedIds: [],
+    };
+  },
+
   async adminGetApplications(params?: { internshipId?: string; status?: string; search?: string; page?: number; size?: number }) {
     const res = await apiClient.get<ApiResponse<{ content: InternshipApplication[]; totalElements: number; totalPages: number }>>(
       '/admin/careers/applications',

@@ -62,12 +62,12 @@ export const InternshipCard: React.FC<InternshipCardProps> = ({
       </div>
 
       {/* Main Title & Description */}
-      <div className="space-y-3 mb-5">
+      <div className="space-y-2 mb-4">
         <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white tracking-tight group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
           {internship.title}
         </h3>
-        <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 line-clamp-3 leading-relaxed">
-          {internship.description}
+        <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
+          {internship.description || 'Structured enterprise-grade project deliverables and technical mentorship.'}
         </p>
       </div>
 
@@ -101,13 +101,13 @@ export const InternshipCard: React.FC<InternshipCardProps> = ({
         </span>
       </div>
 
-      {/* Required Skills Chips */}
-      <div className="mb-6">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
+      {/* Required Skills Chips (Top 3) */}
+      <div className="mb-5">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
           Core Technologies & Skills
         </span>
         <div className="flex flex-wrap gap-1.5">
-          {skillList.slice(0, 5).map((skill, idx) => (
+          {skillList.slice(0, 3).map((skill, idx) => (
             <span
               key={idx}
               className="px-2 py-0.5 text-[11px] font-medium rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
@@ -115,22 +115,22 @@ export const InternshipCard: React.FC<InternshipCardProps> = ({
               {skill}
             </span>
           ))}
-          {skillList.length > 5 && (
-            <span className="px-2 py-0.5 text-[11px] font-semibold text-slate-400">
-              +{skillList.length - 5} more
+          {skillList.length > 3 && (
+            <span className="px-2 py-0.5 text-[10px] font-semibold text-slate-400 self-center">
+              +{skillList.length - 3} more
             </span>
           )}
         </div>
       </div>
 
       {/* Action Footer */}
-      <div className="pt-2 flex items-center gap-3">
+      <div className="pt-2 flex items-center gap-2.5">
         <button
           type="button"
           onClick={() => onViewDetails(internship)}
           className="flex-1 py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold transition-colors cursor-pointer text-center"
         >
-          View Curriculum
+          View Details
         </button>
         <button
           type="button"

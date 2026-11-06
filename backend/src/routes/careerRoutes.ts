@@ -1215,6 +1215,65 @@ router.delete(['/admin/openings/:id', '/admin/careers/openings/:id', '/admin/opp
 });
 
 /**
+ * POST /api/admin/careers/opportunities/bulk
+ * Admin bulk actions: delete, publish, unpublish, archive, feature, unfeature
+ * Application records are preserved and never deleted.
+ */
+router.post(['/admin/opportunities/bulk', '/admin/careers/opportunities/bulk', '/admin/openings/bulk', '/admin/careers/openings/bulk'], async (req: Request, res: Response) => {
+  try {
+    const { action, ids } = req.body || {};
+    if (!action || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, message: 'Valid action and non-empty list of IDs are required.' });
+    }
+
+    const list = await getOpportunities();
+    const processed: string[] = [];
+    const failed: string[] = [];
+
+    for (const id of ids) {
+      try {
+        if (action === 'delete') {
+          await removeOpportunity(id);
+          processed.push(id);
+        } else {
+          const existing = list.find((o) => o.id === id);
+          if (!existing) {
+            failed.push(id);
+            continue;
+          }
+
+          if (action === 'publish') existing.status = 'PUBLISHED';
+          else if (action === 'unpublish') existing.status = 'DRAFT';
+          else if (action === 'archive') existing.status = 'ARCHIVED';
+          else if (action === 'feature') existing.isFeatured = true;
+          else if (action === 'unfeature') existing.isFeatured = false;
+
+          existing.updatedAt = new Date().toISOString();
+          await saveOpportunity(existing);
+          processed.push(id);
+        }
+      } catch (opErr) {
+        console.error(`Bulk operation error for id ${id}:`, opErr);
+        failed.push(id);
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: `Successfully executed ${action} on ${processed.length} opportunity(ies).`,
+      data: {
+        action,
+        processedCount: processed.length,
+        processedIds: processed,
+        failedIds: failed,
+      },
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
  * GET /api/admin/careers/applications/export
  * CSV export of applications
  */

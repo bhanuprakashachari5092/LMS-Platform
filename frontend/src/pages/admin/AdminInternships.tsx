@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Briefcase,
@@ -36,6 +36,12 @@ import {
   MapPin,
   DollarSign,
   ChevronRight,
+  ChevronLeft,
+  ChevronsLeft,
+  ChevronsRight,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
   ShieldAlert,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -69,6 +75,18 @@ export const AdminInternships: React.FC = () => {
   const [isDeletingOpening, setIsDeletingOpening] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [statusPatchingId, setStatusPatchingId] = useState<string | null>(null);
+
+  // Multi-Select & Bulk Actions
+  const [selectedOppIds, setSelectedOppIds] = useState<string[]>([]);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState<boolean>(false);
+  const [bulkActionLoading, setBulkActionLoading] = useState<boolean>(false);
+
+  // Catalog Sorting, Filtering & Pagination
+  const [catalogSortBy, setCatalogSortBy] = useState<'title' | 'createdAt' | 'applications' | 'openings'>('createdAt');
+  const [catalogSortOrder, setCatalogSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [catalogWorkModeFilter, setCatalogWorkModeFilter] = useState<string>('ALL');
+  const [catalogPage, setCatalogPage] = useState<number>(1);
+  const [catalogRowsPerPage, setCatalogRowsPerPage] = useState<number>(10);
 
   // Applicants state
   const [applications, setApplications] = useState<InternshipApplication[]>([]);
@@ -288,13 +306,61 @@ export const AdminInternships: React.FC = () => {
     setIsDeletingOpening(true);
     try {
       await internshipService.adminDeleteInternship(deletingOpening.id);
-      toast.success(`Opening "${deletingOpening.title}" permanently deleted.`);
+      toast.success(`Opening "${deletingOpening.title}" deleted.`);
+      setSelectedOppIds((prev) => prev.filter((id) => id !== deletingOpening.id));
       setDeletingOpening(null);
       loadData();
     } catch (err: any) {
       toast.error(err.message || 'Failed to delete opening');
     } finally {
       setIsDeletingOpening(false);
+    }
+  };
+
+  const getApplicationCountForInternship = (prog: Internship): number => {
+    return applications.filter(
+      (app) =>
+        app.internshipId === prog.id ||
+        (app.internshipTitle && prog.title && app.internshipTitle.trim().toLowerCase() === prog.title.trim().toLowerCase())
+    ).length;
+  };
+
+  const handleBulkAction = async (action: 'publish' | 'unpublish' | 'archive' | 'feature' | 'unfeature' | 'delete') => {
+    if (selectedOppIds.length === 0) {
+      toast.error('No opportunities selected');
+      return;
+    }
+    if (action === 'delete') {
+      setShowBulkDeleteModal(true);
+      return;
+    }
+
+    setBulkActionLoading(true);
+    try {
+      const res = await internshipService.adminBulkActionInternships(action, selectedOppIds);
+      toast.success(res?.message || `Successfully applied ${action} to ${selectedOppIds.length} openings`);
+      setSelectedOppIds([]);
+      await loadData();
+    } catch (err: any) {
+      toast.error(err.message || `Failed to execute bulk ${action}`);
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    if (selectedOppIds.length === 0) return;
+    setBulkActionLoading(true);
+    try {
+      const res = await internshipService.adminBulkActionInternships('delete', selectedOppIds);
+      toast.success(res?.message || `Successfully deleted ${selectedOppIds.length} opportunities`);
+      setSelectedOppIds([]);
+      setShowBulkDeleteModal(false);
+      await loadData();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete selected opportunities');
+    } finally {
+      setBulkActionLoading(false);
     }
   };
 
@@ -356,34 +422,111 @@ export const AdminInternships: React.FC = () => {
     (i) => i.status?.toUpperCase() === 'DRAFT'
   ).length;
 
-  const filteredInternships = internships.filter((prog) => {
-    const q = catalogSearch.toLowerCase().trim();
-    const matchesSearch =
-      !q ||
-      prog.title?.toLowerCase().includes(q) ||
-      prog.domain?.toLowerCase().includes(q) ||
-      prog.slug?.toLowerCase().includes(q) ||
-      prog.requiredSkills?.toLowerCase().includes(q) ||
-      (prog.department && prog.department.toLowerCase().includes(q));
+  const filteredInternships = useMemo(() => {
+    let list = internships.filter((prog) => {
+      const q = catalogSearch.toLowerCase().trim();
+      const matchesSearch =
+        !q ||
+        prog.title?.toLowerCase().includes(q) ||
+        prog.domain?.toLowerCase().includes(q) ||
+        prog.slug?.toLowerCase().includes(q) ||
+        prog.requiredSkills?.toLowerCase().includes(q) ||
+        (prog.department && prog.department.toLowerCase().includes(q));
 
-    const matchesStatus =
-      catalogStatusFilter === 'ALL' ||
-      prog.status?.toUpperCase() === catalogStatusFilter.toUpperCase();
+      const matchesStatus =
+        catalogStatusFilter === 'ALL' ||
+        prog.status?.toUpperCase() === catalogStatusFilter.toUpperCase();
 
-    const matchesDomain =
-      catalogDomainFilter === 'ALL' ||
-      prog.domain === catalogDomainFilter;
+      const matchesDomain =
+        catalogDomainFilter === 'ALL' ||
+        prog.domain === catalogDomainFilter;
 
-    const matchesDepartment =
-      catalogDepartmentFilter === 'ALL' ||
-      prog.department === catalogDepartmentFilter;
+      const matchesDepartment =
+        catalogDepartmentFilter === 'ALL' ||
+        prog.department === catalogDepartmentFilter;
 
-    const matchesEmploymentType =
-      catalogEmploymentTypeFilter === 'ALL' ||
-      (prog.employmentType || 'INTERNSHIP') === catalogEmploymentTypeFilter;
+      const matchesEmploymentType =
+        catalogEmploymentTypeFilter === 'ALL' ||
+        (prog.employmentType || 'INTERNSHIP') === catalogEmploymentTypeFilter;
 
-    return matchesSearch && matchesStatus && matchesDomain && matchesDepartment && matchesEmploymentType;
-  });
+      const matchesWorkMode =
+        catalogWorkModeFilter === 'ALL' ||
+        (prog.internshipType || 'REMOTE').toUpperCase() === catalogWorkModeFilter.toUpperCase();
+
+      return matchesSearch && matchesStatus && matchesDomain && matchesDepartment && matchesEmploymentType && matchesWorkMode;
+    });
+
+    list = [...list].sort((a, b) => {
+      let comparison = 0;
+      if (catalogSortBy === 'title') {
+        comparison = (a.title || '').localeCompare(b.title || '');
+      } else if (catalogSortBy === 'openings') {
+        comparison = (Number(a.openings) || 0) - (Number(b.openings) || 0);
+      } else if (catalogSortBy === 'applications') {
+        comparison = getApplicationCountForInternship(a) - getApplicationCountForInternship(b);
+      } else {
+        const dateA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+        const dateB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+        comparison = dateA - dateB;
+      }
+      return catalogSortOrder === 'asc' ? comparison : -comparison;
+    });
+
+    return list;
+  }, [
+    internships,
+    catalogSearch,
+    catalogStatusFilter,
+    catalogDomainFilter,
+    catalogDepartmentFilter,
+    catalogEmploymentTypeFilter,
+    catalogWorkModeFilter,
+    catalogSortBy,
+    catalogSortOrder,
+    applications,
+  ]);
+
+  const totalCatalogPages = Math.max(1, Math.ceil(filteredInternships.length / catalogRowsPerPage));
+  const paginatedInternships = useMemo(() => {
+    const start = (catalogPage - 1) * catalogRowsPerPage;
+    return filteredInternships.slice(start, start + catalogRowsPerPage);
+  }, [filteredInternships, catalogPage, catalogRowsPerPage]);
+
+  const isAllCurrentPageSelected =
+    paginatedInternships.length > 0 &&
+    paginatedInternships.every((p) => selectedOppIds.includes(p.id));
+
+  const isSomeCurrentPageSelected =
+    paginatedInternships.some((p) => selectedOppIds.includes(p.id)) && !isAllCurrentPageSelected;
+
+  const handleToggleSelectAllCurrentPage = () => {
+    if (isAllCurrentPageSelected) {
+      const pageIds = paginatedInternships.map((p) => p.id);
+      setSelectedOppIds((prev) => prev.filter((id) => !pageIds.includes(id)));
+    } else {
+      const pageIds = paginatedInternships.map((p) => p.id);
+      setSelectedOppIds((prev) => Array.from(new Set([...prev, ...pageIds])));
+    }
+  };
+
+  const handleToggleSelectOne = (id: string) => {
+    setSelectedOppIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const selectedOpportunitiesList = useMemo(() => {
+    return internships.filter((i) => selectedOppIds.includes(i.id));
+  }, [internships, selectedOppIds]);
+
+  const handleSortClick = (field: 'title' | 'createdAt' | 'applications' | 'openings') => {
+    if (catalogSortBy === field) {
+      setCatalogSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setCatalogSortBy(field);
+      setCatalogSortOrder('desc');
+    }
+  };
 
   return (
     <div className="p-6 sm:p-8 max-w-7xl mx-auto space-y-6">
@@ -848,7 +991,7 @@ export const AdminInternships: React.FC = () => {
       {/* ─── 2. PROGRAMS CATALOG TAB ─── */}
       {activeTab === 'programs' && (
         <div className="space-y-6">
-          {/* Controls Bar: Search, Filters, View Mode */}
+          {/* Controls Bar: Search, Filters, Sort, View Mode */}
           <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs space-y-3">
             <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
               {/* Search */}
@@ -865,14 +1008,14 @@ export const AdminInternships: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setCatalogSearch('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
 
-              {/* Domain & Department & Type Filters */}
+              {/* Domain & Department & Work Mode & Type Filters */}
               <div className="flex flex-wrap items-center gap-2">
                 <select
                   value={catalogDomainFilter}
@@ -892,12 +1035,23 @@ export const AdminInternships: React.FC = () => {
                   onChange={(e) => setCatalogDepartmentFilter(e.target.value)}
                   className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-200 font-medium focus:outline-hidden"
                 >
-                  <option value="ALL">All Departments ({uniqueDepartments.length})</option>
+                  <option value="ALL">All Depts ({uniqueDepartments.length})</option>
                   {uniqueDepartments.map((dept) => (
                     <option key={dept} value={dept}>
                       {dept}
                     </option>
                   ))}
+                </select>
+
+                <select
+                  value={catalogWorkModeFilter}
+                  onChange={(e) => setCatalogWorkModeFilter(e.target.value)}
+                  className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-200 font-medium focus:outline-hidden"
+                >
+                  <option value="ALL">All Modes</option>
+                  <option value="REMOTE">Remote</option>
+                  <option value="HYBRID">Hybrid</option>
+                  <option value="ONSITE">On-site</option>
                 </select>
 
                 <select
@@ -909,6 +1063,24 @@ export const AdminInternships: React.FC = () => {
                   <option value="INTERNSHIP">Internship</option>
                   <option value="FULL_TIME">Full-time</option>
                   <option value="PART_TIME">Part-time</option>
+                </select>
+
+                {/* Sort By Dropdown */}
+                <select
+                  value={`${catalogSortBy}-${catalogSortOrder}`}
+                  onChange={(e) => {
+                    const [field, order] = e.target.value.split('-') as [any, any];
+                    setCatalogSortBy(field);
+                    setCatalogSortOrder(order);
+                  }}
+                  className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-200 font-medium focus:outline-hidden"
+                >
+                  <option value="createdAt-desc">Newest First</option>
+                  <option value="createdAt-asc">Oldest First</option>
+                  <option value="title-asc">Title: A-Z</option>
+                  <option value="title-desc">Title: Z-A</option>
+                  <option value="applications-desc">Most Applications</option>
+                  <option value="openings-desc">Most Openings</option>
                 </select>
 
                 {/* View Mode Toggle */}
@@ -960,16 +1132,17 @@ export const AdminInternships: React.FC = () => {
               </div>
             </div>
 
-            {/* Status Filter Pills */}
-            <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
+            {/* Status Filter Pills & Selection Counter */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className="text-[11px] font-semibold text-slate-400 mr-1 flex items-center gap-1">
                   <Filter className="w-3 h-3" /> Status:
                 </span>
                 {(['ALL', 'OPEN', 'CLOSED', 'DRAFT', 'ARCHIVED'] as const).map((st) => {
-                  const count = st === 'ALL'
-                    ? internships.length
-                    : internships.filter((i) => i.status?.toUpperCase() === st).length;
+                  const count =
+                    st === 'ALL'
+                      ? internships.length
+                      : internships.filter((i) => i.status?.toUpperCase() === st).length;
                   const isActive = catalogStatusFilter === st;
                   return (
                     <button
@@ -983,30 +1156,54 @@ export const AdminInternships: React.FC = () => {
                       }`}
                     >
                       <span>{st}</span>
-                      <span className={`ml-1 text-[10px] opacity-80`}>({count})</span>
+                      <span className="ml-1 text-[10px] opacity-80">({count})</span>
                     </button>
                   );
                 })}
               </div>
 
-              <span className="text-[11px] font-medium text-slate-400 hidden sm:inline">
-                Showing {filteredInternships.length} of {internships.length} openings
-              </span>
+              <div className="flex items-center gap-3 text-[11px] font-medium text-slate-400">
+                {selectedOppIds.length > 0 && (
+                  <span className="px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold border border-blue-200 dark:border-blue-800">
+                    {selectedOppIds.length} of {internships.length} selected
+                  </span>
+                )}
+                <span>
+                  Showing {filteredInternships.length === 0 ? 0 : (catalogPage - 1) * catalogRowsPerPage + 1}–
+                  {Math.min(catalogPage * catalogRowsPerPage, filteredInternships.length)} of {filteredInternships.length} openings
+                </span>
+              </div>
             </div>
           </div>
 
           {/* Catalog Body */}
           {loadingPrograms ? (
-            <div className="py-20 flex flex-col items-center justify-center gap-3">
-              <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-              <p className="text-xs text-slate-500">Loading career openings...</p>
-            </div>
+            /* Loading Skeletons */
+            catalogViewMode === 'table' ? (
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-2xs p-4 space-y-3">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="h-12 bg-slate-100 dark:bg-slate-800/60 rounded-xl animate-pulse" />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
+                    <div className="h-4 w-1/3 bg-slate-200 dark:bg-slate-800 rounded animate-pulse" />
+                    <div className="h-6 w-3/4 bg-slate-200 dark:bg-slate-800 rounded animate-pulse" />
+                    <div className="h-14 bg-slate-100 dark:bg-slate-800/60 rounded animate-pulse" />
+                    <div className="h-8 bg-slate-200 dark:bg-slate-800 rounded animate-pulse" />
+                  </div>
+                ))}
+              </div>
+            )
           ) : filteredInternships.length === 0 ? (
+            /* Empty State */
             <div className="py-16 text-center rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 p-8 space-y-3 bg-white dark:bg-slate-900">
               <Briefcase className="w-10 h-10 mx-auto text-slate-400 stroke-1" />
               <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm">No career openings match your filters</h4>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                Try clearing your search query or changing your status and domain filters.
+                Try clearing your search query or changing your status, domain, and work mode filters.
               </p>
               <button
                 type="button"
@@ -1014,8 +1211,11 @@ export const AdminInternships: React.FC = () => {
                   setCatalogSearch('');
                   setCatalogStatusFilter('ALL');
                   setCatalogDomainFilter('ALL');
+                  setCatalogDepartmentFilter('ALL');
+                  setCatalogEmploymentTypeFilter('ALL');
+                  setCatalogWorkModeFilter('ALL');
                 }}
-                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer transition-colors"
               >
                 Reset Filters
               </button>
@@ -1023,20 +1223,35 @@ export const AdminInternships: React.FC = () => {
           ) : catalogViewMode === 'grid' ? (
             /* ── GRID CARDS VIEW ── */
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredInternships.map((prog) => {
-                const isOpen = prog.status === 'OPEN';
+              {paginatedInternships.map((prog) => {
+                const isOpen = prog.status === 'OPEN' || prog.status === 'PUBLISHED';
                 const isDraft = prog.status === 'DRAFT';
+                const isSelected = selectedOppIds.includes(prog.id);
+                const appCount = getApplicationCountForInternship(prog);
+
                 return (
                   <div
                     key={prog.id}
-                    className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between space-y-4 group"
+                    className={`p-5 rounded-2xl bg-white dark:bg-slate-900 border transition-all flex flex-col justify-between space-y-4 group ${
+                      isSelected
+                        ? 'border-blue-500 ring-2 ring-blue-500/20 shadow-md bg-blue-50/10'
+                        : 'border-slate-200 dark:border-slate-800 shadow-2xs hover:shadow-md'
+                    }`}
                   >
-                    {/* Top Row: Domain, Status Dropdown, Featured Toggle */}
+                    {/* Top Row: Checkbox, Domain, Status Dropdown, Featured Toggle */}
                     <div className="space-y-3">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
-                          {prog.department || 'Engineering'} &bull; {prog.domain}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleSelectOne(prog.id)}
+                            className="w-4 h-4 rounded text-blue-600 border-slate-300 dark:border-slate-700 cursor-pointer"
+                          />
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                            {prog.department || 'Engineering'} &bull; {prog.domain}
+                          </span>
+                        </div>
 
                         <div className="flex items-center gap-1.5">
                           {/* Featured Star Toggle */}
@@ -1067,6 +1282,7 @@ export const AdminInternships: React.FC = () => {
                             }`}
                           >
                             <option value="OPEN">OPEN</option>
+                            <option value="PUBLISHED">PUBLISHED</option>
                             <option value="CLOSED">CLOSED</option>
                             <option value="DRAFT">DRAFT</option>
                             <option value="ARCHIVED">ARCHIVED</option>
@@ -1082,9 +1298,7 @@ export const AdminInternships: React.FC = () => {
                         >
                           {prog.title}
                         </h3>
-                        <span className="text-[10px] text-slate-400 font-mono">
-                          /{prog.slug}
-                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">/{prog.slug}</span>
                       </div>
 
                       {/* Description */}
@@ -1092,7 +1306,7 @@ export const AdminInternships: React.FC = () => {
                         {prog.description || 'Structured professional curriculum with real-world production deliverables.'}
                       </p>
 
-                      {/* Badges: Mode, Duration, Openings, Stipend */}
+                      {/* Badges: Mode, Duration, Openings, Applications, Stipend */}
                       <div className="flex flex-wrap gap-1.5 pt-1">
                         <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-medium">
                           {prog.internshipType || 'REMOTE'}
@@ -1102,6 +1316,9 @@ export const AdminInternships: React.FC = () => {
                         </span>
                         <span className="px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 text-[10px] font-bold">
                           {prog.openings} Openings
+                        </span>
+                        <span className="px-2 py-0.5 rounded-md bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 text-[10px] font-bold">
+                          {appCount} {appCount === 1 ? 'Applicant' : 'Applicants'}
                         </span>
                         {prog.stipendAmount && (
                           <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold">
@@ -1113,7 +1330,7 @@ export const AdminInternships: React.FC = () => {
                       {/* Required Skills Chips */}
                       {prog.requiredSkills && (
                         <div className="flex flex-wrap gap-1 pt-1">
-                          {prog.requiredSkills.split(',').slice(0, 4).map((sk, idx) => (
+                          {prog.requiredSkills.split(',').slice(0, 3).map((sk, idx) => (
                             <span
                               key={idx}
                               className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-slate-50 dark:bg-slate-800/80 text-slate-500 border border-slate-200/60 dark:border-slate-800"
@@ -1121,9 +1338,9 @@ export const AdminInternships: React.FC = () => {
                               {sk.trim()}
                             </span>
                           ))}
-                          {prog.requiredSkills.split(',').length > 4 && (
+                          {prog.requiredSkills.split(',').length > 3 && (
                             <span className="text-[9px] text-slate-400 self-center">
-                              +{prog.requiredSkills.split(',').length - 4} more
+                              +{prog.requiredSkills.split(',').length - 3} more
                             </span>
                           )}
                         </div>
@@ -1133,7 +1350,6 @@ export const AdminInternships: React.FC = () => {
                     {/* Bottom Action Bar */}
                     <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
-                        {/* Live Link */}
                         <a
                           href={`/careers#${prog.slug}`}
                           target="_blank"
@@ -1144,7 +1360,6 @@ export const AdminInternships: React.FC = () => {
                           <ExternalLink className="w-3.5 h-3.5" />
                         </a>
 
-                        {/* Edit Button */}
                         <button
                           type="button"
                           onClick={() => handleOpenEditModal(prog)}
@@ -1154,7 +1369,6 @@ export const AdminInternships: React.FC = () => {
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
 
-                        {/* Duplicate Button */}
                         <button
                           type="button"
                           disabled={duplicatingId === prog.id}
@@ -1169,7 +1383,6 @@ export const AdminInternships: React.FC = () => {
                           )}
                         </button>
 
-                        {/* Delete Button */}
                         <button
                           type="button"
                           onClick={() => setDeletingOpening(prog)}
@@ -1182,7 +1395,7 @@ export const AdminInternships: React.FC = () => {
 
                       <button
                         type="button"
-                        onClick={() => handlePatchOpeningStatus(prog.id, isOpen ? 'CLOSED' : 'OPEN')}
+                        onClick={() => handlePatchOpeningStatus(prog.id, isOpen ? 'CLOSED' : 'PUBLISHED')}
                         className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
                           isOpen
                             ? 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -1197,53 +1410,204 @@ export const AdminInternships: React.FC = () => {
               })}
             </div>
           ) : (
-            /* ── RECRUITER TABLE VIEW ── */
+            /* ── RECRUITER TABLE VIEW (12 Columns) ── */
             <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                    <th className="py-3 px-4">Role Title & Slug</th>
-                    <th className="py-3 px-4">Domain & Dept</th>
-                    <th className="py-3 px-4">Mode / Duration</th>
-                    <th className="py-3 px-4">Openings</th>
-                    <th className="py-3 px-4">Stipend</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4">Featured</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
+                    {/* 1. Checkbox */}
+                    <th className="py-3 px-3.5 w-10 text-center">
+                      <input
+                        type="checkbox"
+                        checked={isAllCurrentPageSelected}
+                        ref={(el) => {
+                          if (el) el.indeterminate = isSomeCurrentPageSelected;
+                        }}
+                        onChange={handleToggleSelectAllCurrentPage}
+                        title="Select/Deselect all on this page"
+                        className="w-4 h-4 rounded text-blue-600 border-slate-300 dark:border-slate-700 cursor-pointer"
+                      />
+                    </th>
+
+                    {/* 2. Title */}
+                    <th
+                      onClick={() => handleSortClick('title')}
+                      className="py-3 px-3.5 cursor-pointer hover:text-slate-900 dark:hover:text-white select-none whitespace-nowrap"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span>Internship Title</span>
+                        {catalogSortBy === 'title' ? (
+                          catalogSortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-500" /> : <ArrowDown className="w-3 h-3 text-blue-500" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 text-slate-400 opacity-60" />
+                        )}
+                      </div>
+                    </th>
+
+                    {/* 3. Domain */}
+                    <th className="py-3 px-3.5 whitespace-nowrap">Domain</th>
+
+                    {/* 4. Department */}
+                    <th className="py-3 px-3.5 whitespace-nowrap">Department</th>
+
+                    {/* 5. Employment Type */}
+                    <th className="py-3 px-3.5 whitespace-nowrap">Type</th>
+
+                    {/* 6. Work Mode */}
+                    <th className="py-3 px-3.5 whitespace-nowrap">Mode</th>
+
+                    {/* 7. Openings */}
+                    <th
+                      onClick={() => handleSortClick('openings')}
+                      className="py-3 px-3.5 cursor-pointer hover:text-slate-900 dark:hover:text-white select-none whitespace-nowrap"
+                    >
+                      <div className="flex items-center gap-1">
+                        <span>Openings</span>
+                        {catalogSortBy === 'openings' ? (
+                          catalogSortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-500" /> : <ArrowDown className="w-3 h-3 text-blue-500" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 text-slate-400 opacity-60" />
+                        )}
+                      </div>
+                    </th>
+
+                    {/* 8. Applications (Live count) */}
+                    <th
+                      onClick={() => handleSortClick('applications')}
+                      className="py-3 px-3.5 cursor-pointer hover:text-slate-900 dark:hover:text-white select-none whitespace-nowrap"
+                    >
+                      <div className="flex items-center gap-1">
+                        <span>Applications</span>
+                        {catalogSortBy === 'applications' ? (
+                          catalogSortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-500" /> : <ArrowDown className="w-3 h-3 text-blue-500" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 text-slate-400 opacity-60" />
+                        )}
+                      </div>
+                    </th>
+
+                    {/* 9. Status */}
+                    <th className="py-3 px-3.5 whitespace-nowrap">Status</th>
+
+                    {/* 10. Featured */}
+                    <th className="py-3 px-3.5 text-center whitespace-nowrap">Featured</th>
+
+                    {/* 11. Last Updated */}
+                    <th
+                      onClick={() => handleSortClick('createdAt')}
+                      className="py-3 px-3.5 cursor-pointer hover:text-slate-900 dark:hover:text-white select-none whitespace-nowrap"
+                    >
+                      <div className="flex items-center gap-1">
+                        <span>Last Updated</span>
+                        {catalogSortBy === 'createdAt' ? (
+                          catalogSortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-500" /> : <ArrowDown className="w-3 h-3 text-blue-500" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 text-slate-400 opacity-60" />
+                        )}
+                      </div>
+                    </th>
+
+                    {/* 12. Actions */}
+                    <th className="py-3 px-3.5 text-right whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {filteredInternships.map((prog) => {
-                    const isOpen = prog.status === 'OPEN';
+                  {paginatedInternships.map((prog) => {
+                    const isOpen = prog.status === 'OPEN' || prog.status === 'PUBLISHED';
                     const isDraft = prog.status === 'DRAFT';
+                    const isSelected = selectedOppIds.includes(prog.id);
+                    const appCount = getApplicationCountForInternship(prog);
+                    const dateFormatted = prog.updatedAt
+                      ? new Date(prog.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+                      : prog.createdAt
+                      ? new Date(prog.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+                      : 'Recent';
+
                     return (
-                      <tr key={prog.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
-                        <td className="py-3.5 px-4 font-semibold text-slate-900 dark:text-white">
-                          <div className="font-bold">{prog.title}</div>
+                      <tr
+                        key={prog.id}
+                        className={`transition-colors ${
+                          isSelected
+                            ? 'bg-blue-50/60 dark:bg-blue-950/30'
+                            : 'hover:bg-slate-50/70 dark:hover:bg-slate-800/40'
+                        }`}
+                      >
+                        {/* 1. Checkbox */}
+                        <td className="py-3.5 px-3.5 text-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleSelectOne(prog.id)}
+                            className="w-4 h-4 rounded text-blue-600 border-slate-300 dark:border-slate-700 cursor-pointer"
+                          />
+                        </td>
+
+                        {/* 2. Title & Slug */}
+                        <td className="py-3.5 px-3.5 font-semibold text-slate-900 dark:text-white min-w-[200px]">
+                          <div
+                            onClick={() => handleOpenEditModal(prog)}
+                            className="font-bold hover:text-blue-600 cursor-pointer transition-colors"
+                          >
+                            {prog.title}
+                          </div>
                           <div className="text-[10px] text-slate-400 font-mono">/{prog.slug}</div>
                         </td>
 
-                        <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">
-                          <div>{prog.domain}</div>
-                          <div className="text-[10px] text-slate-400">{prog.department || 'Engineering'}</div>
+                        {/* 3. Domain */}
+                        <td className="py-3.5 px-3.5 text-slate-600 dark:text-slate-300 whitespace-nowrap font-medium">
+                          {prog.domain}
                         </td>
 
-                        <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">
-                          <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-medium">
+                        {/* 4. Department */}
+                        <td className="py-3.5 px-3.5 text-slate-500 whitespace-nowrap">
+                          {prog.department || 'Engineering'}
+                        </td>
+
+                        {/* 5. Employment Type */}
+                        <td className="py-3.5 px-3.5 whitespace-nowrap">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                            {prog.employmentType || 'INTERNSHIP'}
+                          </span>
+                        </td>
+
+                        {/* 6. Work Mode */}
+                        <td className="py-3.5 px-3.5 whitespace-nowrap">
+                          <span
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                              prog.internshipType?.toUpperCase() === 'REMOTE'
+                                ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300'
+                                : prog.internshipType?.toUpperCase() === 'HYBRID'
+                                ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300'
+                                : 'bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300'
+                            }`}
+                          >
                             {prog.internshipType || 'REMOTE'}
                           </span>
-                          <span className="ml-1 text-[11px] text-slate-400">({prog.duration})</span>
                         </td>
 
-                        <td className="py-3.5 px-4 text-slate-800 dark:text-slate-200 font-bold">
+                        {/* 7. Openings */}
+                        <td className="py-3.5 px-3.5 text-slate-800 dark:text-slate-200 font-bold whitespace-nowrap">
                           {prog.openings}
                         </td>
 
-                        <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300 text-[11px]">
-                          {prog.stipendAmount || 'Performance Stipend'}
+                        {/* 8. Live Applications */}
+                        <td className="py-3.5 px-3.5 whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveTab('applicants');
+                              setApplicantSearch(prog.title);
+                            }}
+                            title="View applicants for this role"
+                            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 text-blue-700 dark:text-blue-300 font-bold text-[11px] cursor-pointer transition-colors"
+                          >
+                            <Users className="w-3 h-3" />
+                            <span>{appCount}</span>
+                          </button>
                         </td>
 
-                        <td className="py-3.5 px-4">
+                        {/* 9. Status */}
+                        <td className="py-3.5 px-3.5 whitespace-nowrap">
                           <select
                             value={prog.status}
                             disabled={statusPatchingId === prog.id}
@@ -1257,13 +1621,15 @@ export const AdminInternships: React.FC = () => {
                             }`}
                           >
                             <option value="OPEN">OPEN</option>
+                            <option value="PUBLISHED">PUBLISHED</option>
                             <option value="CLOSED">CLOSED</option>
                             <option value="DRAFT">DRAFT</option>
                             <option value="ARCHIVED">ARCHIVED</option>
                           </select>
                         </td>
 
-                        <td className="py-3.5 px-4">
+                        {/* 10. Featured */}
+                        <td className="py-3.5 px-3.5 text-center whitespace-nowrap">
                           <button
                             type="button"
                             onClick={() => handleToggleFeatured(prog)}
@@ -1278,7 +1644,13 @@ export const AdminInternships: React.FC = () => {
                           </button>
                         </td>
 
-                        <td className="py-3.5 px-4 text-right">
+                        {/* 11. Last Updated */}
+                        <td className="py-3.5 px-3.5 text-slate-500 text-[11px] whitespace-nowrap">
+                          {dateFormatted}
+                        </td>
+
+                        {/* 12. Actions */}
+                        <td className="py-3.5 px-3.5 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1.5">
                             <a
                               href={`/careers#${prog.slug}`}
@@ -1328,6 +1700,161 @@ export const AdminInternships: React.FC = () => {
                   })}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* ── PAGINATION CONTROLS ── */}
+          {filteredInternships.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-500">
+              <div className="flex items-center gap-3">
+                <span className="font-medium">
+                  Showing {(catalogPage - 1) * catalogRowsPerPage + 1} to{' '}
+                  {Math.min(catalogPage * catalogRowsPerPage, filteredInternships.length)} of{' '}
+                  {filteredInternships.length} listings
+                </span>
+
+                <div className="flex items-center gap-1.5 border-l border-slate-200 dark:border-slate-800 pl-3">
+                  <span className="text-[11px] text-slate-400">Rows:</span>
+                  {[10, 25, 50].map((size) => (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => {
+                        setCatalogRowsPerPage(size);
+                        setCatalogPage(1);
+                      }}
+                      className={`px-2 py-0.5 rounded-md text-[11px] font-bold cursor-pointer transition-colors ${
+                        catalogRowsPerPage === size
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300'
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Page numbers and Prev/Next */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={catalogPage <= 1}
+                  onClick={() => setCatalogPage(1)}
+                  className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                  title="First page"
+                >
+                  <ChevronsLeft className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  disabled={catalogPage <= 1}
+                  onClick={() => setCatalogPage((p) => Math.max(1, p - 1))}
+                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed flex items-center gap-1 font-medium"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  <span>Prev</span>
+                </button>
+
+                <div className="px-3 py-1 text-slate-800 dark:text-slate-200 font-bold">
+                  Page {catalogPage} of {totalCatalogPages}
+                </div>
+
+                <button
+                  type="button"
+                  disabled={catalogPage >= totalCatalogPages}
+                  onClick={() => setCatalogPage((p) => Math.min(totalCatalogPages, p + 1))}
+                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed flex items-center gap-1 font-medium"
+                >
+                  <span>Next</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  disabled={catalogPage >= totalCatalogPages}
+                  onClick={() => setCatalogPage(totalCatalogPages)}
+                  className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                  title="Last page"
+                >
+                  <ChevronsRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── FLOATING BULK ACTION TOOLBAR (When 1+ selected) ── */}
+          {selectedOppIds.length > 0 && (
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-3.5 flex-wrap max-w-4xl animate-in slide-in-from-bottom-5 duration-200">
+              <div className="flex items-center gap-2 pr-2 border-r border-slate-700 text-xs font-bold whitespace-nowrap">
+                <span className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs">
+                  {selectedOppIds.length}
+                </span>
+                <span>Selected</span>
+              </div>
+
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  disabled={bulkActionLoading}
+                  onClick={() => handleBulkAction('publish')}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1 transition-all cursor-pointer disabled:opacity-50 shadow-xs"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Publish</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={bulkActionLoading}
+                  onClick={() => handleBulkAction('unpublish')}
+                  className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold flex items-center gap-1 transition-all cursor-pointer disabled:opacity-50 shadow-xs"
+                >
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Draft</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={bulkActionLoading}
+                  onClick={() => handleBulkAction('archive')}
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1 transition-all cursor-pointer disabled:opacity-50 border border-slate-700"
+                >
+                  <span>Archive</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={bulkActionLoading}
+                  onClick={() => handleBulkAction('feature')}
+                  className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-bold flex items-center gap-1 transition-all cursor-pointer disabled:opacity-50 border border-amber-500/30"
+                >
+                  <Star className="w-3.5 h-3.5 fill-amber-300" />
+                  <span>Feature</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={bulkActionLoading}
+                  onClick={() => handleBulkAction('unfeature')}
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold flex items-center gap-1 transition-all cursor-pointer disabled:opacity-50 border border-slate-700"
+                >
+                  <Star className="w-3.5 h-3.5" />
+                  <span>Unfeature</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={bulkActionLoading}
+                  onClick={() => handleBulkAction('delete')}
+                  className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-1 transition-all cursor-pointer disabled:opacity-50 shadow-xs"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete Selected</span>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedOppIds([])}
+                className="ml-auto text-xs text-slate-400 hover:text-white transition-colors cursor-pointer underline underline-offset-2"
+              >
+                Deselect All
+              </button>
             </div>
           )}
         </div>
@@ -1968,6 +2495,77 @@ export const AdminInternships: React.FC = () => {
               >
                 {isDeletingOpening ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                 <span>Yes, Delete Opening</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── DEDICATED BULK DELETE CONFIRMATION MODAL ─── */}
+      {showBulkDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl border border-rose-200 dark:border-rose-900/60 p-6 shadow-2xl space-y-4">
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-2xl bg-rose-100 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 flex items-center justify-center shrink-0 text-rose-600 dark:text-rose-400">
+                <ShieldAlert className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                  Delete {selectedOppIds.length} Opportunities?
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  You are about to remove {selectedOppIds.length} listings from the active directory.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBulkDeleteModal(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 max-h-48 overflow-y-auto space-y-1.5 text-xs">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                Selected Opportunities:
+              </div>
+              {selectedOpportunitiesList.map((opp) => (
+                <div key={opp.id} className="flex items-center justify-between text-slate-700 dark:text-slate-300 py-1 border-b border-slate-100 dark:border-slate-800/50 last:border-0">
+                  <span className="font-medium truncate max-w-[280px]">{opp.title}</span>
+                  <span className="text-[10px] text-slate-400 font-mono">/{opp.slug}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/60 text-xs text-blue-700 dark:text-blue-300 flex items-start gap-2.5">
+              <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-blue-600 dark:text-blue-400" />
+              <p className="leading-relaxed text-[11px]">
+                <strong>Candidate Data Safe:</strong> All candidate applications, evaluation logs, and Google Sheet records remain completely intact and will NOT be deleted.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                disabled={bulkActionLoading}
+                onClick={() => setShowBulkDeleteModal(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={bulkActionLoading}
+                onClick={handleConfirmBulkDelete}
+                className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer shadow-xs flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {bulkActionLoading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                <span>Confirm Delete ({selectedOppIds.length})</span>
               </button>
             </div>
           </div>
