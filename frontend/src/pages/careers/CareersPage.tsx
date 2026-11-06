@@ -21,7 +21,7 @@ import {
 import { InternshipCard } from '@/components/careers/InternshipCard';
 import { InternshipApplyModal } from '@/components/careers/InternshipApplyModal';
 import { InternshipDetailModal } from '@/components/careers/InternshipDetailModal';
-import { internshipService, type Internship, type InternshipDetail } from '@/services/internshipService';
+import { internshipService, getDeletedOpportunityIds, type Internship, type InternshipDetail } from '@/services/internshipService';
 import { DEFAULT_CAREER_OPENINGS } from '@/services/careersService';
 
 const JOB_TYPE_TABS = [
@@ -90,14 +90,13 @@ export const CareersPage: React.FC = () => {
         size: 50,
       });
 
-      if (data && Array.isArray(data.content) && data.content.length > 0) {
+      if (data && Array.isArray(data.content)) {
         setInternships(data.content);
-      } else {
-        setInternships(DEFAULT_CAREER_OPENINGS);
       }
     } catch (err: any) {
       console.warn('Backend /careers offline or unreachable, activating fallback openings:', err);
-      setInternships(DEFAULT_CAREER_OPENINGS);
+      const deletedIds = new Set(getDeletedOpportunityIds());
+      setInternships(DEFAULT_CAREER_OPENINGS.filter((o) => !deletedIds.has(o.id)));
       setError(null);
     } finally {
       setLoading(false);

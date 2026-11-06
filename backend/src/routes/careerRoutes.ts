@@ -42,7 +42,8 @@ export interface OpportunityRecord {
   curriculum?: string;
   learningOutcomes?: string;
   responsibilities?: string;
-  status: 'DRAFT' | 'OPEN' | 'PUBLISHED' | 'CLOSED' | 'ARCHIVED';
+  status: 'DRAFT' | 'OPEN' | 'PUBLISHED' | 'CLOSED' | 'ARCHIVED' | 'DELETED' | string;
+  isDeleted?: boolean;
   isFeatured: boolean;
   createdAt: string;
   updatedAt: string;
@@ -259,37 +260,61 @@ const MEMORY_OPPORTUNITIES: OpportunityRecord[] = [
   },
 ];
 
+// In-memory tracking of deleted opportunities
+const DELETED_OPPORTUNITY_IDS = new Set<string>();
+
 // Fallback memory applications store
 const MEMORY_APPLICATIONS: any[] = [];
 
 /**
  * Helper to get opportunities from Firestore or Memory fallback.
- * Automatically seeds Firestore if the collection is empty.
+ * Automatically seeds Firestore once on first run if collection is uninitialized.
  */
 async function getOpportunities(): Promise<OpportunityRecord[]> {
   if (db) {
     try {
+      // Sync known deletions from Firestore metadata
+      try {
+        const delSnap = await db.collection('careers_meta').doc('deletions').get();
+        if (delSnap.exists && Array.isArray(delSnap.data()?.ids)) {
+          delSnap.data()!.ids.forEach((id: string) => DELETED_OPPORTUNITY_IDS.add(id));
+        }
+      } catch {}
+
       const snap = await db.collection('careers').get();
       if (!snap.empty) {
-        return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as OpportunityRecord));
+        return snap.docs
+          .map((doc) => ({ id: doc.id, ...doc.data() } as OpportunityRecord))
+          .filter((op) => !DELETED_OPPORTUNITY_IDS.has(op.id) && op.status !== 'DELETED' && !(op as any).isDeleted);
       } else {
-        // Seed initial opportunities to Firestore so it is permanently populated
-        for (const op of MEMORY_OPPORTUNITIES) {
-          await db.collection('careers').doc(op.id).set(op);
+        // Only seed initial opportunities if NOT already initialized and NO deletions occurred
+        let alreadyInit = false;
+        try {
+          const initSnap = await db.collection('careers_meta').doc('init').get();
+          alreadyInit = initSnap.exists;
+        } catch {}
+
+        if (!alreadyInit && DELETED_OPPORTUNITY_IDS.size === 0) {
+          for (const op of MEMORY_OPPORTUNITIES) {
+            await db.collection('careers').doc(op.id).set(op);
+          }
+          await db.collection('careers_meta').doc('init').set({ initialized: true, at: new Date().toISOString() });
+          return [...MEMORY_OPPORTUNITIES];
         }
-        return [...MEMORY_OPPORTUNITIES];
+        return [];
       }
     } catch (e) {
       console.warn('Firestore careers read warning, using memory fallback:', e);
     }
   }
-  return [...MEMORY_OPPORTUNITIES];
+  return MEMORY_OPPORTUNITIES.filter((op) => !DELETED_OPPORTUNITY_IDS.has(op.id) && op.status !== 'DELETED' && !(op as any).isDeleted);
 }
 
 /**
  * Helper to save or update opportunity
  */
 async function saveOpportunity(op: OpportunityRecord): Promise<void> {
+  DELETED_OPPORTUNITY_IDS.delete(op.id);
   const idx = MEMORY_OPPORTUNITIES.findIndex((o) => o.id === op.id);
   if (idx >= 0) {
     MEMORY_OPPORTUNITIES[idx] = op;
@@ -310,6 +335,7 @@ async function saveOpportunity(op: OpportunityRecord): Promise<void> {
  * Helper to delete opportunity
  */
 async function removeOpportunity(id: string): Promise<void> {
+  DELETED_OPPORTUNITY_IDS.add(id);
   const idx = MEMORY_OPPORTUNITIES.findIndex((o) => o.id === id);
   if (idx >= 0) {
     MEMORY_OPPORTUNITIES.splice(idx, 1);
@@ -317,7 +343,12 @@ async function removeOpportunity(id: string): Promise<void> {
 
   if (db) {
     try {
-      await db.collection('careers').doc(id).delete();
+      await db.collection('careers').doc(id).set({ status: 'DELETED', isDeleted: true, updatedAt: new Date().toISOString() }, { merge: true }).catch(() => null);
+      await db.collection('careers').doc(id).delete().catch(() => null);
+      await db.collection('careers_meta').doc('deletions').set({
+        ids: Array.from(DELETED_OPPORTUNITY_IDS),
+        updatedAt: new Date().toISOString(),
+      }, { merge: true }).catch(() => null);
     } catch (e) {
       console.warn('Firestore careers delete warning:', e);
     }

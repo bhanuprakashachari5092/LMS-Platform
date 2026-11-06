@@ -4,11 +4,50 @@ import { collection, doc, setDoc, getDocs, getDoc, deleteDoc } from 'firebase/fi
 import { DEFAULT_CAREER_OPENINGS } from './careersService';
 
 const LOCAL_STORAGE_OPPORTUNITIES_KEY = 'kaizenq_custom_opportunities';
+const LOCAL_STORAGE_DELETED_KEY = 'kaizenq_deleted_opportunities';
+
+export function getDeletedOpportunityIds(): string[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_DELETED_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function markOpportunityAsDeletedLocally(ids: string | string[]) {
+  try {
+    const idList = Array.isArray(ids) ? ids : [ids];
+    const currentDeleted = new Set(getDeletedOpportunityIds());
+    idList.forEach((id) => {
+      if (id) currentDeleted.add(id);
+    });
+    localStorage.setItem(LOCAL_STORAGE_DELETED_KEY, JSON.stringify(Array.from(currentDeleted)));
+
+    // Clean up from custom opportunities list
+    const existing = getLocalCustomOpportunities().filter((e) => !currentDeleted.has(e.id));
+    localStorage.setItem(LOCAL_STORAGE_OPPORTUNITIES_KEY, JSON.stringify(existing));
+  } catch (err) {
+    console.warn('LocalStorage delete tracking notice:', err);
+  }
+}
+
+export function unmarkOpportunityAsDeletedLocally(id: string) {
+  try {
+    const currentDeleted = new Set(getDeletedOpportunityIds());
+    currentDeleted.delete(id);
+    localStorage.setItem(LOCAL_STORAGE_DELETED_KEY, JSON.stringify(Array.from(currentDeleted)));
+  } catch (err) {
+    console.warn('LocalStorage undelete tracking notice:', err);
+  }
+}
 
 function getLocalCustomOpportunities(): Internship[] {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_OPPORTUNITIES_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const deletedIds = new Set(getDeletedOpportunityIds());
+    const list: Internship[] = raw ? JSON.parse(raw) : [];
+    return list.filter((e) => !deletedIds.has(e.id) && e.status !== 'DELETED' && !(e as any).isDeleted);
   } catch {
     return [];
   }
@@ -16,6 +55,7 @@ function getLocalCustomOpportunities(): Internship[] {
 
 function saveCustomOpportunityLocally(op: Internship) {
   try {
+    unmarkOpportunityAsDeletedLocally(op.id);
     const existing = getLocalCustomOpportunities();
     const index = existing.findIndex((e) => e.id === op.id);
     if (index >= 0) {
@@ -29,13 +69,8 @@ function saveCustomOpportunityLocally(op: Internship) {
   }
 }
 
-function removeCustomOpportunityLocally(id: string) {
-  try {
-    const existing = getLocalCustomOpportunities().filter((e) => e.id !== id);
-    localStorage.setItem(LOCAL_STORAGE_OPPORTUNITIES_KEY, JSON.stringify(existing));
-  } catch (err) {
-    console.warn('LocalStorage remove notice:', err);
-  }
+function removeCustomOpportunityLocally(id: string | string[]) {
+  markOpportunityAsDeletedLocally(id);
 }
 
 export interface Internship {
@@ -224,13 +259,16 @@ export const internshipService = {
     page?: number;
     size?: number;
   }) {
+    const deletedIds = new Set(getDeletedOpportunityIds());
     let list: Internship[] = [];
     try {
       const res = await apiClient.get<ApiResponse<{ content: Internship[]; totalElements: number; totalPages: number }>>('/careers', {
         params,
       });
-      if (res.data?.data?.content && res.data.data.content.length > 0) {
-        list = res.data.data.content;
+      if (res.data?.data?.content) {
+        list = res.data.data.content.filter(
+          (o) => !deletedIds.has(o.id) && o.status !== 'DELETED' && !(o as any).isDeleted
+        );
       }
     } catch (apiErr) {
       console.warn('Backend /careers offline or unreachable, falling back to cloud Firestore & local storage:', apiErr);
@@ -242,22 +280,36 @@ export const internshipService = {
       try {
         if (db) {
           const snap = await getDocs(collection(db, 'careers'));
-          cloudList = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Internship));
+          cloudList = snap.docs
+            .map((d) => ({ id: d.id, ...d.data() } as Internship))
+            .filter((o) => !deletedIds.has(o.id) && o.status !== 'DELETED' && !(o as any).isDeleted);
         }
       } catch (fsErr) {
         console.warn('Firestore client read notice:', fsErr);
       }
 
-      const localList = getLocalCustomOpportunities();
+      const localList = getLocalCustomOpportunities().filter(
+        (o) => !deletedIds.has(o.id) && o.status !== 'DELETED' && !(o as any).isDeleted
+      );
       const map = new Map<string, Internship>();
-      DEFAULT_CAREER_OPENINGS.forEach((o) => map.set(o.id, o));
+      DEFAULT_CAREER_OPENINGS.forEach((o) => {
+        if (!deletedIds.has(o.id)) {
+          map.set(o.id, o);
+        }
+      });
       cloudList.forEach((o) => map.set(o.id, o));
       localList.forEach((o) => map.set(o.id, o));
       list = Array.from(map.values());
     }
 
-    // Filter only published/open opportunities
-    let filtered = list.filter((o) => o.status === 'PUBLISHED' || o.status === 'OPEN' || !o.status);
+    // Filter only published/open opportunities and exclude any deleted items
+    let filtered = list.filter(
+      (o) =>
+        !deletedIds.has(o.id) &&
+        o.status !== 'DELETED' &&
+        !(o as any).isDeleted &&
+        (o.status === 'PUBLISHED' || o.status === 'OPEN' || !o.status)
+    );
 
     if (params?.domain && params.domain !== 'ALL') {
       filtered = filtered.filter((o) => o.domain.toLowerCase() === params.domain!.toLowerCase());
@@ -289,18 +341,29 @@ export const internshipService = {
   },
 
   async getInternshipDetail(slugOrId: string) {
+    const deletedIds = new Set(getDeletedOpportunityIds());
+    if (deletedIds.has(slugOrId)) {
+      throw new Error('Opportunity has been removed.');
+    }
+
     try {
       const res = await apiClient.get<ApiResponse<InternshipDetail>>(`/careers/${slugOrId}`);
-      if (res.data?.data) return res.data.data;
-    } catch (apiErr) {
+      if (res.data?.data) {
+        if (deletedIds.has(res.data.data.id)) {
+          throw new Error('Opportunity has been removed.');
+        }
+        return res.data.data;
+      }
+    } catch (apiErr: any) {
+      if (apiErr?.message?.includes('removed')) throw apiErr;
       console.warn('Backend get detail offline, checking Firestore and local catalog:', apiErr);
     }
 
     // Fallback to local or default
-    const localList = getLocalCustomOpportunities();
+    const localList = getLocalCustomOpportunities().filter((o) => !deletedIds.has(o.id));
     const found =
       localList.find((o) => o.id === slugOrId || o.slug === slugOrId) ||
-      DEFAULT_CAREER_OPENINGS.find((o) => o.id === slugOrId || o.slug === slugOrId);
+      DEFAULT_CAREER_OPENINGS.find((o) => !deletedIds.has(o.id) && (o.id === slugOrId || o.slug === slugOrId));
 
     if (found) {
       return {
@@ -350,12 +413,21 @@ export const internshipService = {
 
   // Admin APIs
   async adminGetInternships(params?: { page?: number; size?: number }) {
+    const deletedIds = new Set(getDeletedOpportunityIds());
+
     try {
       const res = await apiClient.get<ApiResponse<{ content: Internship[]; totalElements: number; totalPages: number }>>('/admin/careers/opportunities', {
         params,
       });
-      if (res.data?.data?.content && res.data.data.content.length > 0) {
-        return res.data.data;
+      if (res.data?.data?.content) {
+        const cleaned = res.data.data.content.filter(
+          (o) => !deletedIds.has(o.id) && o.status !== 'DELETED' && !(o as any).isDeleted
+        );
+        return {
+          content: cleaned,
+          totalElements: cleaned.length,
+          totalPages: 1,
+        };
       }
     } catch (apiErr) {
       console.warn('Backend get opportunities unavailable, loading from Firestore & local cache:', apiErr);
@@ -366,19 +438,30 @@ export const internshipService = {
     try {
       if (db) {
         const snap = await getDocs(collection(db, 'careers'));
-        cloudList = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Internship));
+        cloudList = snap.docs
+          .map((d) => ({ id: d.id, ...d.data() } as Internship))
+          .filter((o) => !deletedIds.has(o.id) && o.status !== 'DELETED' && !(o as any).isDeleted);
       }
     } catch (fsErr) {
       console.warn('Firestore client read notice:', fsErr);
     }
 
-    const localList = getLocalCustomOpportunities();
+    const localList = getLocalCustomOpportunities().filter(
+      (o) => !deletedIds.has(o.id) && o.status !== 'DELETED' && !(o as any).isDeleted
+    );
     const map = new Map<string, Internship>();
-    DEFAULT_CAREER_OPENINGS.forEach((o) => map.set(o.id, o));
+    DEFAULT_CAREER_OPENINGS.forEach((o) => {
+      if (!deletedIds.has(o.id)) {
+        map.set(o.id, o);
+      }
+    });
     cloudList.forEach((o) => map.set(o.id, o));
     localList.forEach((o) => map.set(o.id, o));
 
-    const combined = Array.from(map.values());
+    const combined = Array.from(map.values()).filter(
+      (o) => !deletedIds.has(o.id) && o.status !== 'DELETED' && !(o as any).isDeleted
+    );
+
     return {
       content: combined,
       totalElements: combined.length,
@@ -387,10 +470,21 @@ export const internshipService = {
   },
 
   async adminGetInternshipById(id: string) {
+    const deletedIds = new Set(getDeletedOpportunityIds());
+    if (deletedIds.has(id)) {
+      throw new Error('Opportunity has been removed.');
+    }
+
     try {
       const res = await apiClient.get<ApiResponse<Internship>>(`/admin/careers/opportunities/${id}`);
-      if (res.data?.data) return res.data.data;
-    } catch (apiErr) {
+      if (res.data?.data) {
+        if (deletedIds.has(res.data.data.id)) {
+          throw new Error('Opportunity has been removed.');
+        }
+        return res.data.data;
+      }
+    } catch (apiErr: any) {
+      if (apiErr?.message?.includes('removed')) throw apiErr;
       console.warn('Backend get by ID unavailable, checking Firestore and local storage:', apiErr);
     }
 
@@ -398,18 +492,21 @@ export const internshipService = {
       if (db) {
         const snap = await getDoc(doc(collection(db, 'careers'), id));
         if (snap.exists()) {
-          return { id: snap.id, ...snap.data() } as Internship;
+          const data = { id: snap.id, ...snap.data() } as Internship;
+          if (!deletedIds.has(data.id) && data.status !== 'DELETED' && !(data as any).isDeleted) {
+            return data;
+          }
         }
       }
     } catch (fsErr) {
       console.warn('Firestore getDoc notice:', fsErr);
     }
 
-    const localList = getLocalCustomOpportunities();
+    const localList = getLocalCustomOpportunities().filter((o) => !deletedIds.has(o.id));
     const foundLocal = localList.find((o) => o.id === id || o.slug === id);
     if (foundLocal) return foundLocal;
 
-    const foundDefault = DEFAULT_CAREER_OPENINGS.find((o) => o.id === id || o.slug === id);
+    const foundDefault = DEFAULT_CAREER_OPENINGS.find((o) => !deletedIds.has(o.id) && (o.id === id || o.slug === id));
     if (foundDefault) return foundDefault;
 
     throw new Error('Opportunity not found.');
@@ -527,21 +624,30 @@ export const internshipService = {
   },
 
   async adminDeleteInternship(id: string) {
+    // 1. Immediately register locally as deleted so all UI and fallbacks immediately exclude it
+    markOpportunityAsDeletedLocally(id);
+
+    // 2. Call backend API delete
     try {
       await apiClient.delete<ApiResponse<void>>(`/admin/careers/opportunities/${id}`);
     } catch (apiErr) {
       console.warn('Backend delete unavailable, deleting directly from cloud Firestore & local storage:', apiErr);
     }
 
+    // 3. Delete from Firestore and mark tombstone
     try {
       if (db) {
-        await deleteDoc(doc(collection(db, 'careers'), id));
+        await setDoc(
+          doc(collection(db, 'careers'), id),
+          { status: 'DELETED', isDeleted: true, updatedAt: new Date().toISOString() },
+          { merge: true }
+        ).catch(() => null);
+        await deleteDoc(doc(collection(db, 'careers'), id)).catch(() => null);
       }
     } catch (fsErr) {
       console.warn('Firestore client delete fallback notice:', fsErr);
     }
 
-    removeCustomOpportunityLocally(id);
     return { success: true };
   },
 
@@ -551,16 +657,20 @@ export const internshipService = {
   ) {
     if (!ids || ids.length === 0) return { processedCount: 0, failedIds: [] };
 
+    // If deleting, immediately register all IDs locally so they vanish instantly
+    if (action === 'delete') {
+      markOpportunityAsDeletedLocally(ids);
+    }
+
     try {
       const res = await apiClient.post<ApiResponse<{ action: string; processedCount: number; processedIds: string[]; failedIds: string[] }>>(
         '/admin/careers/opportunities/bulk',
         { action, ids }
       );
       if (res.data?.data) {
-        // Sync local storage cache
         ids.forEach((id) => {
           if (action === 'delete') {
-            removeCustomOpportunityLocally(id);
+            markOpportunityAsDeletedLocally(id);
           } else {
             const patch: any = { id, updatedAt: new Date().toISOString() };
             if (action === 'publish') patch.status = 'PUBLISHED';
@@ -581,8 +691,15 @@ export const internshipService = {
     for (const id of ids) {
       try {
         if (action === 'delete') {
-          if (db) await deleteDoc(doc(collection(db, 'careers'), id));
-          removeCustomOpportunityLocally(id);
+          markOpportunityAsDeletedLocally(id);
+          if (db) {
+            await setDoc(
+              doc(collection(db, 'careers'), id),
+              { status: 'DELETED', isDeleted: true, updatedAt: new Date().toISOString() },
+              { merge: true }
+            ).catch(() => null);
+            await deleteDoc(doc(collection(db, 'careers'), id)).catch(() => null);
+          }
         } else {
           const patch: any = { updatedAt: new Date().toISOString() };
           if (action === 'publish') patch.status = 'PUBLISHED';

@@ -152,7 +152,7 @@ export const AdminInternships: React.FC = () => {
         }).catch(() => ({ content: [] })),
       ]);
       setAnalytics(analyticsData);
-      setInternships(programsData.content && programsData.content.length > 0 ? programsData.content : DEFAULT_CAREER_OPENINGS);
+      setInternships(programsData && Array.isArray(programsData.content) ? programsData.content : []);
       setApplications(appsData.content || []);
     } catch (err) {
       console.error('Failed to load admin internship portal data:', err);
@@ -303,15 +303,22 @@ export const AdminInternships: React.FC = () => {
 
   const handleConfirmDeleteOpening = async () => {
     if (!deletingOpening) return;
+    const targetId = deletingOpening.id;
+    const targetTitle = deletingOpening.title;
     setIsDeletingOpening(true);
+
+    // Optimistically remove from state immediately
+    setInternships((prev) => prev.filter((id) => id.id !== targetId));
+    setSelectedOppIds((prev) => prev.filter((id) => id !== targetId));
+    setDeletingOpening(null);
+
     try {
-      await internshipService.adminDeleteInternship(deletingOpening.id);
-      toast.success(`Opening "${deletingOpening.title}" deleted.`);
-      setSelectedOppIds((prev) => prev.filter((id) => id !== deletingOpening.id));
-      setDeletingOpening(null);
-      loadData();
+      await internshipService.adminDeleteInternship(targetId);
+      toast.success(`Opening "${targetTitle}" deleted.`);
+      await loadData();
     } catch (err: any) {
       toast.error(err.message || 'Failed to delete opening');
+      await loadData();
     } finally {
       setIsDeletingOpening(false);
     }
@@ -350,15 +357,21 @@ export const AdminInternships: React.FC = () => {
 
   const handleConfirmBulkDelete = async () => {
     if (selectedOppIds.length === 0) return;
+    const idsToDelete = [...selectedOppIds];
     setBulkActionLoading(true);
+
+    // Optimistically remove from state immediately
+    setInternships((prev) => prev.filter((o) => !idsToDelete.includes(o.id)));
+    setSelectedOppIds([]);
+    setShowBulkDeleteModal(false);
+
     try {
-      const res = await internshipService.adminBulkActionInternships('delete', selectedOppIds);
-      toast.success(res?.message || `Successfully deleted ${selectedOppIds.length} opportunities`);
-      setSelectedOppIds([]);
-      setShowBulkDeleteModal(false);
+      const res = await internshipService.adminBulkActionInternships('delete', idsToDelete);
+      toast.success(res?.message || `Successfully deleted ${idsToDelete.length} opportunities`);
       await loadData();
     } catch (err: any) {
       toast.error(err.message || 'Failed to delete selected opportunities');
+      await loadData();
     } finally {
       setBulkActionLoading(false);
     }
