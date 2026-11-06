@@ -232,6 +232,13 @@ const SQUARESPACE_MENU_SECTIONS: MegaMenuSection[] = [
     },
   },
   {
+    id: 'internships',
+    name: 'Internships',
+    href: '/careers',
+    hasDropdown: false,
+    badge: 'HIRING',
+  },
+  {
     id: 'practice',
     name: 'Practice IDE',
     href: '/dashboard/practice-lab',

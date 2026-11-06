@@ -204,24 +204,24 @@ export const Interactive3DInternshipShowcase: React.FC = () => {
   };
 
   return (
-    <section className="w-full py-24 bg-white border-t border-b border-slate-200/80 relative overflow-hidden font-['Sora']">
+    <section id="internships" className="w-full py-24 bg-white dark:bg-[#0b0f19] border-t border-b border-slate-200/80 dark:border-slate-800 relative overflow-hidden font-['Sora'] transition-colors">
       <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-16 space-y-16">
         
         {/* ========================================================================= */}
         {/* 1. SECTION HEADER (CLEAN WHITE CORPORATE)                                 */}
         {/* ========================================================================= */}
         <div className="text-center space-y-4 max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-100 border border-slate-200/90 text-slate-700 text-xs font-bold tracking-wide">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold tracking-wide">
             <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
             <span>KAIZENQ &bull; SHAIVIKA GROUPS 2026 INITIATIVE</span>
           </div>
 
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
             Build Real Software as a <br className="hidden sm:inline" />
-            <span className="text-blue-600">KaizenQ Engineering Intern</span>
+            <span className="text-blue-600 dark:text-blue-400">KaizenQ Engineering Intern</span>
           </h2>
 
-          <p className="text-sm sm:text-base text-slate-600 leading-relaxed font-normal">
+          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed font-normal">
             Gain verified hands-on industry experience across structured 12-week cohorts. 
             Work under senior staff mentors, build real production deliverables, and earn verifiable cryptographic credentials.
           </p>
@@ -231,13 +231,13 @@ export const Interactive3DInternshipShowcase: React.FC = () => {
               to="/careers"
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm transition-all hover:scale-[1.02] active:scale-[0.98] shadow-md shadow-blue-600/20"
             >
-              <span>Explore All Openings</span>
+              <span>Explore All Internships</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
 
             <Link
-              to={`/careers#${selectedTrack.slug}`}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs sm:text-sm transition-all border border-slate-200"
+              to={`/careers`}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs sm:text-sm transition-all border border-slate-200 dark:border-slate-700"
             >
               <span>Apply for {selectedTrack.domain}</span>
             </Link>
@@ -609,42 +609,42 @@ export const Interactive3DInternshipShowcase: React.FC = () => {
         {/* 4. FOUR CORPORATE TRUST PILLARS (PURE WHITE CARDS)                        */}
         {/* ========================================================================= */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-3 hover:border-slate-300 transition-colors">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center">
+          <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs space-y-3 hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 text-blue-600 dark:text-blue-400 flex items-center justify-center">
               <Code2 className="w-5 h-5" />
             </div>
-            <strong className="text-slate-900 text-sm font-bold block">100% Practical Deliverables</strong>
-            <p className="text-xs text-slate-600 leading-relaxed">
+            <strong className="text-slate-900 dark:text-white text-sm font-bold block">100% Practical Deliverables</strong>
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
               Zero simulated quiz-only exercises. Build real cloud applications, microservices, and design systems.
             </p>
           </div>
 
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-3 hover:border-slate-300 transition-colors">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center">
+          <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs space-y-3 hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
               <Award className="w-5 h-5" />
             </div>
-            <strong className="text-slate-900 text-sm font-bold block">Verifiable Credentials</strong>
-            <p className="text-xs text-slate-600 leading-relaxed">
+            <strong className="text-slate-900 dark:text-white text-sm font-bold block">Verifiable Credentials</strong>
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
               Cryptographically verifiable certificates and completion records with unique verification IDs.
             </p>
           </div>
 
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-3 hover:border-slate-300 transition-colors">
-            <div className="w-10 h-10 rounded-xl bg-purple-50 border border-purple-200 text-purple-600 flex items-center justify-center">
+          <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs space-y-3 hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
+            <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-900 text-purple-600 dark:text-purple-400 flex items-center justify-center">
               <Users className="w-5 h-5" />
             </div>
-            <strong className="text-slate-900 text-sm font-bold block">Staff Mentor Reviews</strong>
-            <p className="text-xs text-slate-600 leading-relaxed">
+            <strong className="text-slate-900 dark:text-white text-sm font-bold block">Staff Mentor Reviews</strong>
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
               Weekly architecture reviews and line-by-line code feedback directly from senior engineering leaders.
             </p>
           </div>
 
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-3 hover:border-slate-300 transition-colors">
-            <div className="w-10 h-10 rounded-xl bg-cyan-50 border border-cyan-200 text-cyan-600 flex items-center justify-center">
+          <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs space-y-3 hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
+            <div className="w-10 h-10 rounded-xl bg-cyan-50 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-900 text-cyan-600 dark:text-cyan-400 flex items-center justify-center">
               <Building className="w-5 h-5" />
             </div>
-            <strong className="text-slate-900 text-sm font-bold block">Placement Support</strong>
-            <p className="text-xs text-slate-600 leading-relaxed">
+            <strong className="text-slate-900 dark:text-white text-sm font-bold block">Placement Support</strong>
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
               Top 15% cohort performers receive letters of recommendation and fast-tracked interviews with Shaivika Groups.
             </p>
           </div>

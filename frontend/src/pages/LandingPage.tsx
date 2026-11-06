@@ -8,6 +8,8 @@ import {
   Send,
   Star,
   Sparkles,
+  ShieldCheck,
+  Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { courseService } from '@/services/courseService';
@@ -453,6 +455,86 @@ export const LandingPage: React.FC = () => {
           </p>
 
         </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* 7B. SECTION — VIRTUAL INTERNSHIPS & INDUSTRY OPPORTUNITIES GATEWAY        */}
+      {/* ========================================================================= */}
+      <section className="w-full py-12 px-6 md:px-12 lg:px-16 border-t border-[#e2e8f0] dark:border-[#1f2937] bg-gradient-to-b from-[#f8fafc] via-blue-50/40 to-[#ffffff] dark:from-[#111827]/40 dark:via-blue-950/20 dark:to-[#0b0f19]">
+        <RevealOnScroll className="max-w-7xl mx-auto">
+          <div className="relative rounded-3xl p-8 sm:p-12 bg-white dark:bg-slate-900/90 border border-blue-200/90 dark:border-blue-900/50 shadow-2xl shadow-blue-500/10 overflow-hidden">
+            {/* Ambient Backlight */}
+            <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-blue-500/15 dark:bg-blue-600/10 blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-24 -left-24 w-96 h-96 rounded-full bg-indigo-500/15 dark:bg-indigo-600/10 blur-3xl pointer-events-none" />
+
+            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+              <div className="lg:col-span-8 space-y-5 text-center lg:text-left">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/80 border border-blue-200/80 dark:border-blue-800 text-blue-600 dark:text-blue-400 text-xs font-bold uppercase tracking-wider shadow-2xs">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>2026 Virtual & Hybrid Internships &bull; Shaivika Groups</span>
+                </div>
+
+                <h3 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
+                  Launch Your Tech Career With <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 dark:from-blue-400 dark:via-indigo-300 dark:to-cyan-400 bg-clip-text text-transparent">KaizenQ Internships</span>
+                </h3>
+
+                <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed font-normal max-w-2xl">
+                  Work on production-grade repositories with code reviews, Git branching strategies, automated testing, and CI/CD pipelines instead of toy tutorials. Gain verified credentials and fast-track your path to corporate placements.
+                </p>
+
+                {/* Micro-features */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-left">
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 flex items-start gap-3">
+                    <Briefcase className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="text-xs font-bold text-slate-900 dark:text-white block">Production Experience</strong>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400">Real PRs & CI/CD pipelines</span>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 flex items-start gap-3">
+                    <Sparkles className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="text-xs font-bold text-slate-900 dark:text-white block">Verified Credentials</strong>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400">QR-verifiable certificates</span>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 flex items-start gap-3">
+                    <ArrowRight className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="text-xs font-bold text-slate-900 dark:text-white block">Direct Placement Track</strong>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400">LOR for top 15% performers</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons Column */}
+              <div className="lg:col-span-4 flex flex-col items-center justify-center gap-3.5 w-full">
+                <Link
+                  to="/careers"
+                  className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-600 text-white font-extrabold text-sm sm:text-base flex items-center justify-center gap-2.5 shadow-xl shadow-blue-500/25 hover:shadow-2xl hover:shadow-blue-500/35 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer text-center group"
+                >
+                  <Briefcase className="w-4 h-4" />
+                  <span>Explore Internships & Careers</span>
+                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                </Link>
+
+                <Link
+                  to="/careers"
+                  className="w-full py-3.5 px-6 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 font-bold text-xs flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-700 hover:border-slate-300 transition-all text-center"
+                >
+                  <span>General Internship Application</span>
+                </Link>
+
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                  ⚡ 10+ Virtual & Hybrid Positions Available
+                </span>
+              </div>
+            </div>
+          </div>
+        </RevealOnScroll>
       </section>
 
       {/* ========================================================================= */}
