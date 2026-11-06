@@ -58,7 +58,10 @@ const DEPARTMENTS = [
 const WORK_MODES = ['ALL', 'REMOTE', 'HYBRID', 'ONSITE'];
 
 export const CareersPage: React.FC = () => {
-  const [internships, setInternships] = useState<Internship[]>([]);
+  const [internships, setInternships] = useState<Internship[]>(() => {
+    const deletedIds = new Set(getDeletedOpportunityIds());
+    return DEFAULT_CAREER_OPENINGS.filter((o) => !deletedIds.has(o.id));
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -155,23 +158,23 @@ export const CareersPage: React.FC = () => {
               {/* Live Published Count Badge */}
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/70 border border-blue-200/80 dark:border-blue-800/70 text-blue-600 dark:text-blue-400 text-xs font-bold tracking-wide uppercase shadow-2xs">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span>{internships.length} Active Opportunities &bull; Shaivika Groups</span>
+                <span>{internships.length > 0 ? internships.length : DEFAULT_CAREER_OPENINGS.length} Active Internships &bull; Shaivika Groups</span>
               </div>
 
-              {/* Exact Headline */}
+              {/* Exact Headline with Internships */}
               <h1 className="text-3xl sm:text-5xl lg:text-5xl xl:text-6xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-[1.12]">
                 Build What Matters.{' '}
                 <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 dark:from-blue-400 dark:via-indigo-300 dark:to-cyan-400 bg-clip-text text-transparent">
-                  Grow With KaizenQ.
+                  Grow With KaizenQ Internships.
                 </span>
               </h1>
 
-              {/* Exact Supporting Text */}
+              {/* Exact Supporting Text with Internships */}
               <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-normal">
-                Explore opportunities to learn, build real-world products, and grow alongside an ambitious engineering team.
+                Explore virtual internships and career opportunities to learn, build real-world products, and grow alongside an ambitious engineering team.
               </p>
 
-              {/* Hero Search Bar */}
+              {/* Hero Search Bar with Internships */}
               <form
                 onSubmit={handleSearchSubmit}
                 className="max-w-xl mx-auto lg:mx-0 relative flex items-center shadow-lg shadow-blue-500/5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1.5 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all"
@@ -181,14 +184,14 @@ export const CareersPage: React.FC = () => {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search by role, track, or technical skill (e.g. React, Python, Cloud)..."
+                  placeholder="Search internships by role, track, or technical skill (e.g. React, Python, Cloud)..."
                   className="w-full px-3 py-2 text-xs sm:text-sm bg-transparent text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-hidden"
                 />
                 <button
                   type="submit"
                   className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-colors shrink-0 shadow-xs cursor-pointer"
                 >
-                  Search
+                  Search Internships
                 </button>
               </form>
 
@@ -199,13 +202,13 @@ export const CareersPage: React.FC = () => {
                   className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-all flex items-center gap-1.5 shadow-md shadow-blue-500/20 cursor-pointer"
                 >
                   <Briefcase className="w-3.5 h-3.5" />
-                  <span>Browse All Positions</span>
+                  <span>Browse All Internships</span>
                 </button>
                 <button
                   onClick={() => handleOpenApply(null)}
                   className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-700 dark:text-slate-200 font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer"
                 >
-                  <span>General Application</span>
+                  <span>General Internship Application</span>
                   <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
                 </button>
               </div>
@@ -214,15 +217,15 @@ export const CareersPage: React.FC = () => {
               <div className="pt-2 flex flex-wrap items-center justify-center lg:justify-start gap-y-2 gap-x-6 text-xs text-slate-500 dark:text-slate-400">
                 <div className="flex items-center gap-1.5">
                   <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                  <span>Direct HR Review</span>
+                  <span>Direct Internship HR Review</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-amber-500" />
-                  <span>Verified Credentials</span>
+                  <span>Verified Internship Credentials</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Terminal className="w-4 h-4 text-blue-500" />
-                  <span>Production Codebase</span>
+                  <span>Production Codebase Internships</span>
                 </div>
               </div>
             </div>
