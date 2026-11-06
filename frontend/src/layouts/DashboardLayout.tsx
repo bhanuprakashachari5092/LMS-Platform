@@ -148,7 +148,7 @@ export const DashboardLayout: React.FC = () => {
         { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
         { name: 'Course Catalog', href: '/admin/courses', icon: BookOpen },
         { name: 'Course Content', href: '/admin/course-content', icon: FileText },
-        { name: 'Internship Portal', href: '/admin/internships', icon: Briefcase },
+        { name: 'Careers & Opportunities', href: '/admin/careers', icon: Briefcase },
         { name: 'Coupons & Discounts', href: '/admin/coupons', icon: Tag },
         { name: 'Platform Analytics', href: '/admin/analytics', icon: BarChart3 },
       ],

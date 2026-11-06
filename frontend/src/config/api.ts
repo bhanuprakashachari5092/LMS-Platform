@@ -10,14 +10,8 @@ const getBaseUrl = (): string => {
     return envApiUrl.trim();
   }
 
-  // If running in browser and NOT localhost/127.0.0.1, use relative origin with /api
-  if (
-    typeof window !== 'undefined' &&
-    window.location &&
-    window.location.hostname &&
-    window.location.hostname !== 'localhost' &&
-    window.location.hostname !== '127.0.0.1'
-  ) {
+  // In browser, use relative origin with /api so Vite proxy (in dev) and Vercel/reverse-proxy (in prod) handle routing smoothly
+  if (typeof window !== 'undefined' && window.location && window.location.origin) {
     return `${window.location.origin}/api`;
   }
 

@@ -16,11 +16,13 @@ import {
   Code2,
   Cpu,
   BookOpen,
+  FileCheck,
 } from 'lucide-react';
 import { InternshipCard } from '@/components/careers/InternshipCard';
 import { InternshipApplyModal } from '@/components/careers/InternshipApplyModal';
 import { InternshipDetailModal } from '@/components/careers/InternshipDetailModal';
 import { internshipService, type Internship, type InternshipDetail } from '@/services/internshipService';
+import { DEFAULT_CAREER_OPENINGS } from '@/services/careersService';
 
 const JOB_TYPE_TABS = [
   { id: 'ALL', label: 'All Openings' },
@@ -34,7 +36,6 @@ const DOMAIN_CATEGORIES = [
   'ALL',
   'Full Stack Web Development',
   'Frontend Development',
-  'Backend Development',
   'Artificial Intelligence & Machine Learning',
   'Data Science',
   'Cloud Computing & DevOps',
@@ -75,7 +76,7 @@ export const CareersPage: React.FC = () => {
   const [selectedInternshipDetail, setSelectedInternshipDetail] = useState<InternshipDetail | Internship | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
-  // Load internships from backend
+  // Load opportunities dynamically from backend (published only)
   const loadInternships = async () => {
     setLoading(true);
     setError(null);
@@ -83,15 +84,21 @@ export const CareersPage: React.FC = () => {
       const data = await internshipService.getOpenInternships({
         domain: selectedDomain !== 'ALL' ? selectedDomain : undefined,
         department: selectedDepartment !== 'ALL' ? selectedDepartment : undefined,
-        employmentType: (activeTab !== 'ALL' && activeTab !== 'REMOTE') ? activeTab : undefined,
-        internshipType: activeTab === 'REMOTE' ? 'REMOTE' : (selectedMode !== 'ALL' ? selectedMode : undefined),
-        search: searchQuery || undefined,
+        employmentType: activeTab !== 'ALL' && activeTab !== 'REMOTE' ? activeTab : undefined,
+        internshipType: activeTab === 'REMOTE' ? 'REMOTE' : selectedMode !== 'ALL' ? selectedMode : undefined,
+        search: searchQuery.trim() || undefined,
         size: 50,
       });
-      setInternships(data.content || []);
+
+      if (data && Array.isArray(data.content) && data.content.length > 0) {
+        setInternships(data.content);
+      } else {
+        setInternships(DEFAULT_CAREER_OPENINGS);
+      }
     } catch (err: any) {
-      console.error('Failed to load openings from backend:', err);
-      setError('Unable to load openings. Please try again.');
+      console.warn('Backend /careers offline or unreachable, activating fallback openings:', err);
+      setInternships(DEFAULT_CAREER_OPENINGS);
+      setError(null);
     } finally {
       setLoading(false);
     }
@@ -106,7 +113,7 @@ export const CareersPage: React.FC = () => {
     loadInternships();
   };
 
-  const handleOpenApply = (intern: Internship) => {
+  const handleOpenApply = (intern: Internship | null) => {
     setSelectedInternshipForApply(intern);
     setIsApplyModalOpen(true);
   };
@@ -114,7 +121,7 @@ export const CareersPage: React.FC = () => {
   const handleOpenDetail = async (intern: Internship) => {
     try {
       const detail = await internshipService.getInternshipDetail(intern.slug || intern.id);
-      setSelectedInternshipDetail(detail);
+      setSelectedInternshipDetail(detail || intern);
     } catch {
       setSelectedInternshipDetail(intern);
     }
@@ -168,7 +175,7 @@ export const CareersPage: React.FC = () => {
               <span>Explore Openings</span>
             </button>
             <button
-              onClick={scrollToOpenings}
+              onClick={() => handleOpenApply(null)}
               className="px-6 py-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-700 dark:text-slate-200 font-bold text-sm transition-all shadow-xs flex items-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
             >
               <span>Apply for Internship</span>
@@ -347,40 +354,62 @@ export const CareersPage: React.FC = () => {
                 </div>
               ))}
             </div>
-          ) : error ? (
-            <div className="p-8 text-center bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-2xl max-w-md mx-auto space-y-3">
-              <p className="text-xs text-rose-600 dark:text-rose-400 font-semibold">{error}</p>
-              <button
-                onClick={loadInternships}
-                className="px-4 py-2 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-500 cursor-pointer"
-              >
-                Retry
-              </button>
-            </div>
           ) : internships.length === 0 ? (
             <div className="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md mx-auto space-y-4">
               <Briefcase className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto" />
               <h4 className="text-lg font-bold text-slate-900 dark:text-white">No openings found</h4>
               <p className="text-xs text-slate-500">
-                No active openings match the selected filters. Try resetting the filters or searching with different keywords.
+                No active openings match the selected filters. Try resetting the filters or submit an open application.
               </p>
-              <button
-                onClick={handleResetFilters}
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold cursor-pointer"
-              >
-                Reset Filters
-              </button>
+              <div className="flex items-center justify-center gap-3">
+                <button
+                  onClick={handleResetFilters}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 text-xs font-bold cursor-pointer"
+                >
+                  Reset Filters
+                </button>
+                <button
+                  onClick={() => handleOpenApply(null)}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold cursor-pointer"
+                >
+                  General Application
+                </button>
+              </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {internships.map((internship) => (
-                <InternshipCard
-                  key={internship.id}
-                  internship={internship}
-                  onApply={handleOpenApply}
-                  onViewDetails={handleOpenDetail}
-                />
-              ))}
+            <div className="space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {internships.map((internship) => (
+                  <InternshipCard
+                    key={internship.id}
+                    internship={internship}
+                    onApply={handleOpenApply}
+                    onViewDetails={handleOpenDetail}
+                  />
+                ))}
+              </div>
+
+              {/* General Application Banner */}
+              <div className="p-6 sm:p-8 rounded-3xl bg-linear-to-r from-blue-900 via-indigo-900 to-slate-900 text-white flex flex-col sm:flex-row items-center justify-between gap-6 shadow-xl border border-blue-800/40">
+                <div className="space-y-1 text-center sm:text-left">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400">
+                    Open Recruitment & Talent Pool
+                  </span>
+                  <h3 className="text-xl sm:text-2xl font-black tracking-tight">
+                    Don&apos;t see your specific technical track listed?
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-300 max-w-xl">
+                    We are constantly onboarding promising engineers, researchers, and designers. Submit your profile to our general recruitment pool and our talent team will review your application.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleOpenApply(null)}
+                  className="px-6 py-3 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 text-xs font-extrabold tracking-wide uppercase transition-all shadow-md shrink-0 hover:scale-[1.03] cursor-pointer"
+                >
+                  Submit General Application &rarr;
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -403,14 +432,20 @@ export const CareersPage: React.FC = () => {
       <InternshipApplyModal
         internship={selectedInternshipForApply}
         isOpen={isApplyModalOpen}
-        onClose={() => setIsApplyModalOpen(false)}
+        onClose={() => {
+          setIsApplyModalOpen(false);
+          setSelectedInternshipForApply(null);
+        }}
         onSuccess={() => loadInternships()}
       />
 
       <InternshipDetailModal
         internship={selectedInternshipDetail}
         isOpen={isDetailModalOpen}
-        onClose={() => setIsDetailModalOpen(false)}
+        onClose={() => {
+          setIsDetailModalOpen(false);
+          setSelectedInternshipDetail(null);
+        }}
         onApply={(intern) => {
           setIsDetailModalOpen(false);
           handleOpenApply(intern);

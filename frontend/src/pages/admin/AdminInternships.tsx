@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   Briefcase,
   Users,
@@ -44,9 +45,12 @@ import {
   type InternshipApplication,
   type InternshipAnalytics,
 } from '@/services/internshipService';
+import { CareersPreviewModal } from '@/components/careers/CareersPreviewModal';
+import { DEFAULT_CAREER_OPENINGS } from '@/services/careersService';
 
 export const AdminInternships: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'analytics' | 'programs' | 'applicants'>('applicants');
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<'analytics' | 'programs' | 'applicants'>('programs');
 
   // Analytics
   const [analytics, setAnalytics] = useState<InternshipAnalytics | null>(null);
@@ -57,7 +61,10 @@ export const AdminInternships: React.FC = () => {
   const [catalogSearch, setCatalogSearch] = useState('');
   const [catalogStatusFilter, setCatalogStatusFilter] = useState<string>('ALL');
   const [catalogDomainFilter, setCatalogDomainFilter] = useState<string>('ALL');
+  const [catalogDepartmentFilter, setCatalogDepartmentFilter] = useState<string>('ALL');
+  const [catalogEmploymentTypeFilter, setCatalogEmploymentTypeFilter] = useState<string>('ALL');
   const [catalogViewMode, setCatalogViewMode] = useState<'grid' | 'table'>('grid');
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [deletingOpening, setDeletingOpening] = useState<Internship | null>(null);
   const [isDeletingOpening, setIsDeletingOpening] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
@@ -69,6 +76,8 @@ export const AdminInternships: React.FC = () => {
   const [applicantFilterStatus, setApplicantFilterStatus] = useState<string>('ALL');
   const [applicantSearch, setApplicantSearch] = useState('');
   const [exportingCsv, setExportingCsv] = useState(false);
+  const [isSyncingSheets, setIsSyncingSheets] = useState(false);
+  const [lastSyncedTime, setLastSyncedTime] = useState<string | null>(null);
 
   // Opening Create / Edit Modal
   const [isProgramModalOpen, setIsProgramModalOpen] = useState(false);
@@ -90,6 +99,7 @@ export const AdminInternships: React.FC = () => {
     requiredSkills: 'React, Node.js, TypeScript',
     preferredSkills: 'Docker, AWS',
     description: '',
+    curriculum: '',
     responsibilities: '',
     learningOutcomes: '',
     status: 'OPEN',
@@ -98,6 +108,8 @@ export const AdminInternships: React.FC = () => {
 
   // Application Detail Modal (with internal notes)
   const [inspectingApp, setInspectingApp] = useState<InternshipApplication | null>(null);
+  const [inspectingStatus, setInspectingStatus] = useState<string>('New');
+  const [notifyCandidateEmail, setNotifyCandidateEmail] = useState<boolean>(true);
   const [adminNotesInput, setAdminNotesInput] = useState('');
 
   // Interview Schedule Modal
@@ -122,7 +134,7 @@ export const AdminInternships: React.FC = () => {
         }).catch(() => ({ content: [] })),
       ]);
       setAnalytics(analyticsData);
-      setInternships(programsData.content || []);
+      setInternships(programsData.content && programsData.content.length > 0 ? programsData.content : DEFAULT_CAREER_OPENINGS);
       setApplications(appsData.content || []);
     } catch (err) {
       console.error('Failed to load admin internship portal data:', err);
@@ -131,6 +143,30 @@ export const AdminInternships: React.FC = () => {
       setLoadingApplicants(false);
     }
   };
+
+  const handleSyncGoogleSheets = async () => {
+    setIsSyncingSheets(true);
+    try {
+      const res = await internshipService.adminSyncApplicationsWithGoogleSheets();
+      toast.success(res.message || 'Applications synchronized with Google Sheets successfully!');
+      setLastSyncedTime(new Date().toLocaleTimeString());
+      await loadData();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to sync with Google Sheets');
+    } finally {
+      setIsSyncingSheets(false);
+    }
+  };
+
+  // Poll applications every 60 seconds while viewing the Applicants tab
+  useEffect(() => {
+    if (activeTab === 'applicants') {
+      const interval = setInterval(() => {
+        loadData();
+      }, 60000);
+      return () => clearInterval(interval);
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     loadData();
@@ -154,36 +190,11 @@ export const AdminInternships: React.FC = () => {
   };
 
   const handleOpenCreateModal = () => {
-    setEditingProgramId(null);
-    setProgramForm({
-      title: '',
-      slug: '',
-      domain: 'Full Stack Web Development',
-      department: 'Engineering',
-      employmentType: 'INTERNSHIP',
-      experienceLevel: 'ENTRY_LEVEL',
-      internshipType: 'REMOTE',
-      duration: '12 Weeks',
-      location: 'Remote, India',
-      openings: 10,
-      stipendType: 'PERFORMANCE_BASED',
-      stipendAmount: 'Performance Stipend + Certificate',
-      eligibility: 'B.Tech / MCA / B.Sc CS',
-      requiredSkills: 'React, Node.js, TypeScript',
-      preferredSkills: '',
-      description: '',
-      responsibilities: '',
-      learningOutcomes: '',
-      status: 'OPEN',
-      isFeatured: true,
-    });
-    setIsProgramModalOpen(true);
+    navigate('/admin/internships/new');
   };
 
   const handleOpenEditModal = (prog: Internship) => {
-    setEditingProgramId(prog.id);
-    setProgramForm({ ...prog });
-    setIsProgramModalOpen(true);
+    navigate(`/admin/internships/edit/${prog.id}`);
   };
 
   const handleSaveProgram = async (e: React.FormEvent) => {
@@ -287,12 +298,13 @@ export const AdminInternships: React.FC = () => {
     }
   };
 
-  const handleUpdateStatus = async (applicationId: string, newStatus: string, notes?: string) => {
+  const handleUpdateStatus = async (applicationId: string, newStatus: string, notes?: string, sendStatusEmail?: boolean) => {
     try {
-      await internshipService.adminUpdateApplicationStatus(applicationId, newStatus, notes);
-      toast.success(`Candidate status updated to ${newStatus}`);
-      if (inspectingApp && inspectingApp.id === applicationId) {
+      await internshipService.adminUpdateApplicationStatus(applicationId, newStatus, notes, sendStatusEmail);
+      toast.success(`Candidate status updated to ${newStatus} & synced to Google Sheets`);
+      if (inspectingApp && (inspectingApp.id === applicationId || inspectingApp.applicationId === applicationId)) {
         setInspectingApp({ ...inspectingApp, status: newStatus as any, adminNotes: notes });
+        setInspectingStatus(newStatus);
       }
       loadData();
     } catch (err: any) {
@@ -335,6 +347,14 @@ export const AdminInternships: React.FC = () => {
   };
 
   const uniqueDomains = Array.from(new Set(internships.map((i) => i.domain).filter(Boolean)));
+  const uniqueDepartments = Array.from(new Set(internships.map((i) => i.department).filter(Boolean)));
+
+  const publishedCount = internships.filter(
+    (i) => i.status?.toUpperCase() === 'PUBLISHED' || i.status?.toUpperCase() === 'OPEN'
+  ).length;
+  const draftsCount = internships.filter(
+    (i) => i.status?.toUpperCase() === 'DRAFT'
+  ).length;
 
   const filteredInternships = internships.filter((prog) => {
     const q = catalogSearch.toLowerCase().trim();
@@ -344,7 +364,7 @@ export const AdminInternships: React.FC = () => {
       prog.domain?.toLowerCase().includes(q) ||
       prog.slug?.toLowerCase().includes(q) ||
       prog.requiredSkills?.toLowerCase().includes(q) ||
-      prog.department?.toLowerCase().includes(q);
+      (prog.department && prog.department.toLowerCase().includes(q));
 
     const matchesStatus =
       catalogStatusFilter === 'ALL' ||
@@ -354,7 +374,15 @@ export const AdminInternships: React.FC = () => {
       catalogDomainFilter === 'ALL' ||
       prog.domain === catalogDomainFilter;
 
-    return matchesSearch && matchesStatus && matchesDomain;
+    const matchesDepartment =
+      catalogDepartmentFilter === 'ALL' ||
+      prog.department === catalogDepartmentFilter;
+
+    const matchesEmploymentType =
+      catalogEmploymentTypeFilter === 'ALL' ||
+      (prog.employmentType || 'INTERNSHIP') === catalogEmploymentTypeFilter;
+
+    return matchesSearch && matchesStatus && matchesDomain && matchesDepartment && matchesEmploymentType;
   });
 
   return (
@@ -366,21 +394,88 @@ export const AdminInternships: React.FC = () => {
             Administrative Operations
           </span>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            Careers & Internship Portal
+            Careers & Opportunities
           </h1>
           <p className="text-xs sm:text-sm text-slate-500">
-            Manage career openings, applicant review pipelines, interview scheduling, and cohort certificates.
+            Manage career opportunities, virtual internships, publication statuses, public previews, and applicant pipelines.
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={handleOpenCreateModal}
-          className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-2 cursor-pointer shadow-xs"
-        >
-          <Plus className="w-4 h-4" />
-          <span>New Opening</span>
-        </button>
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setIsPreviewModalOpen(true)}
+            className="px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+            title="Preview how candidates see the public Careers page"
+          >
+            <Eye className="w-4 h-4 text-blue-500" />
+            <span>Preview Public Page</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleOpenCreateModal}
+            className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-2 cursor-pointer shadow-xs"
+          >
+            <Plus className="w-4 h-4" />
+            <span>New Opportunity</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ─── TOP KPI SUMMARY METRIC CARDS ─── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs flex items-center justify-between">
+          <div>
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Total Openings</span>
+            <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">
+              {internships.length}
+            </div>
+            <span className="text-[10px] text-slate-400">All registered listings</span>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+            <Briefcase className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs flex items-center justify-between">
+          <div>
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Published Openings</span>
+            <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
+              {publishedCount}
+            </div>
+            <span className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80">Active on public portal</span>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs flex items-center justify-between">
+          <div>
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Draft Opportunities</span>
+            <div className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1">
+              {draftsCount}
+            </div>
+            <span className="text-[10px] text-amber-600/80 dark:text-amber-400/80">Unpublished / in progress</span>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+            <Clock className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs flex items-center justify-between">
+          <div>
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Total Applications</span>
+            <div className="text-2xl font-black text-purple-600 dark:text-purple-400 mt-1">
+              {applications.length || analytics?.totalApplications || 0}
+            </div>
+            <span className="text-[10px] text-slate-400">Applicant directory records</span>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+            <Users className="w-5 h-5" />
+          </div>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -430,38 +525,145 @@ export const AdminInternships: React.FC = () => {
       {/* ─── 1. APPLICANTS TAB ─── */}
       {activeTab === 'applicants' && (
         <div className="space-y-4">
-          {/* Filters Bar & CSV Export */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs">
-            {/* Status Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0 scrollbar-none">
-              {['ALL', 'SUBMITTED', 'UNDER_REVIEW', 'SHORTLISTED', 'INTERVIEW', 'SELECTED', 'WITHDRAWN', 'REJECTED'].map((st) => (
-                <button
-                  key={st}
-                  type="button"
-                  onClick={() => setApplicantFilterStatus(st)}
-                  className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-colors cursor-pointer text-[11px] ${
-                    applicantFilterStatus === st
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
-                  }`}
-                >
-                  {st.replace(/_/g, ' ')}
-                </button>
-              ))}
+          {/* Status Breakdown KPI Cards (7 required statuses) */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
+            <button
+              type="button"
+              onClick={() => setApplicantFilterStatus('ALL')}
+              className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                applicantFilterStatus === 'ALL'
+                  ? 'bg-blue-50 dark:bg-blue-950/70 border-blue-500 ring-1 ring-blue-500'
+                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+              }`}
+            >
+              <div className="text-[10px] font-bold text-slate-400 uppercase">Total Apps</div>
+              <div className="text-lg font-black text-slate-900 dark:text-white mt-0.5">{applications.length}</div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setApplicantFilterStatus('SUBMITTED')}
+              className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                applicantFilterStatus === 'SUBMITTED' || applicantFilterStatus === 'New'
+                  ? 'bg-blue-50 dark:bg-blue-950/70 border-blue-500 ring-1 ring-blue-500'
+                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+              }`}
+            >
+              <div className="text-[10px] font-bold text-blue-500 uppercase">New</div>
+              <div className="text-lg font-black text-blue-600 dark:text-blue-400 mt-0.5">
+                {applications.filter((a) => a.status === 'New' || a.status === 'SUBMITTED').length}
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setApplicantFilterStatus('UNDER_REVIEW')}
+              className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                applicantFilterStatus === 'UNDER_REVIEW' || applicantFilterStatus === 'Under Review'
+                  ? 'bg-amber-50 dark:bg-amber-950/70 border-amber-500 ring-1 ring-amber-500'
+                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+              }`}
+            >
+              <div className="text-[10px] font-bold text-amber-500 uppercase">Under Review</div>
+              <div className="text-lg font-black text-amber-600 dark:text-amber-400 mt-0.5">
+                {applications.filter((a) => a.status === 'Under Review' || a.status === 'UNDER_REVIEW').length}
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setApplicantFilterStatus('SHORTLISTED')}
+              className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                applicantFilterStatus === 'SHORTLISTED' || applicantFilterStatus === 'Shortlisted'
+                  ? 'bg-purple-50 dark:bg-purple-950/70 border-purple-500 ring-1 ring-purple-500'
+                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+              }`}
+            >
+              <div className="text-[10px] font-bold text-purple-500 uppercase">Shortlisted</div>
+              <div className="text-lg font-black text-purple-600 dark:text-purple-400 mt-0.5">
+                {applications.filter((a) => a.status === 'Shortlisted' || a.status === 'SHORTLISTED').length}
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setApplicantFilterStatus('INTERVIEW')}
+              className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                applicantFilterStatus === 'INTERVIEW' || applicantFilterStatus === 'Interview Scheduled'
+                  ? 'bg-cyan-50 dark:bg-cyan-950/70 border-cyan-500 ring-1 ring-cyan-500'
+                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+              }`}
+            >
+              <div className="text-[10px] font-bold text-cyan-500 uppercase">Interview</div>
+              <div className="text-lg font-black text-cyan-600 dark:text-cyan-400 mt-0.5">
+                {applications.filter((a) => a.status === 'Interview Scheduled' || a.status === 'INTERVIEW_SCHEDULED' || a.status === 'INTERVIEW').length}
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setApplicantFilterStatus('SELECTED')}
+              className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                applicantFilterStatus === 'SELECTED' || applicantFilterStatus === 'Selected'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/70 border-emerald-500 ring-1 ring-emerald-500'
+                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+              }`}
+            >
+              <div className="text-[10px] font-bold text-emerald-500 uppercase">Selected</div>
+              <div className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+                {applications.filter((a) => a.status === 'Selected' || a.status === 'SELECTED').length}
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setApplicantFilterStatus('REJECTED')}
+              className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                applicantFilterStatus === 'REJECTED' || applicantFilterStatus === 'Rejected'
+                  ? 'bg-rose-50 dark:bg-rose-950/70 border-rose-500 ring-1 ring-rose-500'
+                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+              }`}
+            >
+              <div className="text-[10px] font-bold text-rose-500 uppercase">Rejected</div>
+              <div className="text-lg font-black text-rose-600 dark:text-rose-400 mt-0.5">
+                {applications.filter((a) => a.status === 'Rejected' || a.status === 'REJECTED').length}
+              </div>
+            </button>
+          </div>
+
+          {/* Filters Bar & Google Sheets Sync */}
+          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs">
+            {/* Google Sheets Connection Pill */}
+            <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span><strong>Google Sheets Source:</strong> 1og9L7aU0R4... &bull; <strong>Tab:</strong> Applications</span>
+              {lastSyncedTime && <span className="text-[10px] text-slate-400 hidden sm:inline">(Last synced: {lastSyncedTime})</span>}
             </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
               {/* Search */}
-              <form onSubmit={handleSearchSubmit} className="relative flex-1 sm:w-64">
+              <form onSubmit={handleSearchSubmit} className="relative flex-1 sm:w-56">
                 <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   value={applicantSearch}
                   onChange={(e) => setApplicantSearch(e.target.value)}
-                  placeholder="Search name, ref, email..."
+                  placeholder="Search candidate, ID, role..."
                   className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs focus:outline-hidden focus:border-blue-500"
                 />
               </form>
+
+              {/* Sync with Google Sheets Button */}
+              <button
+                type="button"
+                onClick={handleSyncGoogleSheets}
+                disabled={isSyncingSheets}
+                className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 disabled:opacity-50 shadow-xs"
+                title="Synchronize applicant records directly with Google Sheets (1og9L7aU0R4_30uavzj17PZGAlGFt70VxVEwJ1WKKy_w)"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isSyncingSheets ? 'animate-spin' : ''}`} />
+                <span>{isSyncingSheets ? 'Syncing...' : 'Sync with Google Sheets'}</span>
+              </button>
 
               {/* CSV Export Button */}
               <button
@@ -469,7 +671,7 @@ export const AdminInternships: React.FC = () => {
                 onClick={handleExportCsv}
                 disabled={exportingCsv}
                 className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 disabled:opacity-50"
-                title="Export current applicant list to CSV"
+                title="Export applicant directory to CSV"
               >
                 {exportingCsv ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
                 <span>Export CSV</span>
@@ -670,8 +872,8 @@ export const AdminInternships: React.FC = () => {
                 )}
               </div>
 
-              {/* Domain Filter */}
-              <div className="flex items-center gap-2">
+              {/* Domain & Department & Type Filters */}
+              <div className="flex flex-wrap items-center gap-2">
                 <select
                   value={catalogDomainFilter}
                   onChange={(e) => setCatalogDomainFilter(e.target.value)}
@@ -683,6 +885,30 @@ export const AdminInternships: React.FC = () => {
                       {dom}
                     </option>
                   ))}
+                </select>
+
+                <select
+                  value={catalogDepartmentFilter}
+                  onChange={(e) => setCatalogDepartmentFilter(e.target.value)}
+                  className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-200 font-medium focus:outline-hidden"
+                >
+                  <option value="ALL">All Departments ({uniqueDepartments.length})</option>
+                  {uniqueDepartments.map((dept) => (
+                    <option key={dept} value={dept}>
+                      {dept}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={catalogEmploymentTypeFilter}
+                  onChange={(e) => setCatalogEmploymentTypeFilter(e.target.value)}
+                  className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-200 font-medium focus:outline-hidden"
+                >
+                  <option value="ALL">All Types</option>
+                  <option value="INTERNSHIP">Internship</option>
+                  <option value="FULL_TIME">Full-time</option>
+                  <option value="PART_TIME">Part-time</option>
                 </select>
 
                 {/* View Mode Toggle */}
@@ -712,6 +938,16 @@ export const AdminInternships: React.FC = () => {
                     <List className="w-4 h-4" />
                   </button>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsPreviewModalOpen(true)}
+                  className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs whitespace-nowrap"
+                  title="Preview how candidates see the public Careers page"
+                >
+                  <Eye className="w-3.5 h-3.5 text-blue-500" />
+                  <span>Preview</span>
+                </button>
 
                 <button
                   type="button"
@@ -1099,30 +1335,234 @@ export const AdminInternships: React.FC = () => {
 
       {/* ─── 3. ANALYTICS & REPORTS TAB ─── */}
       {activeTab === 'analytics' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1">
-              <span className="text-xs text-slate-500 font-semibold">Total Openings</span>
-              <div className="text-2xl font-black text-slate-900 dark:text-white">
-                {analytics?.totalInternships || 0}
+        <div className="space-y-6 animate-in fade-in duration-200">
+          {/* Executive Overview Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-2">
+              <div className="flex items-center justify-between text-slate-500">
+                <span className="text-xs font-semibold uppercase tracking-wider">Total Opportunities</span>
+                <Briefcase className="w-4 h-4 text-blue-500" />
+              </div>
+              <div className="text-3xl font-black text-slate-900 dark:text-white">
+                {analytics?.totalOpportunities ?? analytics?.totalInternships ?? programs.length}
+              </div>
+              <div className="flex items-center gap-3 text-xs text-slate-500 pt-1 border-t border-slate-100 dark:border-slate-800">
+                <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                  {analytics?.publishedOpportunities ?? programs.filter((p) => p.status === 'PUBLISHED').length} Published
+                </span>
+                <span>•</span>
+                <span className="text-amber-600 dark:text-amber-400 font-medium">
+                  {analytics?.draftInternships ?? programs.filter((p) => p.status === 'DRAFT').length} Drafts
+                </span>
               </div>
             </div>
-            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1">
-              <span className="text-xs text-slate-500 font-semibold">Total Applications</span>
-              <div className="text-2xl font-black text-blue-600 dark:text-blue-400">
-                {analytics?.totalApplications || 0}
+
+            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-2">
+              <div className="flex items-center justify-between text-slate-500">
+                <span className="text-xs font-semibold uppercase tracking-wider">Total Applications</span>
+                <Users className="w-4 h-4 text-indigo-500" />
+              </div>
+              <div className="text-3xl font-black text-indigo-600 dark:text-indigo-400">
+                {analytics?.totalApplications ?? applications.length}
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 pt-1 border-t border-slate-100 dark:border-slate-800">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Google Sheets Sync Active</span>
               </div>
             </div>
-            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1">
-              <span className="text-xs text-slate-500 font-semibold">Shortlisted Candidates</span>
-              <div className="text-2xl font-black text-purple-600 dark:text-purple-400">
-                {analytics?.shortlisted || 0}
+
+            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-2">
+              <div className="flex items-center justify-between text-slate-500">
+                <span className="text-xs font-semibold uppercase tracking-wider">In Pipeline</span>
+                <Clock className="w-4 h-4 text-purple-500" />
+              </div>
+              <div className="text-3xl font-black text-purple-600 dark:text-purple-400">
+                {(analytics?.shortlisted ?? applications.filter((a) => a.status === 'Shortlisted' || a.status === 'SHORTLISTED').length) +
+                  (analytics?.interviewScheduled ?? applications.filter((a) => a.status === 'Interview Scheduled' || a.status === 'INTERVIEW_SCHEDULED').length)}
+              </div>
+              <div className="flex items-center gap-3 text-xs text-slate-500 pt-1 border-t border-slate-100 dark:border-slate-800">
+                <span className="font-medium text-purple-500">
+                  {analytics?.shortlisted ?? applications.filter((a) => a.status === 'Shortlisted' || a.status === 'SHORTLISTED').length} Shortlisted
+                </span>
+                <span>•</span>
+                <span className="font-medium text-amber-500">
+                  {analytics?.interviewScheduled ?? applications.filter((a) => a.status === 'Interview Scheduled' || a.status === 'INTERVIEW_SCHEDULED').length} Interview
+                </span>
               </div>
             </div>
-            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1">
-              <span className="text-xs text-slate-500 font-semibold">Active Cohort Scholars</span>
-              <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
-                {analytics?.activeEnrollments || 0}
+
+            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-2">
+              <div className="flex items-center justify-between text-slate-500">
+                <span className="text-xs font-semibold uppercase tracking-wider">Selected / Offers</span>
+                <Award className="w-4 h-4 text-emerald-500" />
+              </div>
+              <div className="text-3xl font-black text-emerald-600 dark:text-emerald-400">
+                {analytics?.selected ?? applications.filter((a) => a.status === 'Selected' || a.status === 'ACCEPTED').length}
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 pt-1 border-t border-slate-100 dark:border-slate-800">
+                <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+                <span>
+                  {analytics?.totalApplications
+                    ? Math.round(((analytics?.selected || 0) / analytics.totalApplications) * 100)
+                    : 0}
+                  % Selection Conversion
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Detailed Recruitment Funnel Pipeline */}
+          <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5 text-blue-500" />
+                  <span>Application Status Funnel</span>
+                </h4>
+                <p className="text-xs text-slate-500 mt-0.5">Real-time candidate progression through the recruitment pipeline</p>
+              </div>
+              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
+                {analytics?.totalApplications ?? applications.length} Candidates Recorded
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-2">
+              {[
+                {
+                  label: 'New Submissions',
+                  count: analytics?.newApplications ?? applications.filter((a) => a.status === 'New' || a.status === 'SUBMITTED').length,
+                  color: 'text-blue-600 dark:text-blue-400',
+                  bg: 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-900/50',
+                },
+                {
+                  label: 'Under Review',
+                  count: analytics?.underReview ?? applications.filter((a) => a.status === 'Under Review' || a.status === 'UNDER_REVIEW').length,
+                  color: 'text-amber-600 dark:text-amber-400',
+                  bg: 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900/50',
+                },
+                {
+                  label: 'Shortlisted',
+                  count: analytics?.shortlisted ?? applications.filter((a) => a.status === 'Shortlisted' || a.status === 'SHORTLISTED').length,
+                  color: 'text-purple-600 dark:text-purple-400',
+                  bg: 'bg-purple-50 dark:bg-purple-950/40 border-purple-200 dark:border-purple-900/50',
+                },
+                {
+                  label: 'Interview Scheduled',
+                  count: analytics?.interviewScheduled ?? applications.filter((a) => a.status === 'Interview Scheduled' || a.status === 'INTERVIEW_SCHEDULED').length,
+                  color: 'text-cyan-600 dark:text-cyan-400',
+                  bg: 'bg-cyan-50 dark:bg-cyan-950/40 border-cyan-200 dark:border-cyan-900/50',
+                },
+                {
+                  label: 'Selected',
+                  count: analytics?.selected ?? applications.filter((a) => a.status === 'Selected' || a.status === 'ACCEPTED').length,
+                  color: 'text-emerald-600 dark:text-emerald-400',
+                  bg: 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900/50',
+                },
+                {
+                  label: 'Rejected',
+                  count: analytics?.rejected ?? applications.filter((a) => a.status === 'Rejected' || a.status === 'REJECTED').length,
+                  color: 'text-rose-600 dark:text-rose-400',
+                  bg: 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900/50',
+                },
+              ].map((stage, idx) => (
+                <div key={idx} className={`p-4 rounded-xl border ${stage.bg} flex flex-col justify-between`}>
+                  <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{stage.label}</span>
+                  <div className={`text-2xl font-black ${stage.color} mt-2`}>{stage.count}</div>
+                  <div className="text-[10px] text-slate-400 mt-1">
+                    {applications.length > 0 ? Math.round((stage.count / applications.length) * 100) : 0}% of pool
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Breakdown Distributions Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Applications by Opportunity */}
+            <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+              <h4 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                <Briefcase className="w-5 h-5 text-indigo-500" />
+                <span>Applications by Opportunity</span>
+              </h4>
+              <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                {Object.entries(
+                  analytics?.applicationsByOpportunity ||
+                    applications.reduce((acc, a) => {
+                      const key = a.internshipTitle || a.position || 'General';
+                      acc[key] = (acc[key] || 0) + 1;
+                      return acc;
+                    }, {} as Record<string, number>)
+                ).length === 0 ? (
+                  <p className="text-xs text-slate-400 py-4 text-center">No applications recorded yet.</p>
+                ) : (
+                  Object.entries(
+                    analytics?.applicationsByOpportunity ||
+                      applications.reduce((acc, a) => {
+                        const key = a.internshipTitle || a.position || 'General';
+                        acc[key] = (acc[key] || 0) + 1;
+                        return acc;
+                      }, {} as Record<string, number>)
+                  ).map(([title, count]) => {
+                    const total = applications.length || 1;
+                    const pct = Math.round((count / total) * 100);
+                    return (
+                      <div key={title} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[260px]">{title}</span>
+                          <span className="font-bold text-indigo-600 dark:text-indigo-400">{count} ({pct}%)</span>
+                        </div>
+                        <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                          <div className="bg-indigo-600 h-2 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Applications by Department / Domain */}
+            <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+              <h4 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                <Layers className="w-5 h-5 text-emerald-500" />
+                <span>Applications by Department & Domain</span>
+              </h4>
+              <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                {Object.entries(
+                  analytics?.applicationsByDepartment ||
+                    analytics?.applicationsByDomain ||
+                    applications.reduce((acc, a) => {
+                      const key = a.department || 'Engineering';
+                      acc[key] = (acc[key] || 0) + 1;
+                      return acc;
+                    }, {} as Record<string, number>)
+                ).length === 0 ? (
+                  <p className="text-xs text-slate-400 py-4 text-center">No departmental data available yet.</p>
+                ) : (
+                  Object.entries(
+                    analytics?.applicationsByDepartment ||
+                      analytics?.applicationsByDomain ||
+                      applications.reduce((acc, a) => {
+                        const key = a.department || 'Engineering';
+                        acc[key] = (acc[key] || 0) + 1;
+                        return acc;
+                      }, {} as Record<string, number>)
+                  ).map(([dept, count]) => {
+                    const total = applications.length || 1;
+                    const pct = Math.round((count / total) * 100);
+                    return (
+                      <div key={dept} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">{dept}</span>
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400">{count} ({pct}%)</span>
+                        </div>
+                        <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                          <div className="bg-emerald-600 h-2 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>
@@ -1225,7 +1665,20 @@ export const AdminInternships: React.FC = () => {
                   />
                 </div>
 
-                {/* Work Mode & Duration */}
+                {/* Employment Type & Work Mode */}
+                <div>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Employment Type *</label>
+                  <select
+                    value={programForm.employmentType || 'INTERNSHIP'}
+                    onChange={(e) => setProgramForm({ ...programForm, employmentType: e.target.value })}
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:border-blue-500 focus:outline-hidden"
+                  >
+                    <option value="INTERNSHIP">Internship</option>
+                    <option value="FULL_TIME">Full-time</option>
+                    <option value="PART_TIME">Part-time</option>
+                  </select>
+                </div>
+
                 <div>
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Work Mode</label>
                   <select
@@ -1239,6 +1692,7 @@ export const AdminInternships: React.FC = () => {
                   </select>
                 </div>
 
+                {/* Duration & Application Deadline */}
                 <div>
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Duration</label>
                   <input
@@ -1246,6 +1700,17 @@ export const AdminInternships: React.FC = () => {
                     value={programForm.duration}
                     onChange={(e) => setProgramForm({ ...programForm, duration: e.target.value })}
                     placeholder="12 Weeks"
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:border-blue-500 focus:outline-hidden"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Application Deadline</label>
+                  <input
+                    type="text"
+                    value={programForm.deadline || ''}
+                    onChange={(e) => setProgramForm({ ...programForm, deadline: e.target.value })}
+                    placeholder="e.g. 2027-01-01 / Rolling Basis"
                     className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:border-blue-500 focus:outline-hidden"
                   />
                 </div>
@@ -1338,7 +1803,7 @@ export const AdminInternships: React.FC = () => {
 
                 {/* Description */}
                 <div className="sm:col-span-2">
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Role Overview / Description *</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Role Overview / Short Description *</label>
                   <textarea
                     rows={3}
                     required
@@ -1351,7 +1816,7 @@ export const AdminInternships: React.FC = () => {
 
                 {/* Key Responsibilities */}
                 <div className="sm:col-span-2">
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Key Responsibilities (one per line or bullet points)</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Key Responsibilities / Detailed Description</label>
                   <textarea
                     rows={3}
                     value={programForm.responsibilities}
@@ -1359,6 +1824,38 @@ export const AdminInternships: React.FC = () => {
                     placeholder="• Implement reusable responsive components&#10;• Integrate REST APIs and state management&#10;• Write unit tests with Vitest and participate in code reviews"
                     className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs focus:border-blue-500 focus:outline-hidden resize-none font-mono text-[11px]"
                   />
+                </div>
+
+                {/* Curriculum / Structured Milestones */}
+                <div className="sm:col-span-2">
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    Internship Curriculum & Weekly Milestones
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={programForm.curriculum || ''}
+                    onChange={(e) => setProgramForm({ ...programForm, curriculum: e.target.value })}
+                    placeholder="Week 1-3: Core Environment & Abstractions&#10;Week 4-6: REST APIs, PostgreSQL Schemas & Authentication&#10;Week 7-9: Testing, CI/CD & Security Audits&#10;Week 10-12: Capstone Deliverables & Production Deployment"
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs focus:border-blue-500 focus:outline-hidden resize-none font-mono text-[11px]"
+                  />
+                </div>
+
+                {/* Curriculum / Learning Outcomes */}
+                <div className="sm:col-span-2">
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Learning Outcomes & Deliverables</label>
+                  <textarea
+                    rows={2}
+                    value={programForm.learningOutcomes || ''}
+                    onChange={(e) => setProgramForm({ ...programForm, learningOutcomes: e.target.value })}
+                    placeholder="Core competencies gained, real-world portfolio deliverables, and architectural standards..."
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs focus:border-blue-500 focus:outline-hidden resize-none font-mono text-[11px]"
+                  />
+                </div>
+
+                {/* Application Form Configuration Note */}
+                <div className="sm:col-span-2 p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-[11px] text-blue-700 dark:text-blue-300">
+                  <strong className="block font-bold mb-0.5">Application Form Pipeline:</strong>
+                  Applications for this opening connect to the Google Sheets database with automated branded candidate confirmation and HR email notifications.
                 </div>
 
                 {/* Status & Featured Controls */}
@@ -1369,7 +1866,8 @@ export const AdminInternships: React.FC = () => {
                     onChange={(e) => setProgramForm({ ...programForm, status: e.target.value })}
                     className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:border-blue-500 focus:outline-hidden"
                   >
-                    <option value="OPEN">OPEN (Accepting Applications)</option>
+                    <option value="OPEN">OPEN / PUBLISHED (Accepting Applications)</option>
+                    <option value="PUBLISHED">PUBLISHED</option>
                     <option value="CLOSED">CLOSED</option>
                     <option value="DRAFT">DRAFT (Hidden from Portal)</option>
                     <option value="ARCHIVED">ARCHIVED</option>
@@ -1387,6 +1885,13 @@ export const AdminInternships: React.FC = () => {
                     <span className="font-semibold text-slate-700 dark:text-slate-300">Feature on Landing & Portal</span>
                   </label>
                 </div>
+
+                {/* Timestamps in edit mode */}
+                {editingProgramId && programForm.createdAt && (
+                  <div className="sm:col-span-2 text-[10px] text-slate-400 pt-1">
+                    Created: {new Date(programForm.createdAt).toLocaleString()}
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
@@ -1472,58 +1977,197 @@ export const AdminInternships: React.FC = () => {
       {/* ─── CANDIDATE INSPECT & INTERNAL NOTES MODAL ─── */}
       {inspectingApp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="w-full max-w-xl bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-7 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
-                <h3 className="font-bold text-base text-slate-900 dark:text-white">
-                  {inspectingApp.fullName}
+                <h3 className="font-extrabold text-lg text-slate-900 dark:text-white flex items-center gap-2">
+                  <span>{inspectingApp.fullName}</span>
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
+                    {inspectingApp.status}
+                  </span>
                 </h3>
-                <span className="text-xs text-slate-400">Ref: {inspectingApp.referenceNumber}</span>
+                <span className="text-xs text-slate-400 font-mono">
+                  Application ID: {inspectingApp.applicationId || inspectingApp.referenceNumber || inspectingApp.id}
+                </span>
               </div>
               <button
                 type="button"
                 onClick={() => setInspectingApp(null)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-3 text-xs text-slate-600 dark:text-slate-300">
-              <div className="grid grid-cols-2 gap-2">
-                <div><strong>Email:</strong> {inspectingApp.email}</div>
-                <div><strong>Phone:</strong> {inspectingApp.phone}</div>
-                <div><strong>College:</strong> {inspectingApp.college}</div>
-                <div><strong>Degree:</strong> {inspectingApp.degree} ({inspectingApp.currentYear})</div>
+            <div className="space-y-4 text-xs text-slate-600 dark:text-slate-300">
+              {/* Contact & Position Summary */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-850/60 border border-slate-100 dark:border-slate-800">
+                <div><strong>Applied Position:</strong> <span className="text-blue-600 dark:text-blue-400 font-bold">{inspectingApp.internshipTitle || inspectingApp.position}</span></div>
+                <div><strong>Department:</strong> {inspectingApp.department || 'Engineering'}</div>
+                <div><strong>Email:</strong> <a href={`mailto:${inspectingApp.email}`} className="text-blue-500 hover:underline">{inspectingApp.email}</a></div>
+                <div><strong>Phone:</strong> <a href={`tel:${inspectingApp.phone}`} className="text-slate-700 dark:text-slate-300">{inspectingApp.phone}</a></div>
+                <div><strong>Institution / College:</strong> {inspectingApp.college || 'Not specified'}</div>
+                <div><strong>Degree & Year:</strong> {inspectingApp.degree ? `${inspectingApp.degree} (${inspectingApp.currentYear || ''})` : 'Not specified'}</div>
               </div>
 
-              {inspectingApp.statementOfPurpose && (
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
-                  <strong className="block text-slate-800 dark:text-slate-200 mb-1">Statement of Purpose:</strong>
-                  <p className="leading-relaxed">{inspectingApp.statementOfPurpose}</p>
+              {/* Skills */}
+              {inspectingApp.skills && (
+                <div>
+                  <strong className="block text-slate-700 dark:text-slate-200 mb-1">Key Skills & Technologies:</strong>
+                  <div className="flex flex-wrap gap-1.5">
+                    {inspectingApp.skills.split(',').map((sk, idx) => (
+                      <span key={idx} className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-medium">
+                        {sk.trim()}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               )}
 
-              {/* Recruiter Internal Notes */}
+              {/* Links: Resume, LinkedIn, GitHub, Portfolio */}
               <div>
-                <label className="block font-semibold mb-1">Recruiter / Admin Internal Notes</label>
-                <textarea
-                  rows={3}
-                  value={adminNotesInput}
-                  onChange={(e) => setAdminNotesInput(e.target.value)}
-                  placeholder="Add evaluation feedback, screening notes, or interview observations..."
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs focus:border-blue-500 focus:outline-hidden resize-none"
-                />
+                <strong className="block text-slate-700 dark:text-slate-200 mb-1.5">Candidate Profiles & Attachments:</strong>
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  {inspectingApp.resumeUrl && inspectingApp.resumeUrl !== 'Not Provided' ? (
+                    <a
+                      href={inspectingApp.resumeUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3 py-1.5 rounded-xl bg-blue-600 text-white font-bold text-xs flex items-center gap-1.5 hover:bg-blue-500 transition-colors shadow-2xs"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>Open / Download Resume</span>
+                    </a>
+                  ) : (
+                    <span className="text-xs text-slate-400 italic">Resume: Not Provided</span>
+                  )}
+
+                  {inspectingApp.linkedinUrl && (
+                    <a
+                      href={inspectingApp.linkedinUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-200 font-semibold text-xs flex items-center gap-1.5"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      <span>LinkedIn</span>
+                    </a>
+                  )}
+
+                  {inspectingApp.githubUrl && (
+                    <a
+                      href={inspectingApp.githubUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-200 font-semibold text-xs flex items-center gap-1.5"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      <span>GitHub</span>
+                    </a>
+                  )}
+
+                  {inspectingApp.portfolioUrl && (
+                    <a
+                      href={inspectingApp.portfolioUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-200 font-semibold text-xs flex items-center gap-1.5"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      <span>Portfolio</span>
+                    </a>
+                  )}
+                </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2">
+              {/* Cover Letter */}
+              {(inspectingApp.statementOfPurpose || inspectingApp.coverLetter) && (
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                  <strong className="block text-slate-800 dark:text-slate-200 mb-1">Cover Letter / Statement of Purpose:</strong>
+                  <p className="leading-relaxed whitespace-pre-wrap text-slate-600 dark:text-slate-300">
+                    {inspectingApp.statementOfPurpose || inspectingApp.coverLetter}
+                  </p>
+                </div>
+              )}
+
+              {/* Status Update & Recruiter Notes Section */}
+              <div className="p-4 rounded-2xl bg-blue-50/50 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/60 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex-1">
+                    <label className="block font-bold text-slate-800 dark:text-slate-200 mb-1">
+                      Update Application Status (Synchronizes to Google Sheets)
+                    </label>
+                    <select
+                      value={inspectingStatus}
+                      onChange={(e) => setInspectingStatus(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-hidden focus:border-blue-500"
+                    >
+                      <option value="New">New</option>
+                      <option value="Under Review">Under Review</option>
+                      <option value="Shortlisted">Shortlisted</option>
+                      <option value="Interview Scheduled">Interview Scheduled</option>
+                      <option value="Selected">Selected</option>
+                      <option value="Rejected">Rejected</option>
+                    </select>
+                  </div>
+
+                  <div className="pt-2 sm:pt-4">
+                    <label className="flex items-center gap-2 cursor-pointer select-none text-xs">
+                      <input
+                        type="checkbox"
+                        checked={notifyCandidateEmail}
+                        onChange={(e) => setNotifyCandidateEmail(e.target.checked)}
+                        className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500"
+                      />
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">Email candidate on status change</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Recruiter Internal Notes (Private to Admin Panel)
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={adminNotesInput}
+                    onChange={(e) => setAdminNotesInput(e.target.value)}
+                    placeholder="Candidate technical rubric score, interview notes, or evaluation feedback..."
+                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs focus:border-blue-500 focus:outline-hidden resize-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
-                  onClick={() => handleUpdateStatus(inspectingApp.id, inspectingApp.status, adminNotesInput)}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs cursor-pointer"
+                  onClick={() => {
+                    setSchedulingApp(inspectingApp);
+                    setInspectingApp(null);
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs"
                 >
-                  Save Internal Notes
+                  <Video className="w-3.5 h-3.5" />
+                  <span>Schedule Interview</span>
                 </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setInspectingApp(null)}
+                    className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateStatus(inspectingApp.id, inspectingStatus, adminNotesInput, notifyCandidateEmail)}
+                    className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Save & Sync Status</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1618,6 +2262,13 @@ export const AdminInternships: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* ─── PUBLIC CAREERS PREVIEW MODAL ─── */}
+      <CareersPreviewModal
+        isOpen={isPreviewModalOpen}
+        onClose={() => setIsPreviewModalOpen(false)}
+        opportunities={internships}
+      />
     </div>
   );
 };

@@ -202,7 +202,9 @@ app.get('/api/test-email', verifyFirebaseToken as any, requireRole('admin') as a
   }
 });
 
-// API Routes (mounted on both /api and root for flexible serverless & reverse-proxy routing)
+// API Routes (mounted on /api/v1, /api, /v1, and root for flexible serverless & reverse-proxy routing)
+app.use('/api/v1', routes);
+app.use('/v1', routes);
 app.use('/api', routes);
 app.use('/', routes);
 

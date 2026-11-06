@@ -83,6 +83,7 @@ const PublicPortfolio = lazyLoad(() => import('@/pages/portfolio/PublicPortfolio
 const AdminCoupons = lazyLoad(() => import('@/pages/admin/AdminCoupons'), 'AdminCoupons');
 const CareersPage = lazyLoad(() => import('@/pages/careers/CareersPage'), 'CareersPage');
 const AdminInternships = lazyLoad(() => import('@/pages/admin/AdminInternships'), 'AdminInternships');
+const AdminInternshipStudio = lazyLoad(() => import('@/pages/admin/AdminInternshipStudio'), 'AdminInternshipStudio');
 const NotFound = lazyLoad(() => import('@/pages/NotFound'), 'NotFound');
 
 // ─── Simple placeholder pages for coming-soon admin sections ─────────────────
@@ -209,10 +210,14 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/admin/dashboard" replace /> },
       { path: 'dashboard', element: <AdminDashboard /> },
+      { path: 'careers', element: <AdminInternships /> },
+      { path: 'careers/new', element: <AdminInternshipStudio /> },
+      { path: 'careers/edit/:id', element: <AdminInternshipStudio /> },
+      { path: 'career', element: <Navigate to="/admin/careers" replace /> },
       { path: 'internships', element: <AdminInternships /> },
-      { path: 'internship', element: <Navigate to="/admin/internships" replace /> },
-      { path: 'careers', element: <Navigate to="/admin/internships" replace /> },
-      { path: 'career', element: <Navigate to="/admin/internships" replace /> },
+      { path: 'internships/new', element: <AdminInternshipStudio /> },
+      { path: 'internships/edit/:id', element: <AdminInternshipStudio /> },
+      { path: 'internship', element: <Navigate to="/admin/careers" replace /> },
       { path: 'coupons', element: <AdminCoupons /> },
       { path: 'coupon', element: <Navigate to="/admin/coupons" replace /> },
       { path: 'courses', element: <Courses /> },

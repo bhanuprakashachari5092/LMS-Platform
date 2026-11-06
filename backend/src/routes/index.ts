@@ -20,6 +20,7 @@ import resumeRoutes from './resumeRoutes';
 import uploadRoutes from '../modules/upload/upload.routes';
 import couponRoutes from '../modules/coupons/coupon.routes';
 import notificationRoutes from '../modules/notifications/notification.routes';
+import careerRoutes from './careerRoutes';
 import { verifyFirebaseToken, requireRole } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -65,6 +66,8 @@ router.use('/ai', aiRoutes);
 router.use('/email', emailRoutes);
 router.use('/ai-lms', aiLmsRoutes);
 router.use('/sandbox', sandboxRoutes);
+router.use('/admin/careers', careerRoutes);
+router.use('/admin/internships', careerRoutes);
 router.use('/admin', adminRoutes);
 router.use('/coupons', couponRoutes);
 router.use('/payments', paymentRoutes);
@@ -73,5 +76,7 @@ router.use('/enrollments', enrollmentRoutes);
 router.use('/portfolio', portfolioRoutes);
 router.use('/resume', resumeRoutes);
 router.use('/notifications', notificationRoutes);
+router.use('/careers', careerRoutes);
+router.use('/internships', careerRoutes);
 
 export default router;
