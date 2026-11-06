@@ -227,35 +227,16 @@ export const CareersPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Right Column: Interactive Lottie Presentation */}
-            <div className="lg:col-span-5 relative flex justify-center items-center">
-              {/* Ambient Glow */}
-              <div className="absolute -inset-4 bg-gradient-to-tr from-blue-600/20 via-indigo-600/20 to-cyan-400/20 rounded-3xl blur-2xl opacity-70 dark:opacity-50 pointer-events-none" />
-
-              {/* Glassmorphic Card Frame */}
-              <div className="relative w-full max-w-[460px] lg:max-w-none rounded-3xl border border-slate-200/90 dark:border-slate-800/90 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-3 sm:p-4 shadow-2xl shadow-blue-500/10 transition-all hover:shadow-blue-500/15">
-                {/* Floating Badge Top-Right */}
-                <div className="absolute -top-3 -right-2 sm:-top-3.5 sm:-right-3 z-20 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/95 dark:bg-white text-white dark:text-slate-900 text-[11px] font-bold shadow-lg border border-slate-800 dark:border-slate-200">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>Actively Hiring 2026</span>
-                </div>
-
-                {/* Floating Badge Bottom-Left */}
-                <div className="absolute -bottom-3 -left-2 sm:-bottom-3.5 sm:-left-3 z-20 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/95 dark:bg-slate-800/95 text-slate-800 dark:text-slate-100 text-[11px] font-semibold shadow-lg border border-slate-200 dark:border-slate-700 backdrop-blur-md">
-                  <Award className="w-3.5 h-3.5 text-blue-500" />
-                  <span>Industry Recognized Track</span>
-                </div>
-
-                {/* Lottie Animation Embed */}
-                <div className="relative w-full h-[320px] sm:h-[380px] md:h-[400px] lg:h-[430px] rounded-2xl overflow-hidden bg-gradient-to-b from-slate-50/50 to-blue-50/30 dark:from-slate-950/40 dark:to-blue-950/20 flex items-center justify-center">
-                  <iframe
-                    src="https://lottie.host/embed/4576e51d-f663-41e5-94f1-76e5a4e64dfc/7XYr3nx5wv.lottie"
-                    title="KaizenQ Careers & Opportunities"
-                    className="w-full h-full border-0 pointer-events-auto"
-                    loading="lazy"
-                    allowFullScreen
-                  />
-                </div>
+            {/* Right Column: Clean & Free-standing Lottie Animation */}
+            <div className="lg:col-span-5 flex items-center justify-center">
+              <div className="w-full max-w-[480px] lg:max-w-none h-[340px] sm:h-[400px] lg:h-[480px] flex items-center justify-center">
+                <iframe
+                  src="https://lottie.host/embed/4576e51d-f663-41e5-94f1-76e5a4e64dfc/7XYr3nx5wv.lottie"
+                  title="KaizenQ Careers Animation"
+                  className="w-full h-full border-0 bg-transparent"
+                  loading="lazy"
+                  allowFullScreen
+                />
               </div>
             </div>
           </div>
