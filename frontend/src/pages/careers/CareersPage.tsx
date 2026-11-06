@@ -148,63 +148,116 @@ export const CareersPage: React.FC = () => {
       <section className="relative overflow-hidden pt-28 pb-16 sm:pt-36 sm:pb-24 border-b border-slate-200/80 dark:border-slate-800/80">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(59,130,246,0.18),rgba(255,255,255,0))] dark:bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(59,130,246,0.25),rgba(2,6,23,0))] pointer-events-none" />
 
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 relative z-10 text-center">
-          {/* Live Published Count Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/70 border border-blue-200/80 dark:border-blue-800/70 text-blue-600 dark:text-blue-400 text-xs font-bold tracking-wide uppercase mb-6 animate-in fade-in slide-in-from-bottom-2 duration-300 shadow-2xs">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>{internships.length} Active Opportunities &bull; Shaivika Groups</span>
-          </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center">
+            {/* Left Column: Headline, Copy, Search & CTAs */}
+            <div className="lg:col-span-7 text-center lg:text-left space-y-6">
+              {/* Live Published Count Badge */}
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/70 border border-blue-200/80 dark:border-blue-800/70 text-blue-600 dark:text-blue-400 text-xs font-bold tracking-wide uppercase shadow-2xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>{internships.length} Active Opportunities &bull; Shaivika Groups</span>
+              </div>
 
-          {/* Exact Headline */}
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-slate-900 dark:text-white tracking-tight max-w-4xl mx-auto leading-[1.15]">
-            Build What Matters.{' '}
-            <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 dark:from-blue-400 dark:via-indigo-300 dark:to-cyan-400 bg-clip-text text-transparent">
-              Grow With KaizenQ.
-            </span>
-          </h1>
+              {/* Exact Headline */}
+              <h1 className="text-3xl sm:text-5xl lg:text-5xl xl:text-6xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-[1.12]">
+                Build What Matters.{' '}
+                <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 dark:from-blue-400 dark:via-indigo-300 dark:to-cyan-400 bg-clip-text text-transparent">
+                  Grow With KaizenQ.
+                </span>
+              </h1>
 
-          {/* Exact Supporting Text */}
-          <p className="mt-5 text-base sm:text-lg text-slate-600 dark:text-slate-300 max-w-2xl mx-auto leading-relaxed font-normal">
-            Explore opportunities to learn, build real-world products, and grow alongside an ambitious engineering team.
-          </p>
+              {/* Exact Supporting Text */}
+              <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-normal">
+                Explore opportunities to learn, build real-world products, and grow alongside an ambitious engineering team.
+              </p>
 
-          {/* Hero Search Bar */}
-          <form
-            onSubmit={handleSearchSubmit}
-            className="mt-8 max-w-xl mx-auto relative flex items-center shadow-lg shadow-blue-500/5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1.5 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all"
-          >
-            <Search className="w-4 h-4 ml-3 text-slate-400 shrink-0" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by role, track, or technical skill (e.g. React, Python, Cloud)..."
-              className="w-full px-3 py-2 text-xs sm:text-sm bg-transparent text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-hidden"
-            />
-            <button
-              type="submit"
-              className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-colors shrink-0 shadow-xs cursor-pointer"
-            >
-              Search
-            </button>
-          </form>
+              {/* Hero Search Bar */}
+              <form
+                onSubmit={handleSearchSubmit}
+                className="max-w-xl mx-auto lg:mx-0 relative flex items-center shadow-lg shadow-blue-500/5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1.5 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all"
+              >
+                <Search className="w-4 h-4 ml-3 text-slate-400 shrink-0" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by role, track, or technical skill (e.g. React, Python, Cloud)..."
+                  className="w-full px-3 py-2 text-xs sm:text-sm bg-transparent text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-hidden"
+                />
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-colors shrink-0 shadow-xs cursor-pointer"
+                >
+                  Search
+                </button>
+              </form>
 
-          {/* Action CTAs */}
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-            <button
-              onClick={scrollToOpenings}
-              className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <Briefcase className="w-3.5 h-3.5 text-blue-500" />
-              <span>Browse All Positions</span>
-            </button>
-            <button
-              onClick={() => handleOpenApply(null)}
-              className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-700 dark:text-slate-200 font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <span>General Application</span>
-              <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
-            </button>
+              {/* Action CTAs */}
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 pt-1">
+                <button
+                  onClick={scrollToOpenings}
+                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-all flex items-center gap-1.5 shadow-md shadow-blue-500/20 cursor-pointer"
+                >
+                  <Briefcase className="w-3.5 h-3.5" />
+                  <span>Browse All Positions</span>
+                </button>
+                <button
+                  onClick={() => handleOpenApply(null)}
+                  className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-700 dark:text-slate-200 font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span>General Application</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+                </button>
+              </div>
+
+              {/* Trust Indicators */}
+              <div className="pt-2 flex flex-wrap items-center justify-center lg:justify-start gap-y-2 gap-x-6 text-xs text-slate-500 dark:text-slate-400">
+                <div className="flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                  <span>Direct HR Review</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  <span>Verified Credentials</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Terminal className="w-4 h-4 text-blue-500" />
+                  <span>Production Codebase</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column: Interactive Lottie Presentation */}
+            <div className="lg:col-span-5 relative flex justify-center items-center">
+              {/* Ambient Glow */}
+              <div className="absolute -inset-4 bg-gradient-to-tr from-blue-600/20 via-indigo-600/20 to-cyan-400/20 rounded-3xl blur-2xl opacity-70 dark:opacity-50 pointer-events-none" />
+
+              {/* Glassmorphic Card Frame */}
+              <div className="relative w-full max-w-[460px] lg:max-w-none rounded-3xl border border-slate-200/90 dark:border-slate-800/90 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-3 sm:p-4 shadow-2xl shadow-blue-500/10 transition-all hover:shadow-blue-500/15">
+                {/* Floating Badge Top-Right */}
+                <div className="absolute -top-3 -right-2 sm:-top-3.5 sm:-right-3 z-20 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/95 dark:bg-white text-white dark:text-slate-900 text-[11px] font-bold shadow-lg border border-slate-800 dark:border-slate-200">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Actively Hiring 2026</span>
+                </div>
+
+                {/* Floating Badge Bottom-Left */}
+                <div className="absolute -bottom-3 -left-2 sm:-bottom-3.5 sm:-left-3 z-20 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/95 dark:bg-slate-800/95 text-slate-800 dark:text-slate-100 text-[11px] font-semibold shadow-lg border border-slate-200 dark:border-slate-700 backdrop-blur-md">
+                  <Award className="w-3.5 h-3.5 text-blue-500" />
+                  <span>Industry Recognized Track</span>
+                </div>
+
+                {/* Lottie Animation Embed */}
+                <div className="relative w-full h-[320px] sm:h-[380px] md:h-[400px] lg:h-[430px] rounded-2xl overflow-hidden bg-gradient-to-b from-slate-50/50 to-blue-50/30 dark:from-slate-950/40 dark:to-blue-950/20 flex items-center justify-center">
+                  <iframe
+                    src="https://lottie.host/embed/4576e51d-f663-41e5-94f1-76e5a4e64dfc/7XYr3nx5wv.lottie"
+                    title="KaizenQ Careers & Opportunities"
+                    className="w-full h-full border-0 pointer-events-auto"
+                    loading="lazy"
+                    allowFullScreen
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
