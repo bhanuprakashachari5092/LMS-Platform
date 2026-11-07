@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping({"/api/v1/internships", "/api/v1/careers"})
+@RequestMapping({"/api/v1/internships", "/api/v1/careers", "/api/internships", "/api/careers"})
 public class InternshipPublicController {
 
     private final InternshipService internshipService;
@@ -60,7 +60,7 @@ public class InternshipPublicController {
      * Submits an application for an internship/career opening.
      * Prevents duplicate applications for the same candidate and role.
      */
-    @PostMapping({"/apply", "/applications"})
+    @PostMapping({"/apply", "/applications", "/internship-applications"})
     public ResponseEntity<ApiResponse<InternshipApplicationDTO>> submitApplication(
             @Valid @RequestBody SubmitApplicationRequest request,
             @AuthenticationPrincipal UserPrincipal currentUser) {

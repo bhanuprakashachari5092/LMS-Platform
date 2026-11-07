@@ -1,50 +1,68 @@
 # ==============================================================================
-# Multi-stage Dockerfile for Shaivika LMS SaaS Spring Boot Backend (Java 21 LTS)
+# KaizenQ LMS - Enterprise Spring Boot Backend Multi-Stage Dockerfile
+# Java Version: Eclipse Temurin 17 LTS (Alpine)
+# Deployment Target: Render Web Service (Docker Runtime)
 # ==============================================================================
 
-# Stage 1: Build stage
-FROM eclipse-temurin:21-jdk-alpine AS builder
+# ------------------------------------------------------------------------------
+# Stage 1: Build & Package Executable Spring Boot JAR
+# ------------------------------------------------------------------------------
+FROM maven:3.9.9-eclipse-temurin-17-alpine AS builder
+
 WORKDIR /workspace
 
-# Install dos2unix and bash
-RUN apk add --no-cache bash dos2unix
+# Copy Maven Project Object Model (POM)
+COPY pom.xml ./
 
-# Copy Maven Wrapper and POM
-COPY .mvn/ .mvn/
-COPY mvnw pom.xml ./
-RUN dos2unix mvnw && chmod +x mvnw
+# Pre-fetch dependencies into Docker layer cache
+RUN mvn dependency:go-offline -B || true
 
-# Resolve dependencies in cache
-RUN ./mvnw dependency:go-offline -B || true
-
-# Copy source code and build application JAR
+# Copy source code
 COPY src ./src
-RUN ./mvnw clean package -DskipTests -B
 
-# Stage 2: Production runtime stage
-FROM eclipse-temurin:21-jre-alpine AS runner
+# Package production application artifact
+RUN mvn clean package -DskipTests -B
+
+# Isolate ONLY the executable JAR (exclude .original unshaded artifact)
+RUN mkdir -p /build/out && \
+    find target/ -maxdepth 1 -name "*.jar" ! -name "*.original" -exec cp {} /build/out/app.jar \; && \
+    ls -lh /build/out/app.jar
+
+# ------------------------------------------------------------------------------
+# Stage 2: Minimal Production JRE Runtime
+# ------------------------------------------------------------------------------
+FROM eclipse-temurin:17-jre-alpine AS runner
+
 WORKDIR /app
 
-# Create a non-root system user and group for security
+# Install curl / wget for container health checks
+RUN apk add --no-cache curl wget bash
+
+# Create non-root system user and group for hardened container security
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
-# Copy compiled JAR from builder stage
-COPY --from=builder --chown=appuser:appgroup /workspace/target/*.jar /app/app.jar
+# Create runtime directories with appropriate ownership
+RUN mkdir -p /app/logs /tmp && chown -R appuser:appgroup /app /tmp
+
+# Copy isolated executable JAR from builder stage
+COPY --from=builder --chown=appuser:appgroup /build/out/app.jar /app/app.jar
 
 # Switch to non-root user
 USER appuser
 
-# Expose default application port
-EXPOSE 5000
+# Expose production port (Render binds to dynamic $PORT)
+EXPOSE 8080
 
-# Health check configuration
+# Environment Defaults for Container Execution
+ENV SPRING_PROFILES_ACTIVE=prod \
+    PORT=8080 \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8
+
+# Container Healthcheck Probe
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-  CMD wget -q --spider http://localhost:${PORT:-5000}/health || exit 1
+  CMD wget -q --spider http://127.0.0.1:${PORT:-8080}/actuator/health || \
+      wget -q --spider http://127.0.0.1:${PORT:-8080}/health || exit 1
 
-# Environment defaults
-ENV SPRING_PROFILES_ACTIVE=prod
-ENV PORT=5000
-
-# Start command
-ENTRYPOINT ["sh", "-c", "java -XX:+UseG1GC -XX:MaxRAMPercentage=75.0 -Dserver.port=${PORT:-5000} -Djava.security.egd=file:/dev/./urandom -jar /app/app.jar"]
-
+# Production Entrypoint with dynamic port injection and container memory tuning
+ENTRYPOINT ["sh", "-c", "echo '[KAIZENQ-INIT] Starting KaizenQ Spring Boot Backend on Port '${PORT:-8080}' [Profile: '${SPRING_PROFILES_ACTIVE:-prod}']...' && exec java -XX:+UseG1GC -XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError -Dserver.port=${PORT:-8080} -Djava.security.egd=file:/dev/./urandom -jar /app/app.jar"]

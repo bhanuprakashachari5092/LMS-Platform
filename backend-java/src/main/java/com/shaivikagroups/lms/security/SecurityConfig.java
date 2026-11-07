@@ -103,8 +103,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/coupons/validate").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/practice/languages", "/api/v1/practice/problems", "/api/v1/practice/problems/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/practice/run").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/internships", "/api/v1/internships/*", "/api/v1/internships/verify/**", "/api/v1/careers", "/api/v1/careers/*", "/api/v1/careers/openings", "/api/v1/careers/openings/*", "/api/v1/careers/verify/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/internships/apply", "/api/v1/careers/apply", "/api/v1/careers/applications").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/internships", "/api/v1/internships/*", "/api/v1/internships/verify/**", "/api/v1/careers", "/api/v1/careers/*", "/api/v1/careers/openings", "/api/v1/careers/openings/*", "/api/v1/careers/verify/**", "/api/internships/**", "/api/careers/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/internships/apply", "/api/v1/careers/apply", "/api/v1/careers/applications", "/api/internship-applications", "/api/v1/internship-applications", "/api/internships/apply", "/api/careers/apply").permitAll()
 
                         // 5. Public Certificate Verification, Showcase Portfolios, AI & GitHub Integrations
                         .requestMatchers(HttpMethod.GET, "/api/v1/certificates/verify/**").permitAll()

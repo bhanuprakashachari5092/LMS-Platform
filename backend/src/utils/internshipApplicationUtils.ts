@@ -255,3 +255,4 @@ export function getResumeBuffer(applicationId: string): { buffer: Buffer; mimety
 
   return null;
 }
+

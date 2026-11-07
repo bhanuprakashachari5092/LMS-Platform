@@ -1,0 +1,49 @@
+# ==============================================================================
+# .dockerignore for KaizenQ LMS Spring Boot Java Backend
+# ==============================================================================
+
+# Compiled binaries and target directory
+target/
+*.jar
+*.war
+*.original
+*.class
+
+# Version control
+.git/
+.gitignore
+.github/
+
+# IDE and Editor configuration
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+*.suo
+*.user
+
+# Environment variables and sensitive secrets (Never bake into Docker images!)
+*.env
+*.env.*
+*.local
+credentials*.json
+service-account*.json
+*.pem
+*.key
+*.p12
+*.jks
+
+# Logs and runtime artifacts
+logs/
+*.log
+*.pid
+tmp/
+temp/
+
+# OS specific temporary files
+.DS_Store
+Thumbs.db
+desktop.ini
+

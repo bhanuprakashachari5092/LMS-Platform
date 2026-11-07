@@ -1,5 +1,6 @@
 server:
-  port: ${PORT:5000}
+  port: ${PORT:8080}
+  shutdown: graceful
   compression:
     enabled: true
     mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
@@ -23,9 +24,46 @@ spring:
     enabled: true
     baseline-on-migrate: true
     locations: classpath:db/migration
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 15MB
+  mail:
+    host: ${SPRING_MAIL_HOST:${MAIL_HOST:smtp.gmail.com}}
+    port: ${SPRING_MAIL_PORT:${MAIL_PORT:587}}
+    username: ${GMAIL_USERNAME:${SPRING_MAIL_USERNAME:}}
+    password: ${GMAIL_APP_PASSWORD:${SPRING_MAIL_PASSWORD:}}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
 
 # ==============================================================================
-# Security & JWT Configuration
+# Spring Boot Actuator Probes
+# ==============================================================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+  info:
+    env:
+      enabled: false
+
+# ==============================================================================
+# Security, JWT & Application Configuration
 # ==============================================================================
 app:
   jwt:
@@ -33,10 +71,20 @@ app:
     access-token-expiration-seconds: 86400      # 24 hours
     refresh-token-expiration-seconds: 604800   # 7 days
   cors:
-    allowed-origins: ${CORS_ORIGIN:https://www.kaizenq.in,https://kaizenq.in,http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173}
+    allowed-origins: ${CORS_ORIGIN:https://www.kaizenq.in,https://kaizenq.in,https://shaivika-lms.vercel.app,http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173}
     allowed-methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
     allowed-headers: "*"
     allow-credentials: true
+  sheets:
+    spreadsheet-id: ${GOOGLE_SHEET_ID:1og9L7aU0R4_30uavzj17PZGAlGFt70VxVEwJ1WKKy_w}
+    sheet-name: ${GOOGLE_SHEET_NAME:Applications}
+    apps-script-url: ${GOOGLE_APPS_SCRIPT_URL:https://script.google.com/macros/s/AKfycbwG4HnE51tX3wDqLw6b6w9jR2L5vU/exec}
+    credentials-path: ${GOOGLE_SHEETS_CREDENTIALS_PATH:}
+    credentials-json: ${GOOGLE_SHEETS_CREDENTIALS_JSON:}
+  mail:
+    hr-notification-email: ${HR_NOTIFICATION_EMAIL:kaizenqlms@gmail.com}
+    from-email: ${MAIL_FROM_EMAIL:${GMAIL_USERNAME:kaizenqlms@gmail.com}}
+    from-name: ${MAIL_FROM_NAME:KaizenQ LMS}
 
 # ==============================================================================
 # External Integrations Configuration
@@ -123,4 +171,8 @@ spring:
       ddl-auto: create-drop
   flyway:
     enabled: false
+
+app:
+  sheets:
+    apps-script-url: ""
 

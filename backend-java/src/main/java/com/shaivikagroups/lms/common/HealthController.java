@@ -25,7 +25,7 @@ public class HealthController {
         response.put("success", true);
         response.put("service", "KaizenQ LMS Java Backend");
         response.put("status", "running");
-        response.put("framework", "Spring Boot 3.3.4 (Java 21 LTS)");
+        response.put("framework", "Spring Boot 3.3.4 (Java 17 LTS)");
         response.put("database", "PostgreSQL");
         response.put("timestamp", Instant.now().toString());
         return ResponseEntity.ok(response);

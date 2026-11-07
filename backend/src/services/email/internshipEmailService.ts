@@ -553,3 +553,4 @@ export async function sendInternshipApplicationEmails(
     error: hrEmailSent ? undefined : lastError,
   };
 }
+

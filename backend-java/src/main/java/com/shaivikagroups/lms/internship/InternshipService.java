@@ -2,9 +2,14 @@ package com.shaivikagroups.lms.internship;
 
 import com.shaivikagroups.lms.common.ConflictException;
 import com.shaivikagroups.lms.common.ResourceNotFoundException;
+import com.shaivikagroups.lms.integration.sheets.GoogleSheetsService;
 import com.shaivikagroups.lms.internship.dto.*;
+import com.shaivikagroups.lms.notification.EmailService;
 import com.shaivikagroups.lms.security.UserPrincipal;
 import com.shaivikagroups.lms.tenant.TenantContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -21,6 +26,8 @@ import java.util.stream.Collectors;
 @Service
 public class InternshipService {
 
+    private static final Logger log = LoggerFactory.getLogger(InternshipService.class);
+
     private final InternshipRepository internshipRepository;
     private final InternshipApplicationRepository applicationRepository;
     private final InternshipInterviewRepository interviewRepository;
@@ -28,6 +35,12 @@ public class InternshipService {
     private final InternshipTaskRepository taskRepository;
     private final InternshipSubmissionRepository submissionRepository;
     private final InternshipCertificateRepository certificateRepository;
+
+    @Autowired(required = false)
+    private EmailService emailService;
+
+    @Autowired(required = false)
+    private GoogleSheetsService googleSheetsService;
 
     public InternshipService(
             InternshipRepository internshipRepository,
@@ -140,6 +153,29 @@ public class InternshipService {
         app.setUpdatedAt(OffsetDateTime.now());
 
         InternshipApplicationEntity saved = applicationRepository.save(app);
+
+        // Async / resilient dispatch of notifications & external tracking
+        if (emailService != null) {
+            try {
+                // Confirmation email to candidate
+                emailService.sendApplicationReceivedEmail(saved.getEmail(), saved.getFullName(), internship.getTitle(), saved.getReferenceNumber());
+                // Notification to KaizenQ HR / Admin
+                emailService.sendAdminApplicationNotification(null, saved.getFullName(), saved.getEmail(), internship.getTitle(),
+                        saved.getReferenceNumber(), saved.getResumeUrl(), saved.getCollege(), saved.getBranch(),
+                        saved.getGraduationYear(), saved.getSkills(), saved.getPhone());
+            } catch (Exception e) {
+                log.warn("[APPLICATION DISPATCH] Email notification failed for {}: {}", saved.getReferenceNumber(), e.getMessage());
+            }
+        }
+
+        if (googleSheetsService != null) {
+            try {
+                googleSheetsService.syncApplication(saved, internship.getTitle());
+            } catch (Exception e) {
+                log.warn("[APPLICATION DISPATCH] Google Sheets sync failed for {}: {}", saved.getReferenceNumber(), e.getMessage());
+            }
+        }
+
         return toApplicationDTO(saved, internship.getTitle(), internship.getDomain(), null);
     }
 
