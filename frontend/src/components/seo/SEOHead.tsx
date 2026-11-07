@@ -6,8 +6,9 @@ interface SEOHeadProps {
   description: string;
   canonicalUrl?: string;
   ogImage?: string;
-  ogType?: 'website' | 'article' | 'course';
+  ogType?: 'website' | 'article' | 'course' | 'profile';
   keywords?: string;
+  author?: string;
   noindex?: boolean;
 }
 
@@ -17,10 +18,11 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
   canonicalUrl,
   ogImage = 'https://res.cloudinary.com/kggovcsf/image/upload/v1787058675/Kaizen_Q_Symbol_Logo1.png',
   ogType = 'website',
-  keywords,
+  keywords = 'KaizenQ, Kaizen Q, Co-Founder of KaizenQ, Bhanu Prakash, Banu Prakash, Shaivika Groups, virtual internships, technology learning platform',
+  author = 'Bhanu Prakash — Co-Founder of KaizenQ',
   noindex = false,
 }) => {
-  const siteName = 'Kaizen Q';
+  const siteName = 'KaizenQ';
   const fullTitle = title.includes(siteName) ? title : `${siteName} — ${title}`;
   const url = canonicalUrl || typeof window !== 'undefined' ? window.location.href : 'https://www.kaizenq.in';
 
@@ -30,6 +32,7 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
       <title>{fullTitle}</title>
       <meta name="description" content={description} />
       {keywords && <meta name="keywords" content={keywords} />}
+      <meta name="author" content={author} />
       {noindex && <meta name="robots" content="noindex, nofollow" />}
       <link rel="canonical" href={url} />
 

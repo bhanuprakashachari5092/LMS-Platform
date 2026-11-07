@@ -175,8 +175,12 @@ export const Footer: React.FC = () => {
 
         {/* Bottom Bar */}
         <div className="flex flex-col lg:flex-row items-center justify-between gap-6 text-xs text-slate-500 dark:text-slate-400">
-          <div className="text-center lg:text-left">
+          <div className="text-center lg:text-left flex flex-wrap items-center justify-center lg:justify-start gap-x-2 gap-y-1">
             <p>© {new Date().getFullYear()} KaizenQ. All rights reserved.</p>
+            <span className="hidden sm:inline text-slate-400 dark:text-slate-600">&bull;</span>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              Co-Founded by <span className="font-semibold text-slate-700 dark:text-slate-300">Bhanu Prakash</span> &bull; A <span className="font-semibold text-slate-700 dark:text-slate-300">Shaivika Groups</span> Venture
+            </p>
           </div>
 
           {/* Powered by Shaivika IT Technologies Bottom Pill */}

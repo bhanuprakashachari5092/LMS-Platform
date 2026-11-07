@@ -23,6 +23,8 @@ import { InternshipApplyModal } from '@/components/careers/InternshipApplyModal'
 import { InternshipDetailModal } from '@/components/careers/InternshipDetailModal';
 import { internshipService, getDeletedOpportunityIds, type Internship, type InternshipDetail } from '@/services/internshipService';
 import { DEFAULT_CAREER_OPENINGS } from '@/services/careersService';
+import { SEOHead } from '@/components/seo/SEOHead';
+import { CoFounderSchema, OrganizationSchema } from '@/components/seo/StructuredData';
 
 const JOB_TYPE_TABS = [
   { id: 'ALL', label: 'All Openings' },
@@ -147,6 +149,15 @@ export const CareersPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 transition-colors">
+      <SEOHead
+        title="Careers & Virtual Internships — KaizenQ | Shaivika Groups"
+        description="Join KaizenQ virtual internships and engineering roles. Co-founded by Bhanu Prakash under Shaivika Groups, empowering developers through real-world software production."
+        keywords="KaizenQ, Kaizen Q, Co-Founder of KaizenQ, Bhanu Prakash, Banu Prakash, KaizenQ Internships, Shaivika Groups Careers, Virtual Internships"
+        author="Bhanu Prakash — Co-Founder of KaizenQ"
+      />
+      <OrganizationSchema />
+      <CoFounderSchema />
+
       {/* ─── HERO SECTION ─── */}
       <section className="relative overflow-hidden pt-28 pb-16 sm:pt-36 sm:pb-24 border-b border-slate-200/80 dark:border-slate-800/80">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(59,130,246,0.18),rgba(255,255,255,0))] dark:bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(59,130,246,0.25),rgba(2,6,23,0))] pointer-events-none" />

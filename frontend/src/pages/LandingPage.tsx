@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import { courseService } from '@/services/courseService';
 import type { ICourse } from '../../../shared/types/course';
 import { SEOHead } from '@/components/seo/SEOHead';
-import { OrganizationSchema } from '@/components/seo/StructuredData';
+import { OrganizationSchema, CoFounderSchema } from '@/components/seo/StructuredData';
 import { useAuth } from '@/contexts/AuthContext';
 import { getOptimizedImageUrl } from '@/utils/imageOptimizer';
 
@@ -308,9 +308,12 @@ export const LandingPage: React.FC = () => {
     <div className="w-full bg-[#ffffff] dark:bg-[#0b0f19] text-[#0f172a] dark:text-[#ffffff] font-['Sora'] selection:bg-[#2563eb] selection:text-white transition-colors duration-300">
       <SEOHead
         title="KaizenQ - Modern Learning Platform | Learn. Build. Evolve."
-        description="KaizenQ is a modern learning platform designed to help students and aspiring developers build practical technology skills through structured learning, hands-on practice, and continuous improvement."
+        description="KaizenQ is a modern learning platform and virtual internship accelerator co-founded by Bhanu Prakash, designed to help students and developers build practical engineering skills."
+        keywords="KaizenQ, Kaizen Q, Co-Founder of KaizenQ, Bhanu Prakash, Banu Prakash, Shaivika Groups, virtual internships, technology learning platform, software engineering"
+        author="Bhanu Prakash — Co-Founder of KaizenQ"
       />
       <OrganizationSchema />
+      <CoFounderSchema />
 
       {/* ========================================================================= */}
       {/* 4. HERO SECTION (MOST IMPORTANT)                                          */}
