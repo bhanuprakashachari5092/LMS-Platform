@@ -55,9 +55,11 @@ export const InternshipApplyModal: React.FC<InternshipApplyModalProps> = ({
   const [skills, setSkills] = useState(internship?.requiredSkills || '');
 
   // Resume & Portfolio Links
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [resumeUrl, setResumeUrl] = useState('');
   const [resumeFileName, setResumeFileName] = useState('');
   const [resumeBase64, setResumeBase64] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
   const [githubUrl, setGithubUrl] = useState('');
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [portfolioUrl, setPortfolioUrl] = useState('');
@@ -96,23 +98,21 @@ export const InternshipApplyModal: React.FC<InternshipApplyModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const processSelectedFile = (file: File) => {
     const validTypes = [
       'application/pdf',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'application/msword',
     ];
 
-    if (
-      !validTypes.includes(file.type) &&
-      !file.name.endsWith('.pdf') &&
-      !file.name.endsWith('.docx') &&
-      !file.name.endsWith('.doc')
-    ) {
-      toast.error('Only PDF or DOCX resume files are supported.');
+    const fileNameLower = file.name.toLowerCase();
+    const hasValidExt =
+      fileNameLower.endsWith('.pdf') ||
+      fileNameLower.endsWith('.docx') ||
+      fileNameLower.endsWith('.doc');
+
+    if (!validTypes.includes(file.type) && !hasValidExt) {
+      toast.error('Only PDF, DOCX, or DOC resume files are supported.');
       return;
     }
 
@@ -121,15 +121,53 @@ export const InternshipApplyModal: React.FC<InternshipApplyModalProps> = ({
       return;
     }
 
+    setResumeFile(file);
     setResumeFileName(file.name);
+    const sizeInKb = Math.round(file.size / 1024);
+
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') {
         setResumeBase64(reader.result);
-        toast.success(`Attached ${file.name} successfully!`);
+        toast.success(`Attached ${file.name} (${sizeInKb} KB) successfully!`);
       }
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processSelectedFile(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const droppedFile = e.dataTransfer.files?.[0];
+    if (droppedFile) {
+      processSelectedFile(droppedFile);
+    }
+  };
+
+  const handleRemoveResume = () => {
+    setResumeFile(null);
+    setResumeFileName('');
+    setResumeBase64('');
   };
 
   const resetFormFields = () => {
@@ -138,6 +176,7 @@ export const InternshipApplyModal: React.FC<InternshipApplyModalProps> = ({
     setResumeUrl('');
     setResumeFileName('');
     setResumeBase64('');
+    setResumeFile(null);
     setGithubUrl('');
     setLinkedinUrl('');
     setPortfolioUrl('');
@@ -180,6 +219,14 @@ export const InternshipApplyModal: React.FC<InternshipApplyModalProps> = ({
       return;
     }
 
+    // Enforce mandatory resume check (File upload or external URL)
+    if (!resumeFile && !resumeUrl.trim()) {
+      const msg = 'Resume is required. Please upload your resume in PDF or DOCX format (&le; 5MB) or provide a valid resume link.';
+      setErrorMessage(msg);
+      toast.error(msg);
+      return;
+    }
+
     setErrorMessage(null);
     setLoading(true);
 
@@ -193,7 +240,7 @@ export const InternshipApplyModal: React.FC<InternshipApplyModalProps> = ({
         phone: phone.trim(),
         position: positionToApply,
         resumeUrl: resumeUrl.trim() || undefined,
-        resumeFileName: resumeFileName || undefined,
+        resumeFileName: resumeFileName || resumeFile?.name || undefined,
         resumeBase64: resumeBase64 || undefined,
         linkedin: linkedinUrl.trim() || undefined,
         linkedinUrl: linkedinUrl.trim() || undefined,
@@ -211,7 +258,7 @@ export const InternshipApplyModal: React.FC<InternshipApplyModalProps> = ({
         portfolioUrl: portfolioUrl.trim() || undefined,
         department: internship?.department || 'Engineering',
         workMode: internship?.internshipType || (internship as any)?.workMode || 'REMOTE',
-      });
+      }, resumeFile);
 
       if (!result.success) {
         throw new Error(result.message || 'Unable to submit application.');
@@ -224,7 +271,7 @@ export const InternshipApplyModal: React.FC<InternshipApplyModalProps> = ({
       if (result.duplicate) {
         toast.info(result.message);
       } else {
-        toast.success(result.message || 'Application submitted successfully! Confirmation email sent.');
+        toast.success(result.message || 'Application submitted successfully! Resume delivered to HR (kaizenqlms@gmail.com).');
       }
 
       if (onSuccess) onSuccess();
@@ -337,7 +384,7 @@ export const InternshipApplyModal: React.FC<InternshipApplyModalProps> = ({
             <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-700 text-left max-w-md mx-auto flex items-start gap-3">
               <Mail className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
               <div className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                <strong>Confirmation Email Sent:</strong> An automated confirmation containing your Application ID and next steps has been delivered to <span className="font-semibold text-slate-800 dark:text-slate-100">{email}</span>.
+                <strong>Notification Status:</strong> An automated confirmation containing your Application ID has been delivered to <span className="font-semibold text-slate-800 dark:text-slate-100">{email}</span>, and your complete application with attached resume has been delivered to HR at <strong className="text-slate-800 dark:text-slate-100">kaizenqlms@gmail.com</strong>.
               </div>
             </div>
 
@@ -518,41 +565,93 @@ export const InternshipApplyModal: React.FC<InternshipApplyModalProps> = ({
                   />
                 </div>
 
-                {/* Resume Upload / URL */}
-                <div className="p-3.5 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 space-y-2">
+                {/* Resume Upload / URL with Drag-and-Drop */}
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={`p-4 rounded-2xl border-2 border-dashed transition-all space-y-3 ${
+                    isDragging
+                      ? 'border-blue-500 bg-blue-50/80 dark:bg-blue-950/50 scale-[1.01]'
+                      : resumeFile
+                      ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50/40 dark:bg-emerald-950/20'
+                      : 'border-slate-300 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40'
+                  }`}
+                >
                   <div className="flex items-center justify-between">
-                    <label className="block font-semibold text-slate-800 dark:text-slate-200">
-                      Resume Link or File Upload (PDF / DOCX, &le; 5MB)
+                    <label className="block font-bold text-slate-900 dark:text-white text-xs flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-blue-500" />
+                      <span>Resume / CV Document * (PDF, DOCX, &le; 5MB)</span>
                     </label>
-                    {resumeFileName && (
-                      <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
-                        <FileText className="w-3 h-3" />
-                        {resumeFileName}
-                      </span>
-                    )}
+                    <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">
+                      Sent directly to kaizenqlms@gmail.com
+                    </span>
                   </div>
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                    <label className="cursor-pointer inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 font-medium hover:bg-blue-100 transition-colors">
-                      <Upload className="w-3.5 h-3.5" />
-                      <span>Choose File</span>
-                      <input
-                        type="file"
-                        accept=".pdf,.docx,.doc,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                        onChange={handleFileUpload}
-                        className="hidden"
-                      />
-                    </label>
-                    <span className="text-slate-400 text-[11px] text-center sm:text-left">or enter link:</span>
+
+                  {resumeFile ? (
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 shadow-2xs">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                          <FileText className="w-4 h-4" />
+                        </div>
+                        <div className="truncate text-left">
+                          <div className="font-bold text-slate-900 dark:text-white text-xs truncate">
+                            {resumeFile.name}
+                          </div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400">
+                            {Math.round(resumeFile.size / 1024)} KB &bull; Ready for upload & HR delivery
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleRemoveResume}
+                        className="px-2.5 py-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-[11px] font-semibold transition-colors cursor-pointer"
+                        title="Remove attached file"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-center py-3 space-y-2">
+                      <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto">
+                        <Upload className="w-5 h-5" />
+                      </div>
+                      <div className="text-xs text-slate-600 dark:text-slate-400">
+                        <label className="cursor-pointer font-bold text-blue-600 dark:text-blue-400 hover:underline">
+                          <span>Browse file</span>
+                          <input
+                            type="file"
+                            accept=".pdf,.docx,.doc,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
+                            onChange={handleFileUpload}
+                            className="hidden"
+                          />
+                        </label>{' '}
+                        or drag and drop your resume here
+                      </div>
+                      <div className="text-[10px] text-slate-400 dark:text-slate-500">
+                        Accepts PDF, DOC, or DOCX documents up to 5MB
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Optional External Link Fallback */}
+                  <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center gap-2">
+                    <span className="text-[10px] text-slate-400 shrink-0">Or Google Drive link:</span>
                     <input
                       type="url"
-                      value={resumeUrl.startsWith('data:') ? '' : resumeUrl}
+                      value={resumeUrl.startsWith('data:') || resumeUrl.startsWith('Attached:') ? '' : resumeUrl}
                       onChange={(e) => {
                         setResumeUrl(e.target.value);
-                        setResumeFileName('');
-                        setResumeBase64('');
+                        if (e.target.value) {
+                          setResumeFile(null);
+                          setResumeFileName('');
+                          setResumeBase64('');
+                        }
                       }}
                       placeholder="https://drive.google.com/file/d/..."
-                      className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs focus:border-blue-500 focus:outline-hidden"
+                      className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs focus:border-blue-500 focus:outline-hidden"
                     />
                   </div>
                 </div>

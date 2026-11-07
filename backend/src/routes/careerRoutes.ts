@@ -1,5 +1,12 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { db } from '../firebase';
+import {
+  parseApplicationRequest,
+  validateResumeFile,
+  storeResumeBuffer,
+  getResumeBuffer,
+} from '../utils/internshipApplicationUtils';
+import { sendInternshipApplicationEmails } from '../services/email/internshipEmailService';
 
 const router = Router();
 
@@ -616,20 +623,73 @@ router.get('/:slugOrId', async (req: Request, res: Response, next: NextFunction)
 });
 
 /**
- * POST /api/careers/apply
- * Submits an application: saves to Google Sheets & Firestore, triggers automated emails
+ * Check if candidate has already submitted an active application for this opportunity or position
  */
-router.post('/apply', async (req: Request, res: Response) => {
+async function checkDuplicateApplication(
+  email: string,
+  opportunityId?: string,
+  position?: string
+): Promise<{ isDuplicate: boolean; existingApplication?: any }> {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  if (!normalizedEmail) return { isDuplicate: false };
+
+  // 1. In-memory check
+  const inMemoryMatch = MEMORY_APPLICATIONS.find((a) => {
+    if ((a.email || '').toLowerCase() !== normalizedEmail) return false;
+    if (opportunityId && (a.opportunityId === opportunityId || a.internshipId === opportunityId)) return true;
+    if (position && a.position && a.position.toLowerCase() === position.toLowerCase()) return true;
+    return false;
+  });
+
+  if (inMemoryMatch) {
+    return { isDuplicate: true, existingApplication: inMemoryMatch };
+  }
+
+  // 2. Firestore check
+  if (db) {
+    try {
+      const snap = await db.collection('career_applications').where('email', '==', normalizedEmail).get();
+      for (const doc of snap.docs) {
+        const data = doc.data();
+        if (opportunityId && (data.opportunityId === opportunityId || data.internshipId === opportunityId)) {
+          return { isDuplicate: true, existingApplication: { id: doc.id, ...data } };
+        }
+        if (position && data.position && data.position.toLowerCase() === position.toLowerCase()) {
+          return { isDuplicate: true, existingApplication: { id: doc.id, ...data } };
+        }
+      }
+    } catch (e) {
+      console.warn('Firestore duplicate check notice:', e);
+    }
+  }
+
+  return { isDuplicate: false };
+}
+
+/**
+ * Primary Application Submission Handler:
+ * - Accepts multipart/form-data & JSON with base64/URL
+ * - Validates required fields & file signature (PDF, DOC, DOCX up to 5MB)
+ * - Prevents duplicate applications
+ * - Generates unique Application ID
+ * - Stores resume and creates direct preview URL
+ * - Dispatches Nodemailer email with resume attached to kaizenqlms@gmail.com
+ * - Dispatches applicant confirmation email
+ * - Syncs to Google Sheets & Firestore
+ */
+async function handleApplicationSubmission(req: Request, res: Response) {
   try {
+    // 1. Universal Request Parsing (multipart/form-data or application/json)
+    const { fields, file } = await parseApplicationRequest(req);
+
     const {
       fullName,
       name,
       email,
       phone,
       position,
-      resumeUrl,
+      resumeUrl: clientResumeUrl,
       resumeFileName,
-      resumeBase64,
       linkedinUrl,
       linkedin,
       githubUrl,
@@ -646,23 +706,23 @@ router.post('/apply', async (req: Request, res: Response) => {
       internshipId,
       department,
       workMode,
-    } = req.body;
+    } = fields;
 
-    // 1. IP / Email Rate Limiting
+    // 2. IP / Email Rate Limiting
     const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
     const rateKey = `${clientIp}_${String(email).toLowerCase()}`;
     const now = Date.now();
     const lastAttempt = submissionRateMap.get(rateKey);
 
-    if (lastAttempt && now - lastAttempt < 10000) {
+    if (lastAttempt && now - lastAttempt < 3000) {
       return res.status(429).json({
         success: false,
-        message: 'Please wait a few moments before submitting another application.',
+        message: 'Please wait a moment before submitting another application.',
       });
     }
     submissionRateMap.set(rateKey, now);
 
-    // 2. Server-side Validation
+    // 3. Candidate Profile Validation
     const candidateName = String(name || fullName || '').trim();
     if (!candidateName || candidateName.length < 2) {
       return res.status(400).json({
@@ -672,21 +732,23 @@ router.post('/apply', async (req: Request, res: Response) => {
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email || !emailRegex.test(String(email).trim())) {
+    const candidateEmail = String(email || '').trim().toLowerCase();
+    if (!candidateEmail || !emailRegex.test(candidateEmail)) {
       return res.status(400).json({
         success: false,
         message: 'A valid email address is required.',
       });
     }
 
-    if (!phone || String(phone).trim().length < 7) {
+    const candidatePhone = String(phone || '').trim();
+    if (!candidatePhone || candidatePhone.length < 7) {
       return res.status(400).json({
         success: false,
         message: 'A valid mobile / WhatsApp number is required.',
       });
     }
 
-    // 3. Prevent applications to Archived or Draft opportunities
+    // 4. Prevent applications to Archived or Draft opportunities
     if (internshipId) {
       const list = await getOpportunities();
       const op = list.find((o) => o.id === internshipId);
@@ -700,22 +762,69 @@ router.post('/apply', async (req: Request, res: Response) => {
 
     const appliedPosition = position || 'General Career Application';
 
-    // 4. Generate Application ID fallback
+    // 5. Prevent Duplicate Applications for the same opportunity
+    const dupCheck = await checkDuplicateApplication(candidateEmail, internshipId, appliedPosition);
+    if (dupCheck.isDuplicate && dupCheck.existingApplication) {
+      const existingApp = dupCheck.existingApplication;
+      const existingId = existingApp.applicationId || existingApp.referenceNumber || existingApp.id;
+      return res.status(200).json({
+        success: true,
+        duplicate: true,
+        applicationId: existingId,
+        message: `You have already applied for "${appliedPosition}". Your previous application (ID: ${existingId}) is currently under active evaluation.`,
+      });
+    }
+
+    // 6. Resume Validation (Mandatory PDF, DOC, DOCX up to 5MB)
+    let resumeBuffer: Buffer | null = null;
+    let resumeFilename = resumeFileName || file?.originalname || 'Candidate_Resume.pdf';
+    let resumeMimeType = file?.mimetype || 'application/pdf';
+
+    if (file && file.buffer && file.buffer.length > 0) {
+      const valResult = validateResumeFile(file.buffer, file.originalname, file.mimetype);
+      if (!valResult.valid) {
+        return res.status(400).json({
+          success: false,
+          message: valResult.error || 'Invalid resume file.',
+        });
+      }
+      resumeBuffer = file.buffer;
+      resumeFilename = file.originalname;
+      resumeMimeType = valResult.detectedMime;
+    } else if (clientResumeUrl && clientResumeUrl.trim().length > 5 && !clientResumeUrl.startsWith('Attached:')) {
+      // Valid remote URL provided (e.g. Google Drive link)
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Resume upload is required. Please upload your resume in PDF, DOC, or DOCX format (maximum 5MB).',
+      });
+    }
+
+    // 7. Generate Unique Application ID (Format: KQ-YYYY-XXXX)
     const currentYearStr = new Date().getFullYear();
     const generatedId = `KQ-${currentYearStr}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    // 5. Prepare 15-column payload
+    // 8. Secure Resume Storage & Direct Preview Endpoint
+    let storedResumeUrl = clientResumeUrl?.trim() || '';
+    if (resumeBuffer) {
+      storedResumeUrl = storeResumeBuffer(generatedId, resumeBuffer, resumeFilename, resumeMimeType);
+    } else if (!storedResumeUrl) {
+      storedResumeUrl = `Attached: ${resumeFilename}`;
+    }
+
+    // 9. Prepare 15-column payload for Google Sheets Integration
+    const resumeBase64 = resumeBuffer ? resumeBuffer.toString('base64') : (fields.resumeBase64 || '');
     const preparedPayload = {
       action: 'submitApplication',
       applicationId: generatedId,
       name: sanitizeInput(candidateName),
       fullName: sanitizeInput(candidateName),
-      email: String(email).trim().toLowerCase(),
-      phone: sanitizeInput(phone),
+      email: candidateEmail,
+      phone: sanitizeInput(candidatePhone),
       position: sanitizeInput(appliedPosition),
-      resumeUrl: sanitizeInput(resumeUrl) || (resumeFileName ? `Attached: ${resumeFileName}` : 'Not Provided'),
-      resumeFileName: sanitizeInput(resumeFileName),
-      resumeBase64: resumeBase64 || '',
+      resumeUrl: sanitizeInput(storedResumeUrl),
+      resumeFileName: sanitizeInput(resumeFilename),
+      resumeBase64,
       linkedin: sanitizeInput(linkedin || linkedinUrl),
       github: sanitizeInput(github || githubUrl),
       portfolioUrl: sanitizeInput(portfolioUrl),
@@ -732,13 +841,13 @@ router.post('/apply', async (req: Request, res: Response) => {
       skills: sanitizeInput(skills),
     };
 
+    let assignedId = generatedId;
+
+    // 10. Forward to Google Apps Script Web App / Google Sheets
     const appsScriptUrl =
       process.env.GOOGLE_APPS_SCRIPT_CAREERS_URL ||
       'https://script.google.com/macros/s/AKfycbx5SCDb_L-2x213DFJkufRDW_e_JQr9NP-ASUmRrk1MW0pVCyTIG6rtTBJsTdFfYmQnEQ/exec';
 
-    let assignedId = generatedId;
-
-    // 6. Forward to Google Apps Script / Google Sheets
     if (appsScriptUrl) {
       try {
         const scriptResponse = await fetch(appsScriptUrl, {
@@ -752,22 +861,67 @@ router.post('/apply', async (req: Request, res: Response) => {
           const scriptData: any = await scriptResponse.json();
           if (scriptData.success) {
             assignedId = scriptData.applicationId || generatedId;
+            if (scriptData.resumeUrl && scriptData.resumeUrl.startsWith('http')) {
+              storedResumeUrl = scriptData.resumeUrl;
+            }
           }
         }
       } catch (proxyErr: any) {
-        console.warn('Google Apps Script forwarding warning (local record preserved):', proxyErr);
+        console.warn('Google Apps Script forwarding warning (local record preserved):', proxyErr?.message);
       }
     }
 
-    // 7. Store record in Firestore
+    // 11. Automated Email Dispatch (HR at kaizenqlms@gmail.com with Resume + Applicant Acknowledgement)
+    let emailResult = { hrEmailSent: false, applicantEmailSent: false };
+    try {
+      const emailData = {
+        applicationId: assignedId,
+        fullName: candidateName,
+        email: candidateEmail,
+        phone: candidatePhone,
+        college: college?.trim(),
+        degree: degree?.trim(),
+        branch: branch?.trim(),
+        currentYear: currentYear?.trim(),
+        graduationYear: graduationYear ? Number(graduationYear) : undefined,
+        skills: skills?.trim(),
+        position: appliedPosition,
+        department: department?.trim() || 'Engineering',
+        workMode: workMode?.trim() || 'REMOTE',
+        linkedin: (linkedin || linkedinUrl)?.trim(),
+        github: (github || githubUrl)?.trim(),
+        portfolioUrl: portfolioUrl?.trim(),
+        coverLetter: (coverLetter || statementOfPurpose)?.trim(),
+        appliedAt: new Date().toISOString(),
+        resumeFileName: resumeFilename,
+        resumeUrl: storedResumeUrl,
+      };
+
+      const resumeAttachment = resumeBuffer
+        ? {
+            filename: resumeFilename,
+            buffer: resumeBuffer,
+            mimetype: resumeMimeType,
+          }
+        : null;
+
+      emailResult = await sendInternshipApplicationEmails(emailData, resumeAttachment);
+    } catch (emailErr: any) {
+      console.error('[INTERNSHIP_EMAIL] Dispatch notification error:', emailErr?.message);
+    }
+
+    // 12. Save Record in Firestore
     const finalRecord = {
       ...preparedPayload,
       id: assignedId,
       applicationId: assignedId,
       referenceNumber: assignedId,
+      resumeUrl: storedResumeUrl,
       appliedAt: new Date().toISOString(),
       createdAt: new Date().toISOString(),
       status: 'New',
+      hrEmailSent: emailResult.hrEmailSent,
+      applicantEmailSent: emailResult.applicantEmailSent,
     };
 
     if (db) {
@@ -778,13 +932,16 @@ router.post('/apply', async (req: Request, res: Response) => {
       }
     }
 
-    // Memory cache
+    // Update memory cache
     MEMORY_APPLICATIONS.unshift(finalRecord);
 
     return res.status(200).json({
       success: true,
-      message: 'Application submitted successfully.',
+      message: 'Application submitted successfully! Application details and resume delivered to HR.',
       applicationId: assignedId,
+      hrEmailSent: emailResult.hrEmailSent,
+      applicantEmailSent: emailResult.applicantEmailSent,
+      resumeUrl: storedResumeUrl,
     });
   } catch (err: any) {
     console.error('Careers apply route failure:', err);
@@ -792,6 +949,55 @@ router.post('/apply', async (req: Request, res: Response) => {
       success: false,
       message: 'Unable to submit your application. Please try again.',
     });
+  }
+}
+
+/**
+ * POST /api/careers/apply
+ * POST /api/internship-applications
+ * Unified endpoints accepting multipart/form-data & JSON with resume attachment
+ */
+router.post('/apply', handleApplicationSubmission);
+router.post('/', handleApplicationSubmission);
+router.post('/internship-applications', handleApplicationSubmission);
+
+/**
+ * GET /api/careers/resumes/:applicationId
+ * GET /api/careers/applications/:applicationId/resume
+ * Serves stored resume directly with preview and download capability for admin
+ */
+router.get(['/resumes/:applicationId', '/applications/:applicationId/resume'], async (req: Request, res: Response) => {
+  try {
+    const appId = String(req.params.applicationId || '').trim();
+    const stored = getResumeBuffer(appId);
+
+    if (stored) {
+      res.setHeader('Content-Type', stored.mimetype || 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${stored.filename}"`);
+      return res.send(stored.buffer);
+    }
+
+    // Check Firestore for remote resumeUrl fallback
+    if (db) {
+      try {
+        const doc = await db.collection('career_applications').doc(appId).get();
+        if (doc.exists) {
+          const data = doc.data();
+          if (data?.resumeUrl && data.resumeUrl.startsWith('http')) {
+            return res.redirect(data.resumeUrl);
+          }
+        }
+      } catch (e) {
+        // Ignored
+      }
+    }
+
+    return res.status(404).json({
+      success: false,
+      message: 'Resume document not found for the specified application.',
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 

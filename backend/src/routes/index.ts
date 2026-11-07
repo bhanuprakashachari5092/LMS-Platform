@@ -78,5 +78,6 @@ router.use('/resume', resumeRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/careers', careerRoutes);
 router.use('/internships', careerRoutes);
+router.use('/internship-applications', careerRoutes);
 
 export default router;

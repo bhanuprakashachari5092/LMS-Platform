@@ -228,7 +228,7 @@ export const careersService = {
    * Submits candidate application to Google Apps Script Web App.
    * Maps existing form fields to: name, email, phone, position, resumeUrl, linkedin, github, coverLetter.
    */
-  async submitApplication(payload: CareerApplicationPayload): Promise<CareerApplicationResponse> {
+  async submitApplication(payload: CareerApplicationPayload, file?: File | null): Promise<CareerApplicationResponse> {
     const candidateName = (payload.name || payload.fullName || '').trim();
     const candidateEmail = (payload.email || '').trim().toLowerCase();
     const candidatePhone = (payload.phone || '').trim();
@@ -239,8 +239,8 @@ export const careersService = {
     const candidateCoverLetter = (payload.coverLetter || payload.statementOfPurpose || '').trim();
 
     // Ensure resumeUrl is not blank if an attachment or placeholder exists
-    if (!candidateResumeUrl && payload.resumeFileName) {
-      candidateResumeUrl = `Attached: ${payload.resumeFileName}`;
+    if (!candidateResumeUrl && (payload.resumeFileName || file?.name)) {
+      candidateResumeUrl = `Attached: ${payload.resumeFileName || file?.name}`;
     }
     if (!candidateResumeUrl) {
       candidateResumeUrl = 'Not Provided';
@@ -265,7 +265,6 @@ export const careersService = {
     }
 
     // 2. Map form fields strictly to required 15 columns:
-    // Application ID, Timestamp, Name, Email, Phone, Position, Resume URL, LinkedIn, GitHub, Cover Letter, Status, Opportunity ID, Portfolio URL, Department, Work Mode
     const appsScriptPayload = {
       action: 'submitApplication',
       name: candidateName,
@@ -274,7 +273,7 @@ export const careersService = {
       phone: candidatePhone,
       position: candidatePosition,
       resumeUrl: candidateResumeUrl,
-      resumeFileName: payload.resumeFileName || '',
+      resumeFileName: payload.resumeFileName || file?.name || '',
       resumeBase64: payload.resumeBase64 || '',
       linkedin: candidateLinkedin,
       github: candidateGithub,
@@ -306,21 +305,47 @@ export const careersService = {
         phone: appsScriptPayload.phone,
         position: appsScriptPayload.position,
         resumeUrl: appsScriptPayload.resumeUrl,
-        portfolioUrl: appsScriptPayload.portfolioUrl,
-        opportunityId: appsScriptPayload.opportunityId,
+        hasFile: Boolean(file),
       });
       console.groupEnd();
     }
 
-    // Tier 1: Try submission via backend API endpoint (which syncs to Google Sheets & Firestore)
+    // Tier 1: Try submission via backend API endpoint (delivers to kaizenqlms@gmail.com, Google Sheets & Firestore)
     try {
-      const backendRes = await apiClient.post<any>('/careers/apply', appsScriptPayload);
-      if (backendRes.data && (backendRes.data.success || backendRes.data.status === 'success')) {
+      let requestBody: any = appsScriptPayload;
+
+      // If file is provided, construct multipart/form-data
+      if (file) {
+        const formData = new FormData();
+        formData.append('resume', file, file.name);
+        Object.entries(appsScriptPayload).forEach(([key, val]) => {
+          if (val !== undefined && val !== null) {
+            formData.append(key, String(val));
+          }
+        });
+        requestBody = formData;
+      }
+
+      const endpointsToTry = ['/internship-applications', '/careers/apply'];
+      let backendRes: any = null;
+
+      for (const ep of endpointsToTry) {
+        try {
+          backendRes = await apiClient.post<any>(ep, requestBody);
+          if (backendRes?.data && (backendRes.data.success || backendRes.data.status === 'success')) {
+            break;
+          }
+        } catch (epErr) {
+          // Try next endpoint
+        }
+      }
+
+      if (backendRes?.data && (backendRes.data.success || backendRes.data.status === 'success')) {
         const resData = backendRes.data.data || backendRes.data;
         const appId = resData.applicationId || resData.id || resData.referenceNumber;
         return {
           success: true,
-          message: resData.message || 'Application submitted successfully.',
+          message: resData.message || 'Application submitted successfully! Details and resume delivered to HR.',
           applicationId: appId,
           duplicate: Boolean(resData.duplicate),
           applicantEmailSent: resData.applicantEmailSent,
@@ -328,7 +353,7 @@ export const careersService = {
         };
       }
     } catch (backendErr: any) {
-      console.warn('Backend /careers/apply offline or returned error, attempting direct Google Apps Script delivery:', backendErr);
+      console.warn('Backend internship application API offline, attempting direct Google Apps Script delivery:', backendErr);
     }
 
     // Tier 2: Direct Google Apps Script Web App submission

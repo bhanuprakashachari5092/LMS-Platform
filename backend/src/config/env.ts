@@ -53,6 +53,7 @@ const envSchema = z.object({
   SMTP_FROM_EMAIL: z.string().default('no-reply@kaizenq.in'),
   SMTP_FROM_NAME: z.string().default('KaizenQ'),
   SMTP_FROM: z.string().default('KaizenQ <no-reply@kaizenq.in>'),
+  HR_NOTIFICATION_EMAIL: z.string().default('kaizenqlms@gmail.com'),
 
   // Google Drive Credentials
   GOOGLE_DRIVE_CLIENT_EMAIL: z.string().optional(),
