@@ -190,3 +190,4 @@ Configure these environment variables in Render under **Environment**:
 ### Issue 5: CORS Errors from Frontend (e.g. Vercel)
 - **Cause**: Frontend origin not in allowed origins list.
 - **Solution**: Update the `CORS_ORIGIN` environment variable in Render to include your exact frontend URLs: `https://www.kaizenq.in,https://kaizenq.in,https://your-app.vercel.app`.
+

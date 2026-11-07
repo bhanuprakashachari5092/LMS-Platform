@@ -68,8 +68,8 @@ management:
 app:
   jwt:
     secret: ${JWT_SECRET:kaizenq_production_jwt_secret_key_2026_at_least_256_bits_long!}
-    access-token-expiration-seconds: 86400      # 24 hours
-    refresh-token-expiration-seconds: 604800   # 7 days
+    access-token-expiration-seconds: 86400 # 24 hours
+    refresh-token-expiration-seconds: 604800 # 7 days
   cors:
     allowed-origins: ${CORS_ORIGIN:https://www.kaizenq.in,https://kaizenq.in,https://shaivika-lms.vercel.app,http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173}
     allowed-methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
@@ -175,4 +175,3 @@ spring:
 app:
   sheets:
     apps-script-url: ""
-
